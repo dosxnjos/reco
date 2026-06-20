@@ -21,13 +21,21 @@ Write-Host "Installing PyInstaller..." -ForegroundColor Yellow
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: failed to install PyInstaller." -ForegroundColor Red; exit 1 }
 
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
-& $pythonExe -m pip install soundcard lameenc numpy scipy --quiet
+& $pythonExe -m pip install soundcard lameenc numpy scipy av huggingface_hub openvino openvino-genai openvino-tokenizers --quiet
 if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: a dependency failed to install." -ForegroundColor Yellow }
 
 if ($Clean) {
     foreach ($d in @("dist", "build")) {
         if (Test-Path $d) { Remove-Item $d -Recurse -Force; Write-Host "Cleaned: $d" }
     }
+}
+
+# Fetch the Whisper model to bundle (offline first run). Rarely updated, so shipped.
+$modelDir = "$PSScriptRoot\models\whisper-small-int8-ov"
+if (-not (Test-Path "$modelDir\openvino_encoder_model.xml")) {
+    Write-Host "Downloading Whisper model to bundle..." -ForegroundColor Yellow
+    & $pythonExe -c "from huggingface_hub import snapshot_download; snapshot_download('OpenVINO/whisper-small-int8-ov', local_dir=r'$modelDir')"
+    if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: model download failed; exe will download on first use." -ForegroundColor Yellow }
 }
 
 $spec = "$PSScriptRoot\reco.spec"
@@ -49,16 +57,18 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-$exe = "$PSScriptRoot\dist\Reco.exe"
+$exe = "$PSScriptRoot\dist\Reco\Reco.exe"
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host " Build complete!" -ForegroundColor Green
 Write-Host " $exe"
-if (Test-Path $exe) {
-    $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-    Write-Host " Size: $mb MB"
+$distDir = "$PSScriptRoot\dist\Reco"
+if (Test-Path $distDir) {
+    $mb = [math]::Round(((Get-ChildItem $distDir -Recurse | Measure-Object Length -Sum).Sum) / 1MB, 1)
+    Write-Host " Folder size: $mb MB"
 }
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "NOTE: faster-whisper is NOT bundled. The .exe records on its own;"
-Write-Host "      for transcription it uses the system Python (auto-installs on demand)."
+Write-Host "NOTE: transcription runs in-process via OpenVINO GenAI (NPU/iGPU/CPU)."
+Write-Host "      The Whisper model is bundled (fully offline). Ship the whole"
+Write-Host "      dist\Reco\ folder; run Reco.exe inside it."

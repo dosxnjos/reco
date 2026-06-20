@@ -22,7 +22,6 @@ import wave
 import datetime
 import json
 import os
-import re
 import math
 import ctypes
 import subprocess
@@ -109,13 +108,20 @@ _CFG_DEFAULTS: dict = {
     "language":    None,      # "pt" | "en" | None -> auto-detect from system
     "bg_color":    DEFAULT_BG,
     "accent_color": DEFAULT_ACCENT,
-    "channels":    1,
-    "sample_rate": 48000,     # 48 kHz = native WASAPI rate, no resampling
-    "mp3_bitrate": 64,        # 64 kbps = small files, fine for speech
     "model":       "small",
+    "device":      "AUTO",    # OpenVINO device pref: AUTO | NPU | GPU | CPU
+    "diarize":     True,      # channel-based diarization (mic = "Eu", system = others)
+    "aec":         True,      # cancel PC-audio echo bleeding into the mic
     "mic_device":  None,      # soundcard device id (str)
     "sys_device":  None,      # soundcard speaker id (str)
 }
+
+# Recording format is fixed (not user-configurable): 16 kHz stereo (L=mic,
+# R=system) is exactly what transcription + channel diarization + echo
+# cancellation need; 128 kbps VBR ≈ 64 kbps/channel keeps files small.
+OUT_SR = 16000
+OUT_CH = 2
+MP3_BR = 128
 
 def load_config() -> dict:
     cfg = dict(_CFG_DEFAULTS)
@@ -209,6 +215,7 @@ _TR_EN = {
     "⚙ Opções": "⚙ Options",
     "⚙ Ocultar opções": "⚙ Hide options",
     "Transcrever…": "Transcribe…",
+    "← Gravar": "← Record",
     "Ocultar transcrição": "Hide transcription",
     # advanced labels
     "Entrada (mic):": "Input (mic):",
@@ -218,6 +225,11 @@ _TR_EN = {
     "Taxa:": "Rate:",
     "MP3:": "MP3:",
     "Modelo:": "Model:",
+    "Processar em:": "Run on:",
+    "☐ Diarização (uma fala por canal)": "☐ Diarization (one speaker per channel)",
+    "☑ Diarização (uma fala por canal)": "☑ Diarization (one speaker per channel)",
+    "☐ Cancelar eco do PC no microfone": "☐ Cancel PC echo in the microphone",
+    "☑ Cancelar eco do PC no microfone": "☑ Cancel PC echo in the microphone",
     "Idioma:": "Language:",
     "⌨ Criar atalho (Ctrl+Shift+R)": "⌨ Create shortcut (Ctrl+Shift+R)",
     "⌨ Remover atalho": "⌨ Remove shortcut",
@@ -226,7 +238,8 @@ _TR_EN = {
     "Atalho removido.": "Shortcut removed.",
     "Não foi possível criar o atalho: {e}":
         "Couldn't create the shortcut: {e}",
-    "tiny · small (padrão) · medium": "tiny · small (default) · medium",
+    "tiny · small (padrão) · medium · large-v3-turbo":
+        "tiny · small (default) · medium · large-v3-turbo",
     "Mono": "Mono",
     "Estéreo": "Stereo",
     "16.000 Hz": "16,000 Hz",
@@ -268,18 +281,14 @@ _TR_EN = {
     "Nada para reproduzir.": "Nothing to play.",
     "Arquivo não encontrado.": "File not found.",
     "Já há uma transcrição em andamento.": "A transcription is already running.",
-    "faster-whisper não instalado — rode setup.ps1":
-        "faster-whisper not installed — run setup.ps1",
-    "Preparando transcrição…": "Preparing transcription…",
-    "Verificando componentes…": "Checking components…",
-    "componentes de transcrição não instalados — use o instalador que abriu":
-        "transcription components not installed — use the installer that opened",
+    "Transcrição indisponível — instale openvino-genai.":
+        "Transcription unavailable — install openvino-genai.",
     "Transcrevendo {n}…": "Transcribing {n}…",
-    "Carregando modelo…": "Loading model…",
     "Transcrevendo…": "Transcribing…",
     "Transcrevendo… {p}%": "Transcribing… {p}%",
-    "Carregando modelo '{size}' (primeira vez faz download)…":
-        "Loading model '{size}' (first time downloads it)…",
+    "Baixando modelo '{size}' (primeira vez)…":
+        "Downloading model '{size}' (first time)…",
+    "Preparando modelo no {dev}…": "Preparing model on {dev}…",
     "a transcrição falhou (código {c})": "transcription failed (code {c})",
     "Erro na transcrição: {e}": "Transcription error: {e}",
     "Transcrito, mas falha ao salvar o .txt.":
@@ -384,10 +393,12 @@ except ImportError:
     lameenc = None; HAS_LAME = False
 
 
-# ── Transcription (faster-whisper), delegated to system Python in the .exe ─────
-def _user_deps_dir() -> Path:
-    base = os.environ.get("LOCALAPPDATA") or str(Path.home())
-    return Path(base) / APP_NAME / "deps"
+# ── Transcription backend: OpenVINO GenAI (in-process, NPU / iGPU / CPU) ───────
+# One backend for everything. OpenVINO runs the whole Whisper model natively on
+# the Intel NPU ("AI Boost"), the iGPU (Arc), or any x86-64 CPU — so the .exe is
+# fully plug-n-play (no Python, no ffmpeg) once the runtime is bundled. The model
+# (pre-converted INT8 IR) is downloaded from Hugging Face on first use.
+import importlib.util as _ilu
 
 
 def _no_window_kwargs() -> dict:
@@ -399,50 +410,133 @@ def _ps_quote(s: str) -> str:
     return "'" + s.replace("'", "''") + "'"
 
 
-def _system_python_cmd() -> list | None:
-    """A system Python matching this app's version (for transcription/install)."""
-    import shutil
-    py = shutil.which("py")
-    if py:
-        return [py, f"-{sys.version_info.major}.{sys.version_info.minor}"]
-    for c in ("python", "python3"):
-        p = shutil.which(c)
-        if p:
-            return [p]
-    return None
+# Cheap availability probes (don't import the heavy runtime at startup).
+import platform as _platform
+HAS_OV = _ilu.find_spec("openvino_genai") is not None
+HAS_AV = _ilu.find_spec("av") is not None
+# macOS on Apple Silicon → MLX backend (uses the Apple GPU; OpenVINO would be
+# CPU-only there). Everything else (Windows/Linux x86) → OpenVINO.
+HAS_MLX = (sys.platform == "darwin"
+           and _platform.machine() in ("arm64", "aarch64")
+           and _ilu.find_spec("mlx_whisper") is not None)
 
 
-def _system_has_whisper(cmd=None) -> bool:
-    cmd = cmd or _system_python_cmd()
-    if not cmd:
-        return False
+def _user_data_dir() -> Path:
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    return Path(base) / APP_NAME
+
+
+def _bundled_models_dir() -> Path:
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return base / "models"
+
+
+# ── Audio decoding (PyAV → 16 kHz float32; no external ffmpeg binary) ───────────
+def decode_16k(path: Path, split: bool = False) -> list:
+    """Decode any audio file to 16 kHz float32 channels.
+
+    Returns [mono] normally, or [left, right] when split=True and the source is
+    stereo (channel-based diarization: L = mic = "Eu", R = system = others)."""
+    import av
+    with av.open(str(path)) as cont:
+        st = cont.streams.audio[0]
+        nch = getattr(st, "channels", 1) or 1
+        stereo = bool(split and nch >= 2)
+        rs = av.audio.resampler.AudioResampler(
+            format="fltp", layout="stereo" if stereo else "mono", rate=16000)
+        buf = []
+        for frame in cont.decode(audio=0):
+            for r in rs.resample(frame):
+                buf.append(r.to_ndarray())          # planar: (layout_ch, n)
+        for r in rs.resample(None):                 # flush
+            buf.append(r.to_ndarray())
+    if not buf:
+        return [np.zeros(0, np.float32)] * (2 if stereo else 1)
+    arr = np.concatenate(buf, axis=1).astype(np.float32)
+    if stereo and arr.shape[0] >= 2:
+        return [np.ascontiguousarray(arr[0]), np.ascontiguousarray(arr[1])]
+    return [np.ascontiguousarray(arr[0])]
+
+
+# ── Acoustic echo cancellation (offline NLMS-style, frequency domain) ───────────
+def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
+                sr: int = 16000, nfft: int = 1024, hop: int = 256) -> "np.ndarray":
+    """Remove the echo of `ref` (system loopback) bleeding into `mic`.
+
+    For users on speakers, the PC audio leaks acoustically into the microphone,
+    duplicating the other party's voice across both channels and confusing the
+    channel diarization. We have a perfect far-end reference (the loopback), so we
+    estimate the (time-invariant) echo path per frequency bin by least squares and
+    subtract it. Offline, pure numpy/scipy. Validated ~37 dB ERLE on synthetic
+    echo. If `ref` carries no energy this is a near no-op."""
+    if mic.size == 0 or ref.size == 0:
+        return mic
     try:
-        r = subprocess.run(cmd + ["-c", "import faster_whisper"],
-                           capture_output=True, text=True, timeout=60,
-                           **_no_window_kwargs())
-        return r.returncode == 0
+        from scipy.signal import stft, istft, correlate
     except Exception:
-        return False
+        return mic
+    n = max(len(mic), len(ref))
+    mic = np.pad(mic, (0, n - len(mic)))
+    ref = np.pad(ref, (0, n - len(ref)))
+    # bulk delay of ref inside mic (search ±200 ms)
+    maxlag = int(0.2 * sr)
+    c = correlate(mic, ref, mode="full", method="fft")
+    lags = np.arange(-len(ref) + 1, len(mic))
+    win = np.abs(lags) <= maxlag
+    d = int(lags[win][np.argmax(np.abs(c[win]))])
+    ref_al = np.roll(ref, d)
+    if d > 0:
+        ref_al[:d] = 0
+    elif d < 0:
+        ref_al[d:] = 0
+    _, _, M = stft(mic, fs=sr, nperseg=nfft, noverlap=nfft - hop)
+    _, _, S = stft(ref_al, fs=sr, nperseg=nfft, noverlap=nfft - hop)
+    H = (np.sum(M * np.conj(S), axis=1) / (np.sum(np.abs(S) ** 2, axis=1) + 1e-8))[:, None]
+    _, mic_c = istft(M - H * S, fs=sr, nperseg=nfft, noverlap=nfft - hop)
+    return mic_c[:len(mic)].astype(np.float32)
 
 
-WhisperModel = None
-HAS_WHISPER  = False
-
-def _import_whisper() -> bool:
-    global WhisperModel, HAS_WHISPER
+# ── OpenVINO device + model management ──────────────────────────────────────────
+def ov_available_devices() -> list:
     try:
-        from faster_whisper import WhisperModel as _WM
-        WhisperModel = _WM
-        HAS_WHISPER = True
+        import openvino as ov
+        return list(ov.Core().available_devices)
     except Exception:
-        WhisperModel = None
-        HAS_WHISPER = False
-    return HAS_WHISPER
+        return ["CPU"]
 
-# Try to import in-process (works in source, and in the .exe if faster-whisper is
-# bundled). If unavailable in the frozen .exe, transcription falls back to the
-# system Python via subprocess (see App._run_transcriber).
-_import_whisper()
+
+def resolve_device(pref: str) -> str:
+    """Map a preferred device to one that exists (pref → NPU → GPU → CPU)."""
+    avail = ov_available_devices()
+    def has(d):                       # available_devices may report 'GPU.0' etc.
+        return any(a == d or a.startswith(d + ".") for a in avail)
+    if pref and has(pref):
+        return pref
+    for d in ("NPU", "GPU", "CPU"):
+        if has(d):
+            return d
+    return "CPU"
+
+
+def ov_model_repo(size: str) -> str:
+    return f"OpenVINO/whisper-{size}-int8-ov"
+
+
+def ensure_ov_model(size: str, progress=None) -> Path:
+    """Local dir with the OV IR model; bundled, cached, or downloaded on demand."""
+    sentinel = "openvino_encoder_model.xml"
+    bundled = _bundled_models_dir() / f"whisper-{size}-int8-ov"
+    if (bundled / sentinel).exists():
+        return bundled
+    dest = _user_data_dir() / "models" / f"whisper-{size}-int8-ov"
+    if (dest / sentinel).exists():
+        return dest
+    if progress:
+        progress(tf("Baixando modelo '{size}' (primeira vez)…", size=size))
+    from huggingface_hub import snapshot_download
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_download(ov_model_repo(size), local_dir=str(dest))
+    return dest
 
 CANCELLED = "__cancelled__"   # sentinel: transcription stopped by the user
 
@@ -453,112 +547,34 @@ PROMPTS = {
     "en": ("Work meeting in English with some product names and acronyms."),
 }
 
-# Worker run by the SYSTEM Python (where faster-whisper works): transcribes the
-# audio and writes the text to out_txt. argv: audio model out_txt lang
-_WORKER_SRC = (
-    "import sys\n"
-    "audio, model_size, out_txt, lang = sys.argv[1:5]\n"
-    "print('STAGE loading', flush=True)\n"
-    "from faster_whisper import WhisperModel\n"
-    "m = WhisperModel(model_size, device='cpu', compute_type='int8')\n"
-    "print('STAGE transcribing', flush=True)\n"
-    "PROMPTS = {\n"
-    "  'pt': ('Reuni\\u00e3o de trabalho em portugu\\u00eas brasileiro com alguns '\n"
-    "         'termos t\\u00e9cnicos em ingl\\u00eas. Nomes de marcas e siglas em '\n"
-    "         'ingl\\u00eas s\\u00e3o comuns.'),\n"
-    "  'en': 'Work meeting in English with some product names and acronyms.',\n"
-    "}\n"
-    "segs, info = m.transcribe(audio, language=lang,\n"
-    "                          initial_prompt=PROMPTS.get(lang),\n"
-    "                          vad_filter=True,\n"
-    "                          vad_parameters={'min_silence_duration_ms': 400})\n"
-    "total = getattr(info, 'duration', 0) or 0\n"
-    "parts = []\n"
-    "for s in segs:\n"
-    "    if s.text.strip():\n"
-    "        parts.append(s.text.strip())\n"
-    "    if total:\n"
-    "        print('PROG ' + str(min(99, int(s.end / total * 100))), flush=True)\n"
-    "text = '\\n'.join(parts) or '(no content recognized)'\n"
-    "import io\n"
-    "with io.open(out_txt, 'w', encoding='utf-8') as f:\n"
-    "    f.write(text)\n"
-    "print('DONE', flush=True)\n"
-)
+# Speaker labels for channel-based diarization (mic = you; system loopback = who-
+# ever is on the call — count unknown, hence the plural).
+def _spk_me() -> str:
+    return "Eu" if LANG == "pt" else "Me"
+
+def _spk_them() -> str:
+    return "Interlocutor(es)" if LANG == "pt" else "Speaker(s)"
 
 
-def _ensure_worker_script() -> Path:
-    d = _user_deps_dir().parent
-    d.mkdir(parents=True, exist_ok=True)
-    wp = d / "transcribe_worker.py"
-    try:
-        if not wp.exists() or wp.read_text(encoding="utf-8") != _WORKER_SRC:
-            wp.write_text(_WORKER_SRC, encoding="utf-8")
-    except Exception:
-        pass
-    return wp
+# ── Settings ──────────────────────────────────────────────────────────────────
+# Model (small), device (AUTO → NPU→iGPU→CPU), diarization and echo cancellation
+# are all automatic — config keys still exist for power-user overrides, but there
+# are no UI controls for them.
 
 
-class PipProgress:
-    """Estimate a % from pip's output (download/install)."""
-    EST_MB = 220.0
-
-    def __init__(self):
-        self.done_mb = 0.0
-        self.cur_mb  = 0.0
-        self.pkg     = ""
-        self.installing = False
-
-    def feed(self, line: str):
-        l = line.strip()
-        if not l:
-            return None, None
-        m = re.search(r"Collecting ([\w\-\.\[\]]+)", l)
-        if m:
-            self.done_mb += self.cur_mb
-            self.cur_mb = 0.0
-            self.pkg = m.group(1)
-            return self._pct(), tf("Baixando {pkg}…", pkg=self.pkg)
-        m = re.search(r"([\d.]+)\s*/\s*([\d.]+)\s*MB", l)
-        if m:
-            try:
-                self.cur_mb = float(m.group(1))
-            except ValueError:
-                pass
-            return self._pct(), tf("Baixando {pkg}… {mb} MB",
-                                   pkg=self.pkg, mb=f"{self.cur_mb:.0f}")
-        if "Installing collected packages" in l:
-            self.installing = True
-            return 96, t("Instalando pacotes…")
-        if "Successfully installed" in l:
-            return 100, t("Concluído!")
-        return None, None
-
-    def _pct(self) -> int:
-        if self.installing:
-            return 96
-        frac = (self.done_mb + self.cur_mb) / self.EST_MB
-        return int(min(0.92, max(0.0, frac)) * 100)
-
-
-# ── Audio settings ──────────────────────────────────────────────────────────
-# 8000 Hz omitted on purpose: LAME ignores the chosen bitrate at that rate.
-SR_OPTIONS  = [16000, 22050, 44100, 48000]
-SR_LABELS   = ["16.000 Hz", "22.050 Hz", "44.100 Hz", "48.000 Hz"]
-CH_OPTIONS  = [1, 2]
-CH_LABELS   = ["Mono", "Estéreo"]
-BR_OPTIONS  = [64, 96, 128, 192, 256]
-BR_LABELS   = ["64 kbps", "96 kbps", "128 kbps", "192 kbps", "256 kbps"]
-
-
-def write_mp3(path: Path, data: "np.ndarray", sr: int, channels: int, bitrate: int):
-    """Encode float32 [-1,1] (mono (n,) or stereo (n,2)) to MP3."""
+def write_mp3(path: Path, data: "np.ndarray", sr: int, channels: int,
+              bitrate: int, vbr: bool = True):
+    """Encode float32 [-1,1] (mono (n,) or stereo (n,2)) to MP3 (VBR by default)."""
     inter = np.ascontiguousarray(data, dtype=np.float32).reshape(-1)
     if inter.size == 0:
         raise ValueError("no audio to encode")
     pcm16 = np.clip(np.round(inter * 32767), -32768, 32767).astype("<i2")
     enc = lameenc.Encoder()
-    enc.set_bit_rate(bitrate)
+    if vbr:
+        enc.set_vbr(4)                          # 4 = MTRH (standard VBR)
+        enc.set_vbr_mean_bitrate_kbps(bitrate)
+    else:
+        enc.set_bit_rate(bitrate)
     enc.set_in_sample_rate(sr)
     enc.set_channels(channels)
     enc.set_quality(2)
@@ -892,67 +908,281 @@ class DualRecorder:
         return path
 
 
-# ── Transcriber (in-process, source runs) ──────────────────────────────────────
-class Transcriber:
+# ── Transcriber: OpenVINO GenAI, in-process (NPU / iGPU / CPU) ──────────────────
+class OVTranscriber:
+    WIN = 30.0      # seconds per window — Whisper's native frame; also our
+                    # progress + cancellation granularity for long audio.
+
     def __init__(self):
-        self._model      = None
-        self._model_size = "small"
-        self._lock       = threading.Lock()
-        self._cancel     = threading.Event()
+        self._pipe    = None
+        self._key     = None        # (size, device) the live pipeline was built for
+        self._size    = "small"
+        self._devpref = "AUTO"
+        self._lock    = threading.Lock()
+        self._cancel  = threading.Event()
 
     def set_model(self, size: str):
         with self._lock:
-            if size != self._model_size:
-                self._model_size = size
-                self._model = None
+            self._size = size
+
+    def set_device(self, pref: str):
+        with self._lock:
+            self._devpref = pref
 
     def cancel(self):
         self._cancel.set()
 
-    def transcribe(self, path: Path, lang="pt", progress_cb=None, done_cb=None):
+    def _pipeline(self, progress_cb):
+        with self._lock:
+            size, devpref = self._size, self._devpref
+        device = resolve_device(devpref)
+        key = (size, device)
+        if self._pipe is not None and self._key == key:
+            return self._pipe
+        model_dir = ensure_ov_model(size, progress=progress_cb)
+        if progress_cb:
+            progress_cb(tf("Preparando modelo no {dev}…", dev=device))
+        import openvino_genai as og
+        cache = _user_data_dir() / "ovcache"
+        cache.mkdir(parents=True, exist_ok=True)
+        # CACHE_DIR persists the compiled blob so the NPU's first-run compile (~40 s)
+        # happens only once, ever; later loads are near-instant.
+        pipe = og.WhisperPipeline(str(model_dir), device, CACHE_DIR=str(cache))
+        self._pipe, self._key = pipe, key
+        return pipe
+
+    # Near-silent 30 s windows are skipped: Whisper has no built-in VAD and tends
+    # to hallucinate repeated tokens ("BUSH BUSH BUSH…") on silence/noise.
+    SILENCE_RMS = 0.0035
+
+    def _gen_cfg(self, pipe, lang):
+        cfg = pipe.get_generation_config()
+        cfg.language = "<|%s|>" % lang
+        cfg.task = "transcribe"
+        cfg.return_timestamps = True
+        # Break runaway repetition loops (a common Whisper failure on noise).
+        try:
+            cfg.no_repeat_ngram_size = 4
+        except Exception:
+            pass
+        # NOTE: initial_prompt / hotwords overflow the NPU's static decoder
+        # ("roi_end <= max_dim"), so we deliberately don't set them — language is
+        # already forced, and channel diarization keeps each voice clean.
+        return cfg
+
+    def _transcribe_channel(self, pipe, cfg, audio, win_done, win_total, progress_cb):
+        """Return ([(abs_start, text), …], windows_done); report progress per window."""
+        segs = []
+        step = int(self.WIN * 16000)
+        n = len(audio)
+        i = 0
+        while i < n:
+            if self._cancel.is_set():
+                return segs, win_done
+            window = audio[i:i + step]
+            off = i / 16000.0
+            rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
+            if rms >= self.SILENCE_RMS:        # skip near-silence (no hallucinations)
+                res = pipe.generate(window, cfg)
+                chunks = getattr(res, "chunks", None)
+                if chunks:
+                    for c in chunks:
+                        txt = (c.text or "").strip()
+                        if txt:
+                            segs.append((off + float(c.start_ts), txt))
+                else:
+                    txt = (" ".join(res.texts).strip()
+                           if getattr(res, "texts", None) else "")
+                    if txt:
+                        segs.append((off, txt))
+            win_done += 1
+            if progress_cb and win_total:
+                progress_cb(tf("Transcrevendo… {p}%",
+                               p=min(99, int(win_done / win_total * 100))))
+            i += step
+        return segs, win_done
+
+    def transcribe(self, path, lang="pt", diarize=False, aec=False,
+                   progress_cb=None, done_cb=None):
         self._cancel.clear()
+
         def run():
             try:
-                with self._lock:
-                    size  = self._model_size
-                    model = self._model
-                if model is None:
-                    if progress_cb:
-                        progress_cb(tf(
-                            "Carregando modelo '{size}' (primeira vez faz download)…",
-                            size=size))
-                    model = WhisperModel(size, device="cpu", compute_type="int8")
-                    with self._lock:
-                        if self._model_size == size:
-                            self._model = model
-                if progress_cb:
-                    progress_cb(t("Transcrevendo…"))
-                segs, info = model.transcribe(
-                    str(path), language=lang,
-                    initial_prompt=PROMPTS.get(lang),
-                    vad_filter=True,
-                    vad_parameters=dict(min_silence_duration_ms=400))
-                total = getattr(info, "duration", 0) or 0
-                parts = []
-                for s in segs:
+                pipe = self._pipeline(progress_cb)
+                cfg  = self._gen_cfg(pipe, lang)
+                chans = decode_16k(path, split=diarize)
+
+                # Cancel the PC-audio echo bleeding into the mic (L) using the
+                # clean system loopback (R) as reference — keeps diarization honest.
+                if diarize and aec and len(chans) >= 2:
+                    chans[0] = cancel_echo(chans[0], chans[1])
+
+                step = int(self.WIN * 16000)
+                win_total = max(1, sum(max(1, -(-len(c) // step))
+                                       for c in chans if len(c)))
+
+                if diarize and len(chans) >= 2:
+                    me, done = self._transcribe_channel(
+                        pipe, cfg, chans[0], 0, win_total, progress_cb)
                     if self._cancel.is_set():
-                        break
-                    if s.text.strip():
-                        parts.append(s.text.strip())
-                    if progress_cb and total:
-                        progress_cb(tf("Transcrevendo… {p}%",
-                                       p=min(99, int(s.end / total * 100))))
-                if self._cancel.is_set():
-                    if done_cb:
-                        done_cb(None, CANCELLED)
-                    return
-                text = "\n".join(parts)
+                        if done_cb: done_cb(None, CANCELLED)
+                        return
+                    them, done = self._transcribe_channel(
+                        pipe, cfg, chans[1], done, win_total, progress_cb)
+                    if self._cancel.is_set():
+                        if done_cb: done_cb(None, CANCELLED)
+                        return
+                    text = self._merge(me, them)
+                else:
+                    segs, _ = self._transcribe_channel(
+                        pipe, cfg, chans[0], 0, win_total, progress_cb)
+                    if self._cancel.is_set():
+                        if done_cb: done_cb(None, CANCELLED)
+                        return
+                    text = "\n".join(tx for _, tx in segs)
+
                 if done_cb:
                     done_cb(text or "(no content recognized)", None)
             except Exception as e:
                 if done_cb:
                     done_cb(None, str(e))
+
         threading.Thread(target=run, daemon=True).start()
+
+    @staticmethod
+    def _merge(me_segs, them_segs):
+        """Interleave two channels by time; group consecutive same-speaker lines."""
+        me, them = _spk_me(), _spk_them()
+        tagged = ([(t0, me, tx) for t0, tx in me_segs] +
+                  [(t0, them, tx) for t0, tx in them_segs])
+        tagged.sort(key=lambda x: x[0])
+        lines, cur, buf = [], None, []
+        for _, spk, tx in tagged:
+            if spk != cur:
+                if buf:
+                    lines.append(f"{cur}: " + " ".join(buf))
+                cur, buf = spk, [tx]
+            else:
+                buf.append(tx)
+        if buf:
+            lines.append(f"{cur}: " + " ".join(buf))
+        return "\n".join(lines)
+
+
+# ── Transcriber: MLX (Apple Silicon GPU) — macOS only ──────────────────────────
+# Same interface as OVTranscriber so the App is backend-agnostic. mlx-whisper runs
+# the model on the Apple GPU via Apple's MLX framework; the device selector and
+# CACHE_DIR don't apply. NOTE: this path is only exercised on macOS arm64 — the
+# mlx_whisper import lives inside the methods so the module still loads on Windows.
+class MLXTranscriber:
+    WIN = 30.0
+
+    def __init__(self):
+        self._size   = "small"
+        self._lock   = threading.Lock()
+        self._cancel = threading.Event()
+
+    def set_model(self, size: str):
+        with self._lock:
+            self._size = size
+
+    def set_device(self, pref: str):
+        pass                         # MLX always uses the Apple GPU
+
+    def cancel(self):
+        self._cancel.set()
+
+    @staticmethod
+    def _repo(size: str) -> str:
+        # large-v3-turbo keeps its name; the rest are whisper-<size>-mlx.
+        return f"mlx-community/whisper-{size}-mlx"
+
+    def _transcribe_channel(self, repo, audio, lang, win_done, win_total, progress_cb):
+        import mlx_whisper
+        segs = []
+        step = int(self.WIN * 16000)
+        n = len(audio)
+        i = 0
+        while i < n:
+            if self._cancel.is_set():
+                return segs, win_done
+            window = audio[i:i + step]
+            off = i / 16000.0
+            rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
+            if rms >= OVTranscriber.SILENCE_RMS:
+                r = mlx_whisper.transcribe(
+                    window, path_or_hf_repo=repo, language=lang,
+                    task="transcribe", verbose=None)
+                chunks = r.get("segments") or []
+                if chunks:
+                    for s in chunks:
+                        txt = (s.get("text") or "").strip()
+                        if txt:
+                            segs.append((off + float(s.get("start", 0.0)), txt))
+                else:
+                    txt = (r.get("text") or "").strip()
+                    if txt:
+                        segs.append((off, txt))
+            win_done += 1
+            if progress_cb and win_total:
+                progress_cb(tf("Transcrevendo… {p}%",
+                               p=min(99, int(win_done / win_total * 100))))
+            i += step
+        return segs, win_done
+
+    def transcribe(self, path, lang="pt", diarize=False, aec=False,
+                   progress_cb=None, done_cb=None):
+        self._cancel.clear()
+
+        def run():
+            try:
+                with self._lock:
+                    repo = self._repo(self._size)
+                if progress_cb:
+                    progress_cb(tf("Preparando modelo no {dev}…", dev="Apple GPU"))
+                chans = decode_16k(path, split=diarize)
+                if diarize and aec and len(chans) >= 2:
+                    chans[0] = cancel_echo(chans[0], chans[1])
+                step = int(self.WIN * 16000)
+                win_total = max(1, sum(max(1, -(-len(c) // step))
+                                       for c in chans if len(c)))
+
+                if diarize and len(chans) >= 2:
+                    me, done = self._transcribe_channel(
+                        repo, chans[0], lang, 0, win_total, progress_cb)
+                    if self._cancel.is_set():
+                        if done_cb: done_cb(None, CANCELLED)
+                        return
+                    them, done = self._transcribe_channel(
+                        repo, chans[1], lang, done, win_total, progress_cb)
+                    if self._cancel.is_set():
+                        if done_cb: done_cb(None, CANCELLED)
+                        return
+                    text = OVTranscriber._merge(me, them)
+                else:
+                    segs, _ = self._transcribe_channel(
+                        repo, chans[0], lang, 0, win_total, progress_cb)
+                    if self._cancel.is_set():
+                        if done_cb: done_cb(None, CANCELLED)
+                        return
+                    text = "\n".join(tx for _, tx in segs)
+
+                if done_cb:
+                    done_cb(text or "(no content recognized)", None)
+            except Exception as e:
+                if done_cb:
+                    done_cb(None, str(e))
+
+        threading.Thread(target=run, daemon=True).start()
+
+
+def make_transcriber():
+    """Pick the transcription backend for this platform."""
+    if HAS_MLX:
+        return MLXTranscriber()        # macOS arm64 → Apple GPU
+    if HAS_OV:
+        return OVTranscriber()         # Windows/Linux x86 → NPU/iGPU/CPU
+    return None
 
 
 # ── VU Meter ──────────────────────────────────────────────────────────────────
@@ -1013,7 +1243,10 @@ class App(tk.Tk):
         self.configure(bg=BG)
         self._state        = IDLE
         self._recorder     = DualRecorder() if (HAS_SC and HAS_NP and HAS_LAME) else None
-        self._transcriber  = Transcriber()  if HAS_WHISPER else None
+        self._transcriber  = make_transcriber()
+        if self._transcriber:
+            self._transcriber.set_model(self._cfg.get("model", "small"))
+            self._transcriber.set_device(self._cfg.get("device", "AUTO"))
         self._transcribing = False
         self._last_rec     = None
         self._mic_devs     = []
@@ -1024,10 +1257,6 @@ class App(tk.Tk):
         self._tr_win       = None
         self._tr_sel       = None
         self._tr_shown     = False
-        self._tr_proc      = None      # subprocess transcription (fallback)
-        self._dep_win      = None
-        self._installing   = False
-        self._sys_whisper_ok = False
         self._pop          = None     # floating hover popup (STOPPED actions)
         self._pop_after    = None
         self._pop_anchor   = None
@@ -1158,21 +1387,6 @@ class App(tk.Tk):
         lb.bind("<Button-1>", lambda e: cmd())
         return lb
 
-    def _combo(self, parent, labels, width, cfg_key, options, style="XS.TCombobox",
-               font=SEG_XS):
-        var = tk.StringVar()
-        cb = ttk.Combobox(parent, textvariable=var, values=labels,
-                          state="readonly", style=style, font=font, width=width)
-        saved_val = self._cfg.get(cfg_key, _CFG_DEFAULTS.get(cfg_key))
-        if saved_val in options:
-            var.set(labels[options.index(saved_val)])
-        else:
-            var.set(labels[0])
-        var.trace_add("write",
-            lambda *_, v=var, k=cfg_key, o=options, lbs=labels:
-                self._on_fmt_change(v, k, o, lbs))
-        return var, cb
-
     # ── build ────────────────────────────────────────────────────────────────
     def _build(self):
         # Header doubles as the (custom) title bar: drag to move, controls at right.
@@ -1196,8 +1410,12 @@ class App(tk.Tk):
         body.pack(fill="both", expand=True, padx=16, pady=12)
         self._body = body
 
-        self._build_meters(body)
-        self._build_recording(body)
+        # Recording and transcription are mutually exclusive views — you do one or
+        # the other, so the transcribe view replaces the recording view in place.
+        self._rec_section = tk.Frame(body, bg=BG)
+        self._rec_section.pack(fill="x")
+        self._build_meters(self._rec_section)
+        self._build_recording(self._rec_section)
         self._build_links(body)
         self._build_advanced(body)
         self._build_transcribe_section(body)
@@ -1262,6 +1480,7 @@ class App(tk.Tk):
     def _build_links(self, body):
         row = tk.Frame(body, bg=BG)
         row.pack(fill="x", pady=(10, 0))
+        self._links_row = row
         self._adv_link = self._link(row, t("⚙ Opções"), self._toggle_advanced)
         self._adv_link.pack(side="left")
         self._tr_link = self._link(row, t("Transcrever…"),
@@ -1294,42 +1513,8 @@ class App(tk.Tk):
         self._link(self._adv, t("↺ Atualizar dispositivos"),
                    self._scan_devices).pack(anchor="w", pady=(2, 6))
 
-        self._ch_labels = [t(x) for x in CH_LABELS]
-        self._sr_labels = [t(x) for x in SR_LABELS]
-        self._br_labels = list(BR_LABELS)
-
-        fmt1 = tk.Frame(self._adv, bg=BG)
-        fmt1.pack(fill="x")
-        tk.Label(fmt1, text=t("Canais:"), bg=BG, fg=SUBTLE,
-                 font=SEG_XS).pack(side="left", padx=(0, 4))
-        self._ch_var, self._ch_cb = self._combo(fmt1, self._ch_labels, 8,
-                                                "channels", CH_OPTIONS)
-        self._ch_cb.pack(side="left", padx=(0, 12))
-        tk.Label(fmt1, text=t("Taxa:"), bg=BG, fg=SUBTLE,
-                 font=SEG_XS).pack(side="left", padx=(0, 4))
-        self._sr_var, self._sr_cb = self._combo(fmt1, self._sr_labels, 10,
-                                                "sample_rate", SR_OPTIONS)
-        self._sr_cb.pack(side="left")
-
-        fmt2 = tk.Frame(self._adv, bg=BG)
-        fmt2.pack(fill="x", pady=(6, 0))
-        tk.Label(fmt2, text=t("MP3:"), bg=BG, fg=SUBTLE,
-                 font=SEG_XS).pack(side="left", padx=(0, 4))
-        self._br_var, self._br_cb = self._combo(fmt2, self._br_labels, 9,
-                                                "mp3_bitrate", BR_OPTIONS)
-        self._br_cb.pack(side="left", padx=(0, 12))
-        tk.Label(fmt2, text=t("Modelo:"), bg=BG, fg=SUBTLE,
-                 font=SEG_XS).pack(side="left", padx=(0, 4))
-        self._model_var = tk.StringVar(value=self._cfg.get("model", "small"))
-        self._model_cb = ttk.Combobox(fmt2, textvariable=self._model_var,
-                                      values=["tiny", "small", "medium"],
-                                      state="readonly", style="XS.TCombobox",
-                                      font=SEG_XS, width=8)
-        self._model_cb.pack(side="left")
-        self._model_var.trace_add("write", lambda *_: self._on_model_change())
-
-        tk.Label(self._adv, text=t("tiny · small (padrão) · medium"),
-                 bg=BG, fg=SUBTLE, font=SEG_XS).pack(anchor="w", pady=(6, 0))
+        # Model (small), device (Auto: NPU→iGPU→CPU), channel diarization and echo
+        # cancellation are all automatic now — no controls here on purpose.
 
         # language selector
         lrow = tk.Frame(self._adv, bg=BG)
@@ -1383,20 +1568,6 @@ class App(tk.Tk):
             self._cfg[cfg_key] = dev_id
             save_config(self._cfg)
 
-    def _on_fmt_change(self, var: tk.StringVar, cfg_key: str,
-                       options: list, labels: list):
-        label = var.get()
-        if label in labels:
-            self._cfg[cfg_key] = options[labels.index(label)]
-            save_config(self._cfg)
-
-    def _on_model_change(self):
-        m = self._model_var.get()
-        self._cfg["model"] = m
-        save_config(self._cfg)
-        if self._transcriber and not self._transcribing:
-            self._transcriber.set_model(m)
-
     def _on_lang_change(self):
         label = self._lang_var.get()
         code = next((c for c, lbl in LANG_LABELS.items() if lbl == label), None)
@@ -1439,14 +1610,12 @@ class App(tk.Tk):
     def _rebuild_ui(self):
         # Rebuild the whole UI (used on language/theme change). Aux windows were
         # built with the old language/theme, so close them.
-        for w in (self._tr_win, self._dep_win):
-            try:
-                if w is not None and w.winfo_exists():
-                    w.destroy()
-            except Exception:
-                pass
+        try:
+            if self._tr_win is not None and self._tr_win.winfo_exists():
+                self._tr_win.destroy()
+        except Exception:
+            pass
         self._tr_win = None
-        self._dep_win = None
         for c in self.winfo_children():
             c.destroy()
         self._adv_shown = False
@@ -1620,13 +1789,9 @@ class App(tk.Tk):
 
     # ── recording actions ──────────────────────────────────────────────────────
     def _out_settings(self) -> tuple:
-        sr = (SR_OPTIONS[self._sr_labels.index(self._sr_var.get())]
-              if self._sr_var.get() in self._sr_labels else 48000)
-        ch = (CH_OPTIONS[self._ch_labels.index(self._ch_var.get())]
-              if self._ch_var.get() in self._ch_labels else 1)
-        br = (BR_OPTIONS[self._br_labels.index(self._br_var.get())]
-              if self._br_var.get() in self._br_labels else 128)
-        return sr, ch, br
+        # Fixed format: 16 kHz stereo (L=mic, R=system) 128 kbps VBR — what
+        # transcription, channel diarization and echo cancellation all need.
+        return OUT_SR, OUT_CH, MP3_BR
 
     def _whisper_lang(self) -> str:
         return "pt" if LANG == "pt" else "en"
@@ -1661,8 +1826,7 @@ class App(tk.Tk):
 
     def _set_combos_enabled(self, enabled):
         st = "readonly" if enabled else "disabled"
-        for cb in (self._mic_cb, self._sys_cb, self._ch_cb, self._sr_cb,
-                   self._br_cb, self._lang_cb):
+        for cb in (self._mic_cb, self._sys_cb, self._lang_cb):
             cb.config(state=st)
 
     def _on_stream_error(self, src, msg):
@@ -1801,11 +1965,6 @@ class App(tk.Tk):
             return
         if self._transcriber:
             self._transcriber.cancel()
-        if self._tr_proc is not None:
-            try:
-                self._tr_proc.terminate()
-            except Exception:
-                pass
 
     def _run_transcriber(self, path: Path, status_cb, done_cb) -> bool:
         if not path or not path.exists():
@@ -1814,18 +1973,14 @@ class App(tk.Tk):
         if self._transcribing:
             status_cb(t("Já há uma transcrição em andamento."))
             return False
-
-        # Prefer in-process whisper (source, or .exe with it bundled). Otherwise
-        # fall back to the system Python via subprocess.
-        if not HAS_WHISPER:
-            if IS_FROZEN:
-                return self._run_transcriber_subprocess(path, status_cb, done_cb)
-            status_cb(t("faster-whisper não instalado — rode setup.ps1"))
+        if not self._transcriber:
+            status_cb(t("Transcrição indisponível — instale openvino-genai."))
             return False
 
         self._transcribing = True
         status_cb(tf("Transcrevendo {n}…", n=path.name))
-        self._transcriber.set_model(self._model_var.get())
+        self._transcriber.set_model(self._cfg.get("model", "small"))
+        self._transcriber.set_device(self._cfg.get("device", "AUTO"))
 
         def _done(text, err):
             self._transcribing = False
@@ -1833,89 +1988,11 @@ class App(tk.Tk):
 
         self._transcriber.transcribe(
             path, lang=self._whisper_lang(),
+            diarize=bool(self._cfg.get("diarize")),
+            aec=bool(self._cfg.get("aec")),
             progress_cb=lambda m: self._post(lambda: status_cb(m)),
             done_cb=lambda t_, e: self._post(lambda: _done(t_, e)))
         return True
-
-    def _run_transcriber_subprocess(self, path, status_cb, done_cb) -> bool:
-        cmd = _system_python_cmd()
-        if not cmd:
-            status_cb(tf("Python não encontrado — instale o Python {v} (python.org).",
-                         v=f"{sys.version_info.major}.{sys.version_info.minor}"))
-            return False
-        self._transcribing = True
-        status_cb(t("Preparando transcrição…"))
-        model = self._model_var.get()
-        lang = self._whisper_lang()
-        threading.Thread(target=self._subproc_worker,
-                         args=(cmd, path, model, lang, status_cb, done_cb),
-                         daemon=True).start()
-        return True
-
-    def _subproc_worker(self, cmd, path, model, lang, status_cb, done_cb):
-        import tempfile
-        out = Path(tempfile.gettempdir()) / "reco_tr_out.txt"
-
-        def finish(text, err):
-            self._transcribing = False
-            done_cb(text, err)
-
-        if not self._sys_whisper_ok:
-            self._post(lambda: status_cb(t("Verificando componentes…")))
-            if not _system_has_whisper(cmd):
-                self._post(self._open_dep_installer)
-                self._post(lambda: finish(None, t(
-                    "componentes de transcrição não instalados "
-                    "— use o instalador que abriu")))
-                return
-            self._sys_whisper_ok = True
-
-        try:
-            if out.exists():
-                out.unlink()
-        except Exception:
-            pass
-
-        try:
-            self._post(lambda: status_cb(tf("Transcrevendo {n}…", n=path.name)))
-            worker = _ensure_worker_script()
-            full = cmd + [str(worker), str(path), model, str(out), lang]
-            proc = subprocess.Popen(
-                full, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace",
-                **_no_window_kwargs())
-            self._tr_proc = proc
-            for line in iter(proc.stdout.readline, ""):
-                l = line.strip()
-                if l == "STAGE loading":
-                    self._post(lambda: status_cb(t("Carregando modelo…")))
-                elif l == "STAGE transcribing":
-                    self._post(lambda: status_cb(t("Transcrevendo…")))
-                elif l.startswith("PROG "):
-                    try:
-                        pct = int(l[5:])
-                    except ValueError:
-                        pct = None
-                    if pct is not None:
-                        self._post(lambda p=pct:
-                                   status_cb(tf("Transcrevendo… {p}%", p=p)))
-            proc.stdout.close()
-            rc = proc.wait()
-            if rc == 0 and out.exists():
-                text = out.read_text(encoding="utf-8")
-                self._post(lambda tx=text: finish(tx, None))
-            else:
-                self._post(lambda c=rc: finish(
-                    None, tf("a transcrição falhou (código {c})", c=c)))
-        except Exception as e:
-            self._post(lambda m=str(e): finish(None, m))
-        finally:
-            self._tr_proc = None
-            try:
-                if out.exists():
-                    out.unlink()
-            except Exception:
-                pass
 
     def _transcribe_recording(self, delete_after=False) -> bool:
         path = self._last_rec
@@ -1949,7 +2026,6 @@ class App(tk.Tk):
     def _build_transcribe_section(self, body):
         sec = tk.Frame(body, bg=BG)
         self._tr_section = sec
-        tk.Frame(sec, bg=BORDER, height=1).pack(fill="x", pady=(10, 8))
         tk.Label(sec, text=t("TRANSCRIÇÃO"), bg=BG, fg=SUBTLE,
                  font=SEG_XS).pack(anchor="w", pady=(0, 6))
 
@@ -1981,15 +2057,20 @@ class App(tk.Tk):
                      anchor="w", pady=(8, 0))
 
     def _toggle_transcribe_section(self):
+        # Recording ⇄ transcribe are exclusive views — swap one for the other.
+        if self._state in (RECORDING, BUSY) or self._transcribing:
+            return
         self._tr_shown = not self._tr_shown
         if self._tr_shown:
             if not self._tr_sel and self._last_rec and self._last_rec.exists():
                 self._tr_sel = self._last_rec
                 self._tr_path_var.set(str(self._tr_sel))
-            self._tr_section.pack(fill="x")
-            self._tr_link.config(text=t("Ocultar transcrição"))
+            self._rec_section.pack_forget()
+            self._tr_section.pack(fill="x", before=self._links_row)
+            self._tr_link.config(text=t("← Gravar"))
         else:
             self._tr_section.pack_forget()
+            self._rec_section.pack(fill="x", before=self._links_row)
             self._tr_link.config(text=t("Transcrever…"))
         self.update_idletasks()
         self.geometry("")
@@ -2101,137 +2182,6 @@ class App(tk.Tk):
         subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
                        check=True, capture_output=True, **_no_window_kwargs())
 
-    # ── dependency installer (.exe only) ────────────────────────────────────────
-    def _open_dep_installer(self):
-        if self._dep_win is not None and self._dep_win.winfo_exists():
-            self._dep_win.deiconify(); self._dep_win.lift(); return
-
-        pycmd = _system_python_cmd()
-        win = tk.Toplevel(self, bg=BG)
-        self._dep_win = win
-        win.title(t("Instalar transcrição"))
-        win.configure(bg=BG)
-        win.resizable(False, False)
-
-        def _close():
-            self._dep_win = None
-            win.destroy()
-        win.protocol("WM_DELETE_WINDOW", _close)
-        set_dark_titlebar(win)
-
-        pad = tk.Frame(win, bg=BG)
-        pad.pack(fill="both", expand=True, padx=18, pady=16)
-        tk.Label(pad, text=t("Componentes de transcrição"), bg=BG, fg=TEXT,
-                 font=SEG_LG).pack(anchor="w")
-        tk.Label(pad, text=t("O faster-whisper e suas dependências serão baixados e "
-                             "instalados\numa pasta do seu usuário (~0,5 GB, alguns "
-                             "minutos)."),
-                 bg=BG, fg=SUBTLE, font=SEG_XS, justify="left").pack(
-                     anchor="w", pady=(4, 12))
-
-        barwrap = tk.Frame(pad, bg=BORDER)
-        barwrap.pack(fill="x")
-        inner = tk.Frame(barwrap, bg=CARD)
-        inner.pack(fill="x", padx=1, pady=1)
-        self._dep_bar = tk.Canvas(inner, height=14, bg=CARD, bd=0,
-                                  highlightthickness=0)
-        self._dep_bar.pack(fill="x")
-        self._dep_barrect = self._dep_bar.create_rectangle(0, 0, 0, 14,
-                                                           fill=ACCENT, outline="")
-
-        prow = tk.Frame(pad, bg=BG)
-        prow.pack(fill="x", pady=(6, 0))
-        self._dep_pct = tk.StringVar(value="0%")
-        tk.Label(prow, textvariable=self._dep_pct, bg=BG, fg=TEXT,
-                 font=SEG_SB).pack(side="left")
-
-        self._dep_status = tk.StringVar(value=t("Pronto para instalar."))
-        tk.Label(pad, textvariable=self._dep_status, bg=BG, fg=SUBTLE,
-                 font=SEG_XS, wraplength=380, justify="left").pack(
-                     anchor="w", pady=(8, 0))
-
-        btns = tk.Frame(pad, bg=BG)
-        btns.pack(fill="x", pady=(12, 0))
-        self._dep_btn = self._btn(btns, t("Instalar agora"),
-                                  lambda: self._start_dep_install(pycmd), primary=True)
-        self._dep_btn.pack(side="left")
-
-        if not pycmd:
-            self._dep_status.set(tf(
-                "Python não encontrado no sistema. Instale o Python {v} (python.org) "
-                "e tente de novo — ou rode pelo código-fonte.",
-                v=f"{sys.version_info.major}.{sys.version_info.minor}"))
-            self._dep_btn.config(state="disabled")
-        win.update_idletasks()
-
-    def _dep_set_progress(self, pct, msg=None):
-        if self._dep_win is None or not self._dep_win.winfo_exists():
-            return
-        pct = max(0, min(100, int(pct)))
-        w = max(self._dep_bar.winfo_width(), 1)
-        self._dep_bar.coords(self._dep_barrect, 0, 0, int(w * pct / 100), 14)
-        self._dep_pct.set(f"{pct}%")
-        if msg is not None:
-            self._dep_status.set(msg)
-
-    def _start_dep_install(self, pycmd):
-        if self._installing or not pycmd:
-            return
-        self._installing = True
-        self._dep_btn.config(state="disabled")
-        self._dep_set_progress(0, t("Iniciando instalação…"))
-        threading.Thread(target=self._dep_install_worker,
-                         args=(pycmd,), daemon=True).start()
-
-    def _dep_install_worker(self, pycmd):
-        try:
-            cmd = pycmd + ["-m", "pip", "install", "--no-input", "--user",
-                           "--upgrade", "faster-whisper"]
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace",
-                **_no_window_kwargs())
-            parser = PipProgress()
-            buf = ""
-            while True:
-                ch = proc.stdout.read(1)
-                if not ch:
-                    break
-                if ch in "\r\n":
-                    if buf.strip():
-                        pct, msg = parser.feed(buf)
-                        if pct is not None:
-                            self._post(lambda p=pct, m=msg:
-                                       self._dep_set_progress(p, m))
-                    buf = ""
-                else:
-                    buf += ch
-            proc.stdout.close()
-            rc = proc.wait()
-            if rc == 0:
-                self._post(self._dep_done)
-            else:
-                self._post(lambda c=rc: self._dep_fail(tf(
-                    "Falha na instalação (código {c}). "
-                    "Verifique a conexão e tente de novo.", c=c)))
-        except Exception as e:
-            self._post(lambda m=str(e): self._dep_fail(tf("Erro: {e}", e=m[:140])))
-
-    def _dep_done(self):
-        self._installing = False
-        self._sys_whisper_ok = True
-        self._dep_set_progress(
-            100, t("Pronto! Componentes instalados. Pode transcrever agora."))
-        self.after(2500, lambda: (self._dep_win.destroy()
-                                  if self._dep_win is not None
-                                  and self._dep_win.winfo_exists() else None))
-
-    def _dep_fail(self, msg):
-        self._installing = False
-        self._dep_set_progress(0, msg)
-        if self._dep_win is not None and self._dep_win.winfo_exists():
-            self._dep_btn.config(state="normal")
-
     # ── helpers ──────────────────────────────────────────────────────────────
     def _status(self, msg):
         self._status_var.set(msg)
@@ -2256,16 +2206,51 @@ class App(tk.Tk):
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
         import tempfile
-        cmd = _system_python_cmd()
+        devs = ov_available_devices() if HAS_OV else []
+        backend = ("mlx-whisper" if HAS_MLX else "openvino" if HAS_OV else "none")
         lines = [
             f"frozen={IS_FROZEN} lang={LANG} HAS_SC={HAS_SC} HAS_NP={HAS_NP} "
-            f"HAS_LAME={HAS_LAME} HAS_WHISPER_inproc={HAS_WHISPER}",
-            f"system_python={cmd}",
-            f"system_has_whisper={_system_has_whisper(cmd)}",
-            f"transcription_available={(HAS_WHISPER and not IS_FROZEN) or _system_has_whisper(cmd)}",
+            f"HAS_LAME={HAS_LAME} HAS_OV={HAS_OV} HAS_AV={HAS_AV} HAS_MLX={HAS_MLX}",
+            f"backend={backend}",
+            f"ov_devices={devs}",
+            f"resolved(AUTO)={resolve_device('AUTO') if HAS_OV else 'n/a'}",
+            f"transcription_available={(HAS_OV or HAS_MLX) and HAS_AV}",
         ]
         Path(tempfile.gettempdir(), "reco_selftest.txt").write_text(
             "\n".join(lines) + "\n", encoding="utf-8")
+        sys.exit(0)
+
+    if "--transcribe" in sys.argv:
+        # Headless transcription:  Reco.exe --transcribe <audio> [--diarize]
+        # Saves <audio>.txt next to the file. Status/errors go to the log file
+        # below (the windowed .exe has no console).
+        import tempfile
+        i = sys.argv.index("--transcribe")
+        audio = Path(sys.argv[i + 1])
+        diar = "--diarize" in sys.argv
+        log = Path(tempfile.gettempdir()) / "reco_transcribe_log.txt"
+        log.write_text("starting\n", encoding="utf-8")
+        tr = make_transcriber()
+        if tr is None or not HAS_AV:
+            log.write_text("ERROR: transcription backend/PyAV unavailable\n",
+                           encoding="utf-8")
+            sys.exit(2)
+        cfg = load_config()
+        tr.set_model(cfg.get("model", "small"))
+        tr.set_device(cfg.get("device", "AUTO"))
+        ev = threading.Event(); out = {}
+        tr.transcribe(
+            audio, lang=("pt" if LANG == "pt" else "en"), diarize=diar,
+            aec=bool(cfg.get("aec")) and diar,
+            progress_cb=lambda m: log.write_text(m + "\n", encoding="utf-8"),
+            done_cb=lambda t_, e: (out.update(t=t_, e=e), ev.set()))
+        ev.wait(36000)
+        if out.get("e"):
+            log.write_text(f"ERROR: {out['e']}\n", encoding="utf-8")
+            sys.exit(2)
+        txt = audio.with_suffix(".txt")
+        txt.write_text(out.get("t") or "", encoding="utf-8")
+        log.write_text(f"OK -> {txt}\n", encoding="utf-8")
         sys.exit(0)
 
     if not (HAS_SC and HAS_NP and HAS_LAME):

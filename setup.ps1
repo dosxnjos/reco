@@ -17,18 +17,23 @@ if (-not (Get-Command pip -ErrorAction SilentlyContinue)) {
     Write-Host "pip not found." -ForegroundColor Red; exit 1
 }
 
-# Core deps
-foreach ($p in @("soundcard", "lameenc", "numpy", "scipy")) {
+# Core deps (recording + audio decoding)
+foreach ($p in @("soundcard", "lameenc", "numpy", "scipy", "av", "huggingface_hub")) {
     Write-Host "Installing $p..." -ForegroundColor Yellow
     pip install $p --quiet
 }
 
-# Optional: transcription
+# Transcription backend (downloads the Whisper model on first use)
 Write-Host ""
-Write-Host "Installing faster-whisper (optional; downloads a model on first use)..." -ForegroundColor Yellow
-pip install faster-whisper --quiet
-if ($LASTEXITCODE -eq 0) { Write-Host "  faster-whisper: OK" -ForegroundColor Green }
-else { Write-Host "  faster-whisper not installed (transcription disabled until installed)." -ForegroundColor Yellow }
+if ($IsMacOS) {
+    Write-Host "macOS detected — installing mlx-whisper (Apple GPU)..." -ForegroundColor Yellow
+    pip install mlx-whisper --quiet
+} else {
+    Write-Host "Installing OpenVINO GenAI (NPU / iGPU / CPU)..." -ForegroundColor Yellow
+    pip install openvino openvino-genai openvino-tokenizers --quiet
+}
+if ($LASTEXITCODE -eq 0) { Write-Host "  transcription backend: OK" -ForegroundColor Green }
+else { Write-Host "  backend not installed (transcription disabled until installed)." -ForegroundColor Yellow }
 
 Write-Host ""
 Write-Host "Done." -ForegroundColor Green

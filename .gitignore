@@ -4,6 +4,9 @@ build/
 *.spec.tmp
 reco_build.spec
 
+# Bundled model (fetched at build time, ~250 MB — not tracked)
+models/
+
 # Python cache
 __pycache__/
 *.pyc
