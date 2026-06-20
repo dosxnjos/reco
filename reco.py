@@ -209,6 +209,7 @@ _TR_EN = {
     "⚙ Opções": "⚙ Options",
     "⚙ Ocultar opções": "⚙ Hide options",
     "Transcrever…": "Transcribe…",
+    "Ocultar transcrição": "Hide transcription",
     # advanced labels
     "Entrada (mic):": "Input (mic):",
     "Sistema (loop):": "System (loop):",
@@ -288,7 +289,12 @@ _TR_EN = {
     "Transcrição salva: {n}": "Transcription saved: {n}",
     "Python não encontrado — instale o Python {v} (python.org).":
         "Python not found — install Python {v} (python.org).",
-    # transcribe window
+    # transcribe section
+    "TRANSCRIÇÃO": "TRANSCRIPTION",
+    "＋ Escolher arquivo…": "＋ Choose a file…",
+    "⬛  Parar": "⬛  Stop",
+    "Transcrição cancelada.": "Transcription cancelled.",
+    "Salvo: {n}": "Saved: {n}",
     "Transcrever arquivo": "Transcribe file",
     "ESCOLHA O ÁUDIO (MP3, WAV…)": "CHOOSE AUDIO (MP3, WAV…)",
     "Arquivo": "File", "Data": "Date", "Duração": "Length", "Tamanho": "Size",
@@ -433,11 +439,12 @@ def _import_whisper() -> bool:
         HAS_WHISPER = False
     return HAS_WHISPER
 
-# In source we import in-process (model stays cached between transcriptions).
-# In the frozen .exe we do NOT import: ctranslate2's native DLLs don't load in
-# the frozen runtime — transcription is delegated to the system Python (subprocess).
-if not IS_FROZEN:
-    _import_whisper()
+# Try to import in-process (works in source, and in the .exe if faster-whisper is
+# bundled). If unavailable in the frozen .exe, transcription falls back to the
+# system Python via subprocess (see App._run_transcriber).
+_import_whisper()
+
+CANCELLED = "__cancelled__"   # sentinel: transcription stopped by the user
 
 
 PROMPTS = {
@@ -878,8 +885,9 @@ class DualRecorder:
             data = mixed
 
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        prefix = "gravacao" if LANG == "pt" else "recording"
         ts   = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        path = OUTPUT_DIR / f"rec_{ts}.mp3"
+        path = OUTPUT_DIR / f"{prefix}_{ts}.mp3"
         write_mp3(path, data, out_sr, out_channels, bitrate)
         return path
 
@@ -890,6 +898,7 @@ class Transcriber:
         self._model      = None
         self._model_size = "small"
         self._lock       = threading.Lock()
+        self._cancel     = threading.Event()
 
     def set_model(self, size: str):
         with self._lock:
@@ -897,7 +906,11 @@ class Transcriber:
                 self._model_size = size
                 self._model = None
 
+    def cancel(self):
+        self._cancel.set()
+
     def transcribe(self, path: Path, lang="pt", progress_cb=None, done_cb=None):
+        self._cancel.clear()
         def run():
             try:
                 with self._lock:
@@ -922,11 +935,17 @@ class Transcriber:
                 total = getattr(info, "duration", 0) or 0
                 parts = []
                 for s in segs:
+                    if self._cancel.is_set():
+                        break
                     if s.text.strip():
                         parts.append(s.text.strip())
                     if progress_cb and total:
                         progress_cb(tf("Transcrevendo… {p}%",
                                        p=min(99, int(s.end / total * 100))))
+                if self._cancel.is_set():
+                    if done_cb:
+                        done_cb(None, CANCELLED)
+                    return
                 text = "\n".join(parts)
                 if done_cb:
                     done_cb(text or "(no content recognized)", None)
@@ -1004,6 +1023,8 @@ class App(tk.Tk):
         self._adv_shown    = False
         self._tr_win       = None
         self._tr_sel       = None
+        self._tr_shown     = False
+        self._tr_proc      = None      # subprocess transcription (fallback)
         self._dep_win      = None
         self._installing   = False
         self._sys_whisper_ok = False
@@ -1179,6 +1200,7 @@ class App(tk.Tk):
         self._build_recording(body)
         self._build_links(body)
         self._build_advanced(body)
+        self._build_transcribe_section(body)
 
     def _build_meters(self, body):
         vu_row = tk.Frame(body, bg=BG)
@@ -1242,8 +1264,10 @@ class App(tk.Tk):
         row.pack(fill="x", pady=(10, 0))
         self._adv_link = self._link(row, t("⚙ Opções"), self._toggle_advanced)
         self._adv_link.pack(side="left")
-        self._link(row, t("Transcrever…"), self._open_transcribe_window,
-                   fg=ACCENT, font=SEG_SM).pack(side="right")
+        self._tr_link = self._link(row, t("Transcrever…"),
+                                   self._toggle_transcribe_section,
+                                   fg=ACCENT, font=SEG_SM)
+        self._tr_link.pack(side="right")
 
     def _build_advanced(self, body):
         self._adv = tk.Frame(body, bg=BG)
@@ -1381,7 +1405,7 @@ class App(tk.Tk):
 
     def _set_language(self, code):
         global LANG
-        if code == LANG or self._state in (RECORDING, BUSY):
+        if code == LANG or self._state in (RECORDING, BUSY) or self._transcribing:
             return
         LANG = code
         self._cfg["language"] = code
@@ -1403,7 +1427,7 @@ class App(tk.Tk):
         self._set_theme(DEFAULT_BG, DEFAULT_ACCENT)
 
     def _set_theme(self, bg, accent):
-        if self._state in (RECORDING, BUSY):
+        if self._state in (RECORDING, BUSY) or self._transcribing:
             return
         apply_theme(bg, accent)
         self._cfg["bg_color"] = BG
@@ -1426,6 +1450,7 @@ class App(tk.Tk):
         for c in self.winfo_children():
             c.destroy()
         self._adv_shown = False
+        self._tr_shown = False
         self._apply_style()
         self._build()
         self._toggle_advanced()       # keep Options open (where the controls live)
@@ -1761,16 +1786,26 @@ class App(tk.Tk):
         else:
             self._vu_sys.update_level(rms)
 
-    # ── transcription core (auto-saves .txt to the output folder) ───────────────
+    # ── transcription core (auto-saves .txt next to the audio file) ─────────────
     def _autosave_txt(self, audio_path: Path, text: str):
         try:
-            OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-            txt = OUTPUT_DIR / (audio_path.stem + ".txt")
+            txt = audio_path.with_suffix(".txt")
             txt.write_text(text or "(no content recognized)", encoding="utf-8")
             return txt
         except Exception as e:
             print(f"[txt] {e}")
             return None
+
+    def _stop_transcription(self):
+        if not self._transcribing:
+            return
+        if self._transcriber:
+            self._transcriber.cancel()
+        if self._tr_proc is not None:
+            try:
+                self._tr_proc.terminate()
+            except Exception:
+                pass
 
     def _run_transcriber(self, path: Path, status_cb, done_cb) -> bool:
         if not path or not path.exists():
@@ -1780,10 +1815,11 @@ class App(tk.Tk):
             status_cb(t("Já há uma transcrição em andamento."))
             return False
 
-        if IS_FROZEN:
-            return self._run_transcriber_subprocess(path, status_cb, done_cb)
-
+        # Prefer in-process whisper (source, or .exe with it bundled). Otherwise
+        # fall back to the system Python via subprocess.
         if not HAS_WHISPER:
+            if IS_FROZEN:
+                return self._run_transcriber_subprocess(path, status_cb, done_cb)
             status_cb(t("faster-whisper não instalado — rode setup.ps1"))
             return False
 
@@ -1848,6 +1884,7 @@ class App(tk.Tk):
                 full, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
                 **_no_window_kwargs())
+            self._tr_proc = proc
             for line in iter(proc.stdout.readline, ""):
                 l = line.strip()
                 if l == "STAGE loading":
@@ -1873,6 +1910,7 @@ class App(tk.Tk):
         except Exception as e:
             self._post(lambda m=str(e): finish(None, m))
         finally:
+            self._tr_proc = None
             try:
                 if out.exists():
                     out.unlink()
@@ -1886,6 +1924,9 @@ class App(tk.Tk):
             return False
 
         def done(text, err):
+            if err == CANCELLED:
+                self._status(t("Transcrição cancelada."))
+                return
             if err:
                 self._status(tf("Erro na transcrição: {e}", e=err))
                 return
@@ -1904,191 +1945,103 @@ class App(tk.Tk):
 
         return self._run_transcriber(path, self._status, done)
 
-    # ── transcribe window ───────────────────────────────────────────────────────
-    def _open_transcribe_window(self):
-        if self._tr_win is not None and self._tr_win.winfo_exists():
-            self._tr_win.deiconify(); self._tr_win.lift(); return
-
-        win = tk.Toplevel(self, bg=BG)
-        self._tr_win = win
-        self._tr_sel = None
-        win.title(t("Transcrever arquivo"))
-        win.configure(bg=BG)
-        win.resizable(False, False)
-
-        def _close():
-            self._tr_win = None
-            win.destroy()
-        win.protocol("WM_DELETE_WINDOW", _close)
-        set_dark_titlebar(win)
-
-        pad = tk.Frame(win, bg=BG)
-        pad.pack(fill="both", expand=True, padx=16, pady=14)
-
-        tk.Label(pad, text=t("ESCOLHA O ÁUDIO (MP3, WAV…)"), bg=BG, fg=SUBTLE,
+    # ── inline transcribe section (expands the window; no separate window) ───────
+    def _build_transcribe_section(self, body):
+        sec = tk.Frame(body, bg=BG)
+        self._tr_section = sec
+        tk.Frame(sec, bg=BORDER, height=1).pack(fill="x", pady=(10, 8))
+        tk.Label(sec, text=t("TRANSCRIÇÃO"), bg=BG, fg=SUBTLE,
                  font=SEG_XS).pack(anchor="w", pady=(0, 6))
 
-        lc = tk.Frame(pad, bg=BORDER)
-        lc.pack(fill="x")
-        inner = tk.Frame(lc, bg=CARD)
-        inner.pack(fill="x", padx=1, pady=1)
-        cols = ("name", "date", "dur", "size")
-        tree = ttk.Treeview(inner, columns=cols, show="headings", height=6,
-                            selectmode="browse", style="D.Treeview")
-        tree.heading("name", text=t("Arquivo"),  anchor="w")
-        tree.heading("date", text=t("Data"),     anchor="center")
-        tree.heading("dur",  text=t("Duração"),  anchor="center")
-        tree.heading("size", text=t("Tamanho"),  anchor="e")
-        tree.column("name", width=250, anchor="w",      stretch=True)
-        tree.column("date", width=110, anchor="center", stretch=False)
-        tree.column("dur",  width=70,  anchor="center", stretch=False)
-        tree.column("size", width=70,  anchor="e",      stretch=False)
-        tree.pack(fill="x")
-        tree.bind("<<TreeviewSelect>>", self._tr_on_select)
-        self._tr_tree = tree
-
-        nav = tk.Frame(pad, bg=BG)
-        nav.pack(fill="x", pady=(6, 0))
-        self._link(nav, t("＋ Escolher outro arquivo…"), self._tr_browse,
+        nav = tk.Frame(sec, bg=BG)
+        nav.pack(fill="x")
+        self._link(nav, t("＋ Escolher arquivo…"), self._tr_browse,
                    fg=ACCENT, font=SEG_SM).pack(side="left")
-        self._link(nav, t("↺ Atualizar"), self._tr_load, font=SEG_SM).pack(side="right")
+        self._link(nav, t("Abrir pasta"), self._open_tr_folder,
+                   font=SEG_SM).pack(side="right")
 
-        self._tr_path_var = tk.StringVar(value="—")
-        tk.Label(pad, textvariable=self._tr_path_var, bg=BG, fg=SUBTLE,
-                 font=SEG_XS, wraplength=520, justify="left").pack(
+        self._tr_path_var = tk.StringVar(value=str(self._tr_sel) if self._tr_sel else "—")
+        tk.Label(sec, textvariable=self._tr_path_var, bg=BG, fg=SUBTLE,
+                 font=SEG_XS, wraplength=300, justify="left").pack(
                      anchor="w", pady=(4, 0))
 
-        actions = tk.Frame(pad, bg=BG)
-        actions.pack(fill="x", pady=(10, 0))
-        self._tr_btn = self._btn(actions, t("⚡ Transcrever e salvar .txt"),
+        arow = tk.Frame(sec, bg=BG)
+        arow.pack(fill="x", pady=(8, 0))
+        self._tr_btn = self._btn(arow, t("⚡  Transcrever"),
                                  self._tr_transcribe, primary=True)
-        self._tr_btn.pack(side="left")
-        self._link(actions, t("Abrir pasta"), lambda: self._open_output_dir(),
-                   font=SEG_SM).pack(side="right")
+        self._tr_btn.pack(side="left", padx=(0, 8))
+        self._tr_stop = self._btn(arow, t("⬛  Parar"),
+                                  self._stop_transcription, danger=True)
+        # _tr_stop is packed only while transcribing
 
         self._tr_status_var = tk.StringVar(
             value=t("Selecione um arquivo e clique em Transcrever."))
-        tk.Label(pad, textvariable=self._tr_status_var, bg=BG, fg=SUBTLE,
-                 font=SEG_XS, wraplength=520, justify="left").pack(
+        tk.Label(sec, textvariable=self._tr_status_var, bg=BG, fg=SUBTLE,
+                 font=SEG_XS, wraplength=300, justify="left").pack(
                      anchor="w", pady=(8, 0))
 
-        # In the .exe transcription runs in the system Python; only disable if
-        # there is no Python at all.
-        if IS_FROZEN:
-            if _system_python_cmd() is None:
-                self._tr_set_status(tf(
-                    "Python não encontrado — instale o Python {v} (python.org).",
-                    v=f"{sys.version_info.major}.{sys.version_info.minor}"))
-                self._tr_btn.config(state="disabled")
-        elif not HAS_WHISPER:
-            self._tr_set_status(t("faster-whisper não instalado — rode setup.ps1"))
-            self._tr_btn.config(state="disabled")
-
-        win.update_idletasks()
-        self._tr_load()
+    def _toggle_transcribe_section(self):
+        self._tr_shown = not self._tr_shown
+        if self._tr_shown:
+            if not self._tr_sel and self._last_rec and self._last_rec.exists():
+                self._tr_sel = self._last_rec
+                self._tr_path_var.set(str(self._tr_sel))
+            self._tr_section.pack(fill="x")
+            self._tr_link.config(text=t("Ocultar transcrição"))
+        else:
+            self._tr_section.pack_forget()
+            self._tr_link.config(text=t("Transcrever…"))
+        self.update_idletasks()
+        self.geometry("")
 
     def _tr_set_status(self, msg):
-        if self._tr_win is not None and self._tr_win.winfo_exists():
-            self._tr_status_var.set(msg)
+        self._tr_status_var.set(msg)
 
-    def _tr_load(self):
-        def work():
-            files = find_recent_audio()
-            self._post(lambda: self._tr_populate(files))
-        threading.Thread(target=work, daemon=True).start()
-
-    def _tr_populate(self, files):
-        if self._tr_win is None or not self._tr_win.winfo_exists():
-            return
-        tree = self._tr_tree
-        for r in tree.get_children():
-            tree.delete(r)
-        if not files:
-            tree.insert("", "end", tags=("placeholder",),
-                        values=(t("Nenhum áudio encontrado"), "", "", ""))
-            self._tr_sel = None
-            self._tr_path_var.set("—")
-            return
-        for f in files:
-            st = f.stat()
-            dt = time.strftime("%d/%m  %H:%M", time.localtime(st.st_mtime))
-            tree.insert("", "end", iid=str(f),
-                        values=(f.name, dt, dur_label(f), file_size_str(st)))
-        first = tree.get_children()[0]
-        tree.selection_set(first)
-        tree.focus(first)
-
-    def _tr_on_select(self, _=None):
-        sel = self._tr_tree.selection()
-        if not sel:
-            return
-        if "placeholder" in self._tr_tree.item(sel[0], "tags"):
-            self._tr_sel = None
-            self._tr_path_var.set("—")
-            return
-        self._tr_sel = Path(sel[0])
-        self._tr_path_var.set(str(self._tr_sel))
+    def _tr_show_stop(self, on):
+        if on:
+            self._tr_btn.config(state="disabled")
+            self._tr_stop.pack(side="left")
+        else:
+            self._tr_stop.pack_forget()
+            self._tr_btn.config(state="normal")
 
     def _tr_browse(self):
         p = filedialog.askopenfilename(
-            parent=self._tr_win,
             title=t("Selecionar áudio"),
             filetypes=[(t("Áudio"), "*.mp3 *.wav *.m4a *.ogg *.flac"),
                        (t("Todos"), "*.*")])
         if not p:
             return
-        path = Path(p)
-        iid = str(path)
-        if not self._tr_tree.exists(iid):
-            try:
-                st = path.stat()
-                dt = time.strftime("%d/%m  %H:%M", time.localtime(st.st_mtime))
-                self._tr_tree.insert("", 0, iid=iid,
-                                     values=(path.name, dt, dur_label(path),
-                                             file_size_str(st)))
-            except Exception:
-                pass
-        self._tr_tree.selection_set(iid)
-        self._tr_tree.focus(iid)
-        self._tr_sel = path
-        self._tr_path_var.set(str(path))
+        self._tr_sel = Path(p)
+        self._tr_path_var.set(str(self._tr_sel))
+        self._tr_set_status(t("Selecione um arquivo e clique em Transcrever."))
 
     def _tr_transcribe(self):
         path = self._tr_sel
         if not path or not path.exists():
             self._tr_set_status(t("Selecione um arquivo válido."))
             return
-        win = self._tr_win
-        btn = self._tr_btn
-        setvar = self._tr_status_var
-
-        def alive():
-            return win is self._tr_win and win is not None and win.winfo_exists()
-
-        btn.config(state="disabled")
-
-        def status_cb(m):
-            if alive():
-                setvar.set(m)
 
         def done(text, err):
-            if alive():
-                btn.config(state="normal")
+            self._tr_show_stop(False)
+            if err == CANCELLED:
+                self._tr_set_status(t("Transcrição cancelada."))
+                return
             if err:
-                status_cb(tf("Erro: {e}", e=err))
+                self._tr_set_status(tf("Erro: {e}", e=err))
                 return
             txt = self._autosave_txt(path, text)
-            status_cb(tf("Salvo: {n}  (na pasta {d})", n=txt.name, d=OUTPUT_DIR.name)
-                      if txt else t("Transcrito, mas falha ao salvar o .txt."))
+            self._tr_set_status(tf("Salvo: {n}", n=txt.name) if txt
+                                else t("Transcrito, mas falha ao salvar o .txt."))
 
-        if not self._run_transcriber(path, status_cb, done):
-            if alive():
-                btn.config(state="normal")
+        if self._run_transcriber(path, self._tr_set_status, done):
+            self._tr_show_stop(True)
 
-    def _open_output_dir(self):
+    def _open_tr_folder(self):
+        folder = self._tr_sel.parent if self._tr_sel else OUTPUT_DIR
         try:
-            OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-            os.startfile(str(OUTPUT_DIR))
+            folder.mkdir(parents=True, exist_ok=True)
+            os.startfile(str(folder))
         except Exception:
             pass
 
