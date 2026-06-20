@@ -68,7 +68,7 @@ _CFG_DEFAULTS: dict = {
     "language":    None,      # "pt" | "en" | None -> auto-detect from system
     "channels":    1,
     "sample_rate": 48000,     # 48 kHz = native WASAPI rate, no resampling
-    "mp3_bitrate": 128,
+    "mp3_bitrate": 64,        # 64 kbps = small files, fine for speech
     "model":       "small",
     "mic_device":  None,      # soundcard device id (str)
     "sys_device":  None,      # soundcard speaker id (str)
@@ -904,6 +904,7 @@ class App(tk.Tk):
         self.title(APP_TITLE)
         self.configure(bg=BG)
         self.resizable(False, False)
+        self.overrideredirect(True)            # frameless — the header is the title bar
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self._cfg          = load_config()
@@ -925,14 +926,48 @@ class App(tk.Tk):
         self._ui_q         = queue.Queue()
         self._closing      = False
 
-        set_dark_titlebar(self)
         self._apply_style()
         self._build()
+        self.bind("<Map>", self._on_restore)
+
+        # center on screen
+        self.update_idletasks()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        x = (self.winfo_screenwidth() - w) // 2
+        y = (self.winfo_screenheight() - h) // 3
+        self.geometry(f"+{x}+{y}")
 
         self.wm_attributes("-alpha", 0.0)
         self.after(30, lambda: self._fade(0.0))
         self.after(40, self._drain_ui)
         self.after(100, self._scan_devices)
+
+    # ── frameless window: drag + minimize ───────────────────────────────────────
+    def _drag_start(self, e):
+        self._dx = e.x_root - self.winfo_x()
+        self._dy = e.y_root - self.winfo_y()
+
+    def _drag_move(self, e):
+        self.geometry(f"+{e.x_root - self._dx}+{e.y_root - self._dy}")
+
+    def _minimize(self):
+        # overrideredirect breaks iconify on Windows — drop the frame momentarily,
+        # iconify, and restore the frameless state when the window maps again.
+        self.overrideredirect(False)
+        self.update_idletasks()
+        self.iconify()
+
+    def _on_restore(self, e=None):
+        if (e is None or e.widget is self) and self.state() == "normal":
+            self.overrideredirect(True)
+
+    def _winbtn(self, parent, glyph, cmd, hover):
+        b = tk.Label(parent, text=glyph, font=("Segoe MDL2 Assets", 10),
+                     bg=BG, fg=MUTED, cursor="hand2", padx=13)
+        b.bind("<Button-1>", lambda e: cmd())
+        b.bind("<Enter>", lambda e, b=b, h=hover: b.config(bg=h, fg=TEXT))
+        b.bind("<Leave>", lambda e, b=b: b.config(bg=BG, fg=MUTED))
+        return b
 
     # ── thread → UI marshalling (tkinter is not thread-safe) ───────────────────
     def _post(self, fn):
@@ -1031,15 +1066,21 @@ class App(tk.Tk):
 
     # ── build ────────────────────────────────────────────────────────────────
     def _build(self):
-        hdr = tk.Frame(self, bg=BG, height=58)
+        # Header doubles as the (custom) title bar: drag to move, controls at right.
+        hdr = tk.Frame(self, bg=BG, height=42)
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
         tk.Frame(hdr, bg=ACCENT, width=4).pack(side="left", fill="y")
-        ti = tk.Frame(hdr, bg=BG)
-        ti.pack(side="left", padx=14, pady=10)
-        tk.Label(ti, text=APP_TITLE, bg=BG, fg=TEXT, font=SEG_LG).pack(anchor="w")
-        tk.Label(ti, text=t("mic + sistema  ·  MP3 + transcrição"),
-                 bg=BG, fg=SUBTLE, font=SEG_XS).pack(anchor="w")
+        title = tk.Label(hdr, text=APP_TITLE, bg=BG, fg=TEXT, font=SEG_LG)
+        title.pack(side="left", padx=12)
+
+        self._winbtn(hdr, "", self._on_close, RED_C).pack(side="right", fill="y")
+        self._winbtn(hdr, "", self._minimize, CARD_H).pack(side="right", fill="y")
+
+        for w in (hdr, title):
+            w.bind("<Button-1>", self._drag_start)
+            w.bind("<B1-Motion>", self._drag_move)
+
         tk.Frame(self, bg=BORDER, height=1).pack(fill="x")
 
         body = tk.Frame(self, bg=BG)
