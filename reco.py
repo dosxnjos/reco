@@ -190,6 +190,7 @@ _TR_EN = {
     "✕  Excluir": "✕  Delete",
     "⚡  Transcrever + excluir": "⚡  Transcribe + delete",
     "▶  Reproduzir": "▶  Play",
+    "Salvar + Transcrever": "Save + Transcribe",
     "Tema:": "Theme:",
     "Fundo": "Background",
     "Destaque": "Accent",
@@ -977,6 +978,9 @@ class App(tk.Tk):
         self._dep_win      = None
         self._installing   = False
         self._sys_whisper_ok = False
+        self._pop          = None     # floating hover popup (STOPPED actions)
+        self._pop_after    = None
+        self._pop_anchor   = None
         self._ui_q         = queue.Queue()
         self._closing      = False
 
@@ -1169,17 +1173,19 @@ class App(tk.Tk):
                                         self._start_rec, primary=True)
         self._btn_parar    = self._btn(self._btn_row, t("⬛  Parar"),
                                         self._stop_rec, danger=True)
-        self._btn_concluir = self._btn(self._btn_row, t("✓  Salvar"),
-                                        self._conclude_save)
-        self._btn_save_tr  = self._btn(self._btn_row, t("⚡  Transcrever"),
-                                        self._conclude_and_transcribe, primary=True)
 
-        self._btn_excluir  = self._btn(self._btn_row2, t("✕  Excluir"),
-                                        self._conclude_delete, danger=True)
-        self._btn_tr_del   = self._btn(self._btn_row2, t("⚡  Transcrever + excluir"),
-                                        self._conclude_transcribe_and_delete)
-        self._btn_play     = self._btn(self._btn_row2, t("▶  Reproduzir"),
-                                        self._play_recording)
+        # STOPPED state: compact icon buttons that reveal their text/options on
+        # hover via a floating popup (keeps the window small).
+        self._ic_save = self._btn(self._btn_row, "⚡", lambda: None, primary=True)
+        self._ic_del  = self._btn(self._btn_row, "✕", lambda: None, danger=True)
+        self._ic_play = self._btn(self._btn_row, "▶", lambda: None)
+        self._wire_icon(self._ic_save, "Salvar + Transcrever", lambda: [
+            ("✓  Salvar", self._conclude_save),
+            ("⚡  Transcrever", self._conclude_and_transcribe)])
+        self._wire_icon(self._ic_del, None, lambda: [
+            ("✕  Excluir", self._conclude_delete)])
+        self._wire_icon(self._ic_play, None, lambda: [
+            ("▶  Reproduzir", self._play_recording)])
 
         self._timer_var = tk.StringVar(value="00:00:00")
         self._timer_lbl = tk.Label(self._btn_row, textvariable=self._timer_var,
@@ -1392,6 +1398,7 @@ class App(tk.Tk):
 
     # ── recording state machine ───────────────────────────────────────────────
     def _set_rec_state(self, state):
+        self._hide_pop()
         for w in self._btn_row.winfo_children():
             w.pack_forget()
         for w in self._btn_row2.winfo_children():
@@ -1405,13 +1412,11 @@ class App(tk.Tk):
             self._timer_lbl.pack(side="left")
             self._dot.pack(side="left")
         elif state == STOPPED:
-            self._btn_concluir.pack(side="left", padx=(0, 8))
-            self._btn_save_tr.pack(side="left", padx=(0, 8))
+            self._ic_save.pack(side="left", padx=(0, 8))
+            self._ic_del.pack(side="left", padx=(0, 8))
+            self._ic_play.pack(side="left")
             self._timer_var.set(self._final_dur)
             self._timer_lbl.pack(side="left", padx=(16, 0))
-            self._btn_excluir.pack(side="left", padx=(0, 8))
-            self._btn_tr_del.pack(side="left", padx=(0, 8))
-            self._btn_play.pack(side="left")
         elif state == BUSY:
             self._timer_lbl.pack(side="left")
 
@@ -1425,6 +1430,77 @@ class App(tk.Tk):
             self.geometry("")
         except Exception:
             pass
+
+    # ── hover popups for the compact STOPPED icons ──────────────────────────────
+    def _wire_icon(self, btn, header_key, items_fn):
+        def show(_=None):
+            self._show_pop(btn, header_key, items_fn())
+        btn.bind("<Enter>", show, add="+")
+        btn.bind("<Button-1>", show, add="+")
+        btn.bind("<Leave>", lambda e: self._schedule_hide_pop(), add="+")
+
+    def _show_pop(self, anchor, header_key, items):
+        self._cancel_hide_pop()
+        if self._pop is not None and self._pop_anchor is anchor:
+            return                       # already showing for this icon
+        self._hide_pop()
+        self._pop_anchor = anchor
+        pop = tk.Toplevel(self, bg=BORDER)
+        self._pop = pop
+        pop.overrideredirect(True)
+        try:
+            pop.attributes("-topmost", True)
+        except Exception:
+            pass
+        inner = tk.Frame(pop, bg=CARD)
+        inner.pack(padx=1, pady=1)
+        if header_key:
+            tk.Label(inner, text=t(header_key), bg=CARD, fg=SUBTLE, font=SEG_XS,
+                     anchor="w", padx=12, pady=3).pack(fill="x", pady=(3, 0))
+        for label_key, cmd in items:
+            row = tk.Label(inner, text=t(label_key), bg=CARD, fg=TEXT, font=SEG_SM,
+                           anchor="w", cursor="hand2", padx=12, pady=7)
+            row.pack(fill="x")
+            row.bind("<Enter>", lambda e, r=row: r.config(bg=CARD_H))
+            row.bind("<Leave>", lambda e, r=row: r.config(bg=CARD))
+            row.bind("<Button-1>", lambda e, c=cmd: self._pop_action(c))
+        pop.bind("<Enter>", lambda e: self._cancel_hide_pop())
+        pop.bind("<Leave>", lambda e: self._schedule_hide_pop())
+        pop.update_idletasks()
+        x = anchor.winfo_rootx()
+        y = anchor.winfo_rooty() + anchor.winfo_height() + 2
+        pw = pop.winfo_reqwidth()
+        sw = self.winfo_screenwidth()
+        if x + pw > sw:
+            x = max(0, sw - pw - 4)
+        pop.geometry(f"+{x}+{y}")
+        pop.lift()
+
+    def _pop_action(self, cmd):
+        self._hide_pop()
+        self.after(1, cmd)               # defer so the popup is gone first
+
+    def _hide_pop(self):
+        self._pop_after = None
+        self._pop_anchor = None
+        if self._pop is not None:
+            try:
+                self._pop.destroy()
+            except Exception:
+                pass
+            self._pop = None
+
+    def _schedule_hide_pop(self):
+        self._cancel_hide_pop()
+        self._pop_after = self.after(220, self._hide_pop)
+
+    def _cancel_hide_pop(self):
+        if self._pop_after:
+            try:
+                self.after_cancel(self._pop_after)
+            except Exception:
+                pass
+            self._pop_after = None
 
     # ── device scan ───────────────────────────────────────────────────────────
     def _scan_devices(self):
