@@ -1,0 +1,10 @@
+# Core — required for recording
+soundcard        # WASAPI capture (mic + system loopback)
+numpy
+lameenc          # MP3 encoding (bundled LAME, no ffmpeg needed)
+
+# Optional — better resampling when output rate != 48 kHz
+scipy
+
+# Optional — local transcription. Large; downloads a model (~0.5 GB) on first use.
+faster-whisper
