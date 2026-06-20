@@ -190,6 +190,8 @@ _TR_EN = {
     "✕  Excluir": "✕  Delete",
     "⚡  Transcrever + excluir": "⚡  Transcribe + delete",
     "▶  Reproduzir": "▶  Play",
+    "⚡  Salvar + Transcrever": "⚡  Save + Transcribe",
+    "🔤  Transcrever": "🔤  Transcribe",
     "Salvar + Transcrever": "Save + Transcribe",
     "Tema:": "Theme:",
     "Fundo": "Background",
@@ -1174,18 +1176,26 @@ class App(tk.Tk):
         self._btn_parar    = self._btn(self._btn_row, t("⬛  Parar"),
                                         self._stop_rec, danger=True)
 
-        # STOPPED state: compact icon buttons that reveal their text/options on
-        # hover via a floating popup (keeps the window small).
-        self._ic_save = self._btn(self._btn_row, "⚡", lambda: None, primary=True)
-        self._ic_del  = self._btn(self._btn_row, "✕", lambda: None, danger=True)
-        self._ic_play = self._btn(self._btn_row, "▶", lambda: None)
-        self._wire_icon(self._ic_save, "Salvar + Transcrever", lambda: [
+        # STOPPED state: compact icons. The icon itself performs the action;
+        # hovering reveals a floating menu/caption over the interface (the window
+        # never grows).
+        self._ic_save = self._btn(self._btn_row, "⚡", self._conclude_and_transcribe,
+                                  primary=True)
+        self._ic_del  = self._btn(self._btn_row, "✕", self._conclude_delete, danger=True)
+        self._ic_play = self._btn(self._btn_row, "▶", self._play_recording)
+        # ⚡ : clickable menu (debounced hide so the mouse can move into it)
+        self._ic_save.bind("<Enter>", lambda e: self._show_menu(self._ic_save, [
+            ("⚡  Salvar + Transcrever", self._conclude_and_transcribe),
             ("✓  Salvar", self._conclude_save),
-            ("⚡  Transcrever", self._conclude_and_transcribe)])
-        self._wire_icon(self._ic_del, None, lambda: [
-            ("✕  Excluir", self._conclude_delete)])
-        self._wire_icon(self._ic_play, None, lambda: [
-            ("▶  Reproduzir", self._play_recording)])
+            ("🔤  Transcrever", self._conclude_and_transcribe)]), add="+")
+        self._ic_save.bind("<Leave>", lambda e: self._schedule_hide_pop(), add="+")
+        # ✕ / ▶ : the icon acts on click; hover shows a non-clickable caption
+        self._ic_del.bind("<Enter>", lambda e: self._show_tip(self._ic_del,
+                                                              "✕  Excluir"), add="+")
+        self._ic_del.bind("<Leave>", lambda e: self._hide_pop(), add="+")
+        self._ic_play.bind("<Enter>", lambda e: self._show_tip(self._ic_play,
+                                                               "▶  Reproduzir"), add="+")
+        self._ic_play.bind("<Leave>", lambda e: self._hide_pop(), add="+")
 
         self._timer_var = tk.StringVar(value="00:00:00")
         self._timer_lbl = tk.Label(self._btn_row, textvariable=self._timer_var,
@@ -1432,17 +1442,7 @@ class App(tk.Tk):
             pass
 
     # ── hover popups for the compact STOPPED icons ──────────────────────────────
-    def _wire_icon(self, btn, header_key, items_fn):
-        def show(_=None):
-            self._show_pop(btn, header_key, items_fn())
-        btn.bind("<Enter>", show, add="+")
-        btn.bind("<Button-1>", show, add="+")
-        btn.bind("<Leave>", lambda e: self._schedule_hide_pop(), add="+")
-
-    def _show_pop(self, anchor, header_key, items):
-        self._cancel_hide_pop()
-        if self._pop is not None and self._pop_anchor is anchor:
-            return                       # already showing for this icon
+    def _make_pop(self, anchor):
         self._hide_pop()
         self._pop_anchor = anchor
         pop = tk.Toplevel(self, bg=BORDER)
@@ -1452,20 +1452,9 @@ class App(tk.Tk):
             pop.attributes("-topmost", True)
         except Exception:
             pass
-        inner = tk.Frame(pop, bg=CARD)
-        inner.pack(padx=1, pady=1)
-        if header_key:
-            tk.Label(inner, text=t(header_key), bg=CARD, fg=SUBTLE, font=SEG_XS,
-                     anchor="w", padx=12, pady=3).pack(fill="x", pady=(3, 0))
-        for label_key, cmd in items:
-            row = tk.Label(inner, text=t(label_key), bg=CARD, fg=TEXT, font=SEG_SM,
-                           anchor="w", cursor="hand2", padx=12, pady=7)
-            row.pack(fill="x")
-            row.bind("<Enter>", lambda e, r=row: r.config(bg=CARD_H))
-            row.bind("<Leave>", lambda e, r=row: r.config(bg=CARD))
-            row.bind("<Button-1>", lambda e, c=cmd: self._pop_action(c))
-        pop.bind("<Enter>", lambda e: self._cancel_hide_pop())
-        pop.bind("<Leave>", lambda e: self._schedule_hide_pop())
+        return pop
+
+    def _place_pop(self, pop, anchor):
         pop.update_idletasks()
         x = anchor.winfo_rootx()
         y = anchor.winfo_rooty() + anchor.winfo_height() + 2
@@ -1475,6 +1464,35 @@ class App(tk.Tk):
             x = max(0, sw - pw - 4)
         pop.geometry(f"+{x}+{y}")
         pop.lift()
+
+    def _show_menu(self, anchor, items):
+        # clickable menu (for the ⚡ icon); debounced hide so the mouse can move in
+        self._cancel_hide_pop()
+        if self._pop is not None and self._pop_anchor is anchor:
+            return
+        pop = self._make_pop(anchor)
+        inner = tk.Frame(pop, bg=CARD)
+        inner.pack(padx=1, pady=1)
+        for label_key, cmd in items:
+            row = tk.Label(inner, text=t(label_key), bg=CARD, fg=TEXT, font=SEG_SM,
+                           anchor="w", cursor="hand2", padx=12, pady=7)
+            row.pack(fill="x")
+            row.bind("<Enter>", lambda e, r=row: r.config(bg=CARD_H))
+            row.bind("<Leave>", lambda e, r=row: r.config(bg=CARD))
+            row.bind("<Button-1>", lambda e, c=cmd: self._pop_action(c))
+        pop.bind("<Enter>", lambda e: self._cancel_hide_pop())
+        pop.bind("<Leave>", lambda e: self._schedule_hide_pop())
+        self._place_pop(pop, anchor)
+
+    def _show_tip(self, anchor, text_key):
+        # non-clickable caption (for the ✕ / ▶ icons, which act on click)
+        self._cancel_hide_pop()
+        if self._pop is not None and self._pop_anchor is anchor:
+            return
+        pop = self._make_pop(anchor)
+        tk.Label(pop, text=t(text_key), bg=CARD, fg=TEXT, font=SEG_SM,
+                 padx=10, pady=5).pack(padx=1, pady=1)
+        self._place_pop(pop, anchor)
 
     def _pop_action(self, cmd):
         self._hide_pop()
