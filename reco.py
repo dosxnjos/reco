@@ -18,7 +18,6 @@ from tkinter import ttk, filedialog, messagebox, colorchooser
 import threading
 import queue
 import time
-import wave
 import datetime
 import json
 import os
@@ -94,14 +93,11 @@ SEG_XS = ("Segoe UI", 8)
 SEG_SB = ("Segoe UI Semibold", 10)
 SEG_LG = ("Segoe UI Semibold", 13)
 
-OUTPUT_DIR = Path.home() / "Videos" / "Reco"
+def default_output_dir() -> Path:
+    return Path.home() / "Documents" / "Reco"
 
-AUDIO_SEARCH = [
-    OUTPUT_DIR,
-    Path.home() / "Videos",
-    Path.home() / "Desktop",
-    Path.home() / "Downloads",
-]
+# Default save location (overridable in Options). Resolved from config at runtime.
+OUTPUT_DIR = default_output_dir()
 
 # ── Config persistence ─────────────────────────────────────────────────────────
 CONFIG_PATH = Path.home() / ".reco_config.json"
@@ -114,9 +110,19 @@ _CFG_DEFAULTS: dict = {
     "device":      "AUTO",    # OpenVINO device pref: AUTO | NPU | GPU | CPU
     "diarize":     True,      # channel-based diarization (mic = "Eu", system = others)
     "aec":         True,      # cancel PC-audio echo bleeding into the mic
+    "output_dir":  None,      # save folder; None -> Documents\Reco
     "mic_device":  None,      # soundcard device id (str)
     "sys_device":  None,      # soundcard speaker id (str)
 }
+
+# Filename marker identifying a Reco dual-channel (mic + system) recording, so the
+# transcribe screen only channel-diarizes / echo-cancels these — never arbitrary
+# files. Travels with the file (survives moving); only lost on a manual rename.
+RECO_TAG = "reco"
+
+def is_reco_recording(path) -> bool:
+    toks = Path(path).stem.lower().replace("-", "_").split("_")
+    return RECO_TAG in toks
 
 # Recording format is fixed (not user-configurable): 16 kHz stereo (L=mic,
 # R=system) is exactly what transcription + channel diarization + echo
@@ -220,8 +226,11 @@ _TR_EN = {
     "← Gravar": "← Record",
     "Ocultar transcrição": "Hide transcription",
     # advanced labels
-    "Entrada (mic):": "Input (mic):",
-    "Sistema (loop):": "System (loop):",
+    "Entrada:": "Input:",
+    "Saída:": "Output:",
+    "Pasta:": "Folder:",
+    "Alterar…": "Change…",
+    "Pasta de gravações": "Recordings folder",
     "↺ Atualizar dispositivos": "↺ Refresh devices",
     "Canais:": "Channels:",
     "Taxa:": "Rate:",
@@ -696,67 +705,6 @@ def write_mp3(path: Path, data: "np.ndarray", sr: int, channels: int,
     path.write_bytes(mp3)
 
 
-# ── Audio file helpers ──────────────────────────────────────────────────────
-AUDIO_EXTS = ("*.mp3", "*.wav", "*.m4a", "*.ogg", "*.flac")
-
-
-def audio_duration(path: Path) -> float:
-    if path.suffix.lower() == ".wav":
-        try:
-            with wave.open(str(path), "rb") as wf:
-                return wf.getnframes() / wf.getframerate()
-        except Exception:
-            pass
-    try:
-        import av
-        with av.open(str(path)) as c:
-            if c.duration:
-                return c.duration / 1_000_000
-            st = c.streams.audio[0]
-            if st.duration and st.time_base:
-                return float(st.duration * st.time_base)
-    except Exception:
-        pass
-    return 0.0
-
-
-def fmt_dur(sec: float) -> str:
-    sec = int(sec)
-    h, r = divmod(sec, 3600)
-    m, s = divmod(r, 60)
-    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
-
-
-def dur_label(path: Path) -> str:
-    d = audio_duration(path)
-    return fmt_dur(d) if d > 0 else "—"
-
-
-def find_recent_audio(n=8) -> list:
-    seen, files = set(), []
-    for d in AUDIO_SEARCH:
-        if not d.exists():
-            continue
-        for ext in AUDIO_EXTS:
-            for pat in (ext, f"*/{ext}"):
-                for p in d.glob(pat):
-                    key = str(p).lower()
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    try:
-                        p.stat(); files.append(p)
-                    except Exception:
-                        pass
-    files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return files[:n]
-
-
-def file_size_str(stat) -> str:
-    mb = stat.st_size / 1_048_576
-    return f"{mb:.0f} MB" if mb >= 1 else f"{stat.st_size // 1024} KB"
-
-
 # ── Device helpers (soundcard / WASAPI) ────────────────────────────────────────
 def list_capture_devices():
     if not HAS_SC:
@@ -901,7 +849,8 @@ class DualRecorder:
         if self._on_error:
             self._on_error(kind, msg)
 
-    def stop(self, progress=None, out_sr=48000, out_channels=1, bitrate=128) -> Path:
+    def stop(self, progress=None, out_sr=48000, out_channels=1, bitrate=128,
+             out_dir=None) -> Path:
         self._stop_ev.set()
         if self._barrier is not None:
             try: self._barrier.abort()
@@ -917,7 +866,7 @@ class DualRecorder:
             raise NoAudioCaptured()
         if progress:
             progress(t("Codificando MP3 e salvando…"))
-        return self._save(out_sr, out_channels, bitrate)
+        return self._save(out_sr, out_channels, bitrate, out_dir)
 
     def abort(self):
         self._stop_ev.set()
@@ -986,7 +935,7 @@ class DualRecorder:
             x_new = np.linspace(0, len(arr) - 1, new_len)
             return np.interp(x_new, x_old, arr.astype(np.float32)).astype(np.float32)
 
-    def _save(self, out_sr: int, out_channels: int, bitrate: int) -> Path:
+    def _save(self, out_sr: int, out_channels: int, bitrate: int, out_dir=None) -> Path:
         with self._lk_mic:
             mic_raw = (np.concatenate(self._mic_chunks)
                        if self._mic_chunks else np.zeros(0, np.float32))
@@ -1013,10 +962,12 @@ class DualRecorder:
                 mixed = mixed * (0.95 / peak)
             data = mixed
 
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        prefix = "gravacao" if LANG == "pt" else "recording"
+        folder = Path(out_dir) if out_dir else OUTPUT_DIR
+        folder.mkdir(parents=True, exist_ok=True)
+        # 'reco' marks this as a dual-channel (mic+system) recording (see RECO_TAG).
+        prefix = "gravacao_reco" if LANG == "pt" else "recording_reco"
         ts   = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        path = OUTPUT_DIR / f"{prefix}_{ts}.mp3"
+        path = folder / f"{prefix}_{ts}.mp3"
         write_mp3(path, data, out_sr, out_channels, bitrate)
         return path
 
@@ -1364,6 +1315,8 @@ class App(tk.Tk):
                 pass
 
         self._cfg          = load_config()
+        self._out_dir      = (Path(self._cfg["output_dir"])
+                              if self._cfg.get("output_dir") else default_output_dir())
         apply_theme(self._cfg.get("bg_color") or DEFAULT_BG,
                     self._cfg.get("accent_color") or DEFAULT_ACCENT)
         self.configure(bg=BG)
@@ -1658,13 +1611,13 @@ class App(tk.Tk):
         tk.Frame(self._adv, bg=BORDER, height=1).pack(fill="x", pady=(10, 8))
 
         for label, var_attr, cb_attr, cfg_key in [
-            ("Entrada (mic):", "_mic_var", "_mic_cb", "mic_device"),
-            ("Sistema (loop):", "_sys_var", "_sys_cb", "sys_device"),
+            ("Entrada:", "_mic_var", "_mic_cb", "mic_device"),
+            ("Saída:", "_sys_var", "_sys_cb", "sys_device"),
         ]:
             r = tk.Frame(self._adv, bg=BG)
             r.pack(fill="x", pady=2)
             tk.Label(r, text=t(label), bg=BG, fg=MUTED, font=SEG_SM,
-                     width=13, anchor="w").pack(side="left")
+                     width=9, anchor="w").pack(side="left")
             var = tk.StringVar()
             setattr(self, var_attr, var)
             cb = ttk.Combobox(r, textvariable=var, state="readonly",
@@ -1676,6 +1629,17 @@ class App(tk.Tk):
 
         self._link(self._adv, t("↺ Atualizar dispositivos"),
                    self._scan_devices).pack(anchor="w", pady=(2, 6))
+
+        # Auto-save folder (defaults to Documents\Reco; changeable)
+        frow = tk.Frame(self._adv, bg=BG)
+        frow.pack(fill="x", pady=(0, 2))
+        tk.Label(frow, text=t("Pasta:"), bg=BG, fg=SUBTLE,
+                 font=SEG_XS).pack(side="left", padx=(0, 4))
+        self._link(frow, t("Alterar…"), self._pick_output_dir,
+                   fg=ACCENT, font=SEG_XS).pack(side="right")
+        self._dir_var = tk.StringVar(value=str(self._out_dir))
+        tk.Label(frow, textvariable=self._dir_var, bg=BG, fg=MUTED, font=SEG_XS,
+                 anchor="w").pack(side="left", fill="x", expand=True)
 
         # Model (small), device (Auto: NPU→iGPU→CPU), channel diarization and echo
         # cancellation are all automatic now — no controls here on purpose.
@@ -1746,6 +1710,18 @@ class App(tk.Tk):
         self._cfg["language"] = code
         save_config(self._cfg)
         self._rebuild_ui()
+
+    def _pick_output_dir(self):
+        if self._state in (RECORDING, BUSY):
+            return
+        init = self._out_dir if self._out_dir.exists() else Path.home()
+        d = filedialog.askdirectory(parent=self, title=t("Pasta de gravações"),
+                                    initialdir=str(init))
+        if d:
+            self._out_dir = Path(d)
+            self._cfg["output_dir"] = d
+            save_config(self._cfg)
+            self._dir_var.set(d)
 
     def _pick_bg(self):
         _, hx = colorchooser.askcolor(color=BG, parent=self, title=t("Cor de fundo"))
@@ -2021,11 +1997,13 @@ class App(tk.Tk):
         self._status(t("Salvando…"))
         sr, ch, br = self._out_settings()
 
+        out_dir = self._out_dir
+
         def do_stop():
             try:
                 path = self._recorder.stop(
                     progress=lambda m: self._post(lambda: self._status(m)),
-                    out_sr=sr, out_channels=ch, bitrate=br)
+                    out_sr=sr, out_channels=ch, bitrate=br, out_dir=out_dir)
                 self._post(lambda: self._after_stop(path))
             except NoAudioCaptured:
                 self._post(lambda: self._after_stop_error(
@@ -2146,14 +2124,19 @@ class App(tk.Tk):
         self._transcriber.set_model(self._cfg.get("model", "small"))
         self._transcriber.set_device(self._cfg.get("device", "AUTO"))
 
+        # Channel diarization + echo cancellation only apply to Reco's own
+        # mic+system recordings; any other file is transcribed plainly.
+        reco_rec = is_reco_recording(path)
+        diarize = bool(self._cfg.get("diarize")) and reco_rec
+        aec     = bool(self._cfg.get("aec")) and reco_rec
+
         def _done(text, err):
             self._transcribing = False
             done_cb(text, err)
 
         self._transcriber.transcribe(
             path, lang=self._whisper_lang(),
-            diarize=bool(self._cfg.get("diarize")),
-            aec=bool(self._cfg.get("aec")),
+            diarize=diarize, aec=aec,
             progress_cb=lambda m: self._post(lambda: status_cb(m)),
             done_cb=lambda t_, e: self._post(lambda: _done(t_, e)))
         return True
@@ -2200,7 +2183,7 @@ class App(tk.Tk):
         self._link(nav, t("Abrir pasta"), self._open_tr_folder,
                    font=SEG_SM).pack(side="right")
 
-        self._tr_path_var = tk.StringVar(value=str(self._tr_sel) if self._tr_sel else "—")
+        self._tr_path_var = tk.StringVar(value=str(self._tr_sel) if self._tr_sel else "")
         tk.Label(sec, textvariable=self._tr_path_var, bg=BG, fg=SUBTLE,
                  font=SEG_XS, wraplength=300, justify="left").pack(
                      anchor="w", pady=(4, 0))
@@ -2283,7 +2266,7 @@ class App(tk.Tk):
             self._tr_show_stop(True)
 
     def _open_tr_folder(self):
-        folder = self._tr_sel.parent if self._tr_sel else OUTPUT_DIR
+        folder = self._tr_sel.parent if self._tr_sel else self._out_dir
         try:
             folder.mkdir(parents=True, exist_ok=True)
             os.startfile(str(folder))
