@@ -291,6 +291,7 @@ _TR_EN = {
     "Baixando modelo '{size}' (primeira vez)…":
         "Downloading model '{size}' (first time)…",
     "Preparando modelo no {dev}…": "Preparing model on {dev}…",
+    "Carregando áudio…": "Loading audio…",
     "Atualizando modelo…": "Updating model…",
     "Modelo atualizado.": "Model updated.",
     "⬆ Nova versão {tag}": "⬆ New version {tag}",
@@ -1082,8 +1083,13 @@ class OVTranscriber:
         # already forced, and channel diarization keeps each voice clean.
         return cfg
 
-    def _transcribe_channel(self, pipe, cfg, audio, win_done, win_total, progress_cb):
-        """Return ([(abs_start, text), …], windows_done); report progress per window."""
+    def _transcribe_channel(self, pipe, cfg, audio, win_done, win_total,
+                            progress_cb, ref=None):
+        """Return ([(abs_start, text), …], windows_done); report progress per window.
+
+        If `ref` is given (the system channel), the echo of `ref` is cancelled from
+        each window before transcription — done per-window so memory stays bounded
+        even on multi-hour files (a whole-file FFT would blow up to many GB)."""
         segs = []
         step = int(self.WIN * 16000)
         n = len(audio)
@@ -1092,6 +1098,8 @@ class OVTranscriber:
             if self._cancel.is_set():
                 return segs, win_done
             window = audio[i:i + step]
+            if ref is not None:
+                window = cancel_echo(window, ref[i:i + step])
             off = i / 16000.0
             rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
             if rms >= self.SILENCE_RMS:        # skip near-silence (no hallucinations)
@@ -1122,20 +1130,22 @@ class OVTranscriber:
             try:
                 pipe = self._pipeline(progress_cb)
                 cfg  = self._gen_cfg(pipe, lang)
+                if progress_cb:
+                    progress_cb(t("Carregando áudio…"))
                 chans = decode_16k(path, split=diarize)
-
-                # Cancel the PC-audio echo bleeding into the mic (L) using the
-                # clean system loopback (R) as reference — keeps diarization honest.
-                if diarize and aec and len(chans) >= 2:
-                    chans[0] = cancel_echo(chans[0], chans[1])
 
                 step = int(self.WIN * 16000)
                 win_total = max(1, sum(max(1, -(-len(c) // step))
                                        for c in chans if len(c)))
 
+                # Echo of the system (R) is cancelled from the mic (L) per-window
+                # inside _transcribe_channel — keeps diarization honest without a
+                # whole-file FFT (which would use many GB on long recordings).
+                ref = chans[1] if (diarize and aec and len(chans) >= 2) else None
+
                 if diarize and len(chans) >= 2:
                     me, done = self._transcribe_channel(
-                        pipe, cfg, chans[0], 0, win_total, progress_cb)
+                        pipe, cfg, chans[0], 0, win_total, progress_cb, ref=ref)
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
@@ -1209,7 +1219,8 @@ class MLXTranscriber:
         # large-v3-turbo keeps its name; the rest are whisper-<size>-mlx.
         return f"mlx-community/whisper-{size}-mlx"
 
-    def _transcribe_channel(self, repo, audio, lang, win_done, win_total, progress_cb):
+    def _transcribe_channel(self, repo, audio, lang, win_done, win_total,
+                            progress_cb, ref=None):
         import mlx_whisper
         segs = []
         step = int(self.WIN * 16000)
@@ -1219,6 +1230,8 @@ class MLXTranscriber:
             if self._cancel.is_set():
                 return segs, win_done
             window = audio[i:i + step]
+            if ref is not None:                       # per-window echo cancel
+                window = cancel_echo(window, ref[i:i + step])
             off = i / 16000.0
             rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
             if rms >= OVTranscriber.SILENCE_RMS:
@@ -1252,16 +1265,17 @@ class MLXTranscriber:
                     repo = self._repo(self._size)
                 if progress_cb:
                     progress_cb(tf("Preparando modelo no {dev}…", dev="Apple GPU"))
+                if progress_cb:
+                    progress_cb(t("Carregando áudio…"))
                 chans = decode_16k(path, split=diarize)
-                if diarize and aec and len(chans) >= 2:
-                    chans[0] = cancel_echo(chans[0], chans[1])
                 step = int(self.WIN * 16000)
                 win_total = max(1, sum(max(1, -(-len(c) // step))
                                        for c in chans if len(c)))
+                ref = chans[1] if (diarize and aec and len(chans) >= 2) else None
 
                 if diarize and len(chans) >= 2:
                     me, done = self._transcribe_channel(
-                        repo, chans[0], lang, 0, win_total, progress_cb)
+                        repo, chans[0], lang, 0, win_total, progress_cb, ref=ref)
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
