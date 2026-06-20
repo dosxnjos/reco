@@ -556,13 +556,9 @@ def _spk_them() -> str:
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
-# Whisper model sizes (pre-converted OpenVINO INT8 IR on Hugging Face).
-MODEL_OPTIONS = ["tiny", "small", "medium", "large-v3-turbo"]
-# Processing device (OpenVINO, x86). Auto picks NPU→iGPU→CPU — the right default
-# for machines without an NPU (falls back to the Intel iGPU, then CPU). On macOS
-# the MLX backend ignores this and always uses the Apple GPU.
-DEV_OPTIONS = ["AUTO", "NPU", "GPU", "CPU"]
-DEV_LABELS  = ["Auto", "NPU", "iGPU", "CPU"]
+# Model (small), device (AUTO → NPU→iGPU→CPU), diarization and echo cancellation
+# are all automatic — config keys still exist for power-user overrides, but there
+# are no UI controls for them.
 
 
 def write_mp3(path: Path, data: "np.ndarray", sr: int, channels: int,
@@ -1511,40 +1507,8 @@ class App(tk.Tk):
         self._link(self._adv, t("↺ Atualizar dispositivos"),
                    self._scan_devices).pack(anchor="w", pady=(2, 6))
 
-        # Model + processing device (audio format is fixed: 16 kHz stereo 128 kbps).
-        mrow = tk.Frame(self._adv, bg=BG)
-        mrow.pack(fill="x")
-        tk.Label(mrow, text=t("Modelo:"), bg=BG, fg=SUBTLE,
-                 font=SEG_XS).pack(side="left", padx=(0, 4))
-        self._model_var = tk.StringVar(value=self._cfg.get("model", "small"))
-        self._model_cb = ttk.Combobox(mrow, textvariable=self._model_var,
-                                      values=MODEL_OPTIONS,
-                                      state="readonly", style="XS.TCombobox",
-                                      font=SEG_XS, width=14)
-        self._model_cb.pack(side="left", padx=(0, 12))
-        self._model_var.trace_add("write", lambda *_: self._on_model_change())
-        tk.Label(mrow, text=t("Processar em:"), bg=BG, fg=SUBTLE,
-                 font=SEG_XS).pack(side="left", padx=(0, 4))
-        self._dev_var = tk.StringVar()
-        saved_dev = self._cfg.get("device", "AUTO")
-        self._dev_var.set(DEV_LABELS[DEV_OPTIONS.index(saved_dev)]
-                          if saved_dev in DEV_OPTIONS else DEV_LABELS[0])
-        self._dev_cb = ttk.Combobox(mrow, textvariable=self._dev_var,
-                                    values=DEV_LABELS, state="readonly",
-                                    style="XS.TCombobox", font=SEG_XS, width=10)
-        self._dev_cb.pack(side="left")
-        self._dev_var.trace_add("write", lambda *_: self._on_device_pref_change())
-
-        tk.Label(self._adv, text=t("tiny · small (padrão) · medium · large-v3-turbo"),
-                 bg=BG, fg=SUBTLE, font=SEG_XS).pack(anchor="w", pady=(6, 0))
-
-        # Diarization (one speaker per channel) + echo cancellation toggles
-        self._diar_link = self._link(self._adv, "", self._toggle_diarize)
-        self._diar_link.pack(anchor="w", pady=(8, 0))
-        self._update_diar_link()
-        self._aec_link = self._link(self._adv, "", self._toggle_aec)
-        self._aec_link.pack(anchor="w", pady=(4, 0))
-        self._update_aec_link()
+        # Model (small), device (Auto: NPU→iGPU→CPU), channel diarization and echo
+        # cancellation are all automatic now — no controls here on purpose.
 
         # language selector
         lrow = tk.Frame(self._adv, bg=BG)
@@ -1597,51 +1561,6 @@ class App(tk.Tk):
         if dev_id:
             self._cfg[cfg_key] = dev_id
             save_config(self._cfg)
-
-    def _on_model_change(self):
-        m = self._model_var.get()
-        self._cfg["model"] = m
-        save_config(self._cfg)
-        if self._transcriber and not self._transcribing:
-            self._transcriber.set_model(m)
-
-    def _on_device_pref_change(self):
-        label = self._dev_var.get()
-        if label not in DEV_LABELS:
-            return
-        pref = DEV_OPTIONS[DEV_LABELS.index(label)]
-        self._cfg["device"] = pref
-        save_config(self._cfg)
-        if self._transcriber and not self._transcribing:
-            self._transcriber.set_device(pref)
-
-    def _update_diar_link(self):
-        on = bool(self._cfg.get("diarize"))
-        self._diar_link.config(
-            text=(t("☑ Diarização (uma fala por canal)") if on
-                  else t("☐ Diarização (uma fala por canal)")),
-            fg=ACCENT if on else SUBTLE)
-
-    def _toggle_diarize(self):
-        if self._state in (RECORDING, BUSY) or self._transcribing:
-            return
-        self._cfg["diarize"] = not self._cfg.get("diarize")
-        save_config(self._cfg)
-        self._update_diar_link()
-
-    def _update_aec_link(self):
-        on = bool(self._cfg.get("aec"))
-        self._aec_link.config(
-            text=(t("☑ Cancelar eco do PC no microfone") if on
-                  else t("☐ Cancelar eco do PC no microfone")),
-            fg=ACCENT if on else SUBTLE)
-
-    def _toggle_aec(self):
-        if self._state in (RECORDING, BUSY) or self._transcribing:
-            return
-        self._cfg["aec"] = not self._cfg.get("aec")
-        save_config(self._cfg)
-        self._update_aec_link()
 
     def _on_lang_change(self):
         label = self._lang_var.get()
@@ -1901,8 +1820,7 @@ class App(tk.Tk):
 
     def _set_combos_enabled(self, enabled):
         st = "readonly" if enabled else "disabled"
-        for cb in (self._mic_cb, self._sys_cb, self._lang_cb,
-                   self._model_cb, self._dev_cb):
+        for cb in (self._mic_cb, self._sys_cb, self._lang_cb):
             cb.config(state=st)
 
     def _on_stream_error(self, src, msg):
@@ -2055,7 +1973,7 @@ class App(tk.Tk):
 
         self._transcribing = True
         status_cb(tf("Transcrevendo {n}…", n=path.name))
-        self._transcriber.set_model(self._model_var.get())
+        self._transcriber.set_model(self._cfg.get("model", "small"))
         self._transcriber.set_device(self._cfg.get("device", "AUTO"))
 
         def _done(text, err):
