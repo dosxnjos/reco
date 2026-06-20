@@ -31,10 +31,12 @@ if ($Clean) {
 }
 
 # Fetch the Whisper model to bundle (offline first run). Rarely updated, so shipped.
+# Also records its HF revision so the in-app update check has a baseline and
+# doesn't re-download an already-current model on first run.
 $modelDir = "$PSScriptRoot\models\whisper-small-int8-ov"
 if (-not (Test-Path "$modelDir\openvino_encoder_model.xml")) {
     Write-Host "Downloading Whisper model to bundle..." -ForegroundColor Yellow
-    & $pythonExe -c "from huggingface_hub import snapshot_download; snapshot_download('OpenVINO/whisper-small-int8-ov', local_dir=r'$modelDir')"
+    & $pythonExe -c "from huggingface_hub import snapshot_download, HfApi; r='OpenVINO/whisper-small-int8-ov'; d=r'$modelDir'; snapshot_download(r, local_dir=d); open(d+r'\.hf_revision','w').write(HfApi().model_info(r).sha or '')"
     if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: model download failed; exe will download on first use." -ForegroundColor Yellow }
 }
 
