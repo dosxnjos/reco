@@ -159,6 +159,13 @@ _TR_EN = {
     "MP3:": "MP3:",
     "Modelo:": "Model:",
     "Idioma:": "Language:",
+    "⌨ Criar atalho (Ctrl+Shift+R)": "⌨ Create shortcut (Ctrl+Shift+R)",
+    "⌨ Remover atalho": "⌨ Remove shortcut",
+    "Atalho criado — abra pelo Menu Iniciar ou com Ctrl+Shift+R.":
+        "Shortcut created — open from the Start Menu or with Ctrl+Shift+R.",
+    "Atalho removido.": "Shortcut removed.",
+    "Não foi possível criar o atalho: {e}":
+        "Couldn't create the shortcut: {e}",
     "tiny · small (padrão) · medium": "tiny · small (default) · medium",
     "Mono": "Mono",
     "Estéreo": "Stereo",
@@ -318,6 +325,11 @@ def _user_deps_dir() -> Path:
 
 def _no_window_kwargs() -> dict:
     return {"creationflags": 0x08000000} if os.name == "nt" else {}
+
+
+def _ps_quote(s: str) -> str:
+    """Quote a string as a PowerShell single-quoted literal."""
+    return "'" + s.replace("'", "''") + "'"
 
 
 def _system_python_cmd() -> list | None:
@@ -1167,6 +1179,11 @@ class App(tk.Tk):
         self._lang_cb.pack(side="left")
         self._lang_var.trace_add("write", lambda *_: self._on_lang_change())
 
+        # Keyboard shortcut — opt-in (NOT created automatically by setup)
+        self._sc_link = self._link(self._adv, "", self._toggle_shortcut)
+        self._sc_link.pack(anchor="w", pady=(8, 0))
+        self._update_shortcut_link()
+
         if not (HAS_SC and HAS_NP and HAS_LAME):
             self._status(t("Captura indisponível — instale soundcard, numpy e lameenc."))
 
@@ -1795,6 +1812,53 @@ class App(tk.Tk):
             os.startfile(str(OUTPUT_DIR))
         except Exception:
             pass
+
+    # ── keyboard shortcut (opt-in, created from here — never automatically) ──────
+    def _shortcut_path(self) -> Path:
+        base = os.environ.get("APPDATA") or str(Path.home())
+        return (Path(base) / "Microsoft" / "Windows" / "Start Menu" /
+                "Programs" / f"{APP_NAME}.lnk")
+
+    def _update_shortcut_link(self):
+        exists = self._shortcut_path().exists()
+        self._sc_link.config(
+            text=t("⌨ Remover atalho") if exists
+                 else t("⌨ Criar atalho (Ctrl+Shift+R)"),
+            fg=ACCENT if exists else SUBTLE)
+
+    def _toggle_shortcut(self):
+        lnk = self._shortcut_path()
+        try:
+            if lnk.exists():
+                lnk.unlink()
+                self._status(t("Atalho removido."))
+            else:
+                self._create_shortcut(lnk)
+                self._status(t("Atalho criado — abra pelo Menu Iniciar ou com Ctrl+Shift+R."))
+        except Exception as e:
+            self._status(tf("Não foi possível criar o atalho: {e}", e=e))
+        self._update_shortcut_link()
+
+    def _create_shortcut(self, lnk: Path):
+        if IS_FROZEN:
+            target, args = sys.executable, ""
+            wd = str(Path(sys.executable).parent)
+        else:
+            exe = Path(sys.executable)
+            pyw = exe.with_name("pythonw.exe")
+            target = str(pyw if pyw.exists() else exe)
+            script = str(Path(__file__).resolve())
+            args = f'"{script}"'
+            wd = str(Path(script).parent)
+        lnk.parent.mkdir(parents=True, exist_ok=True)
+        ps = (
+            f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut({_ps_quote(str(lnk))});"
+            f"$s.TargetPath={_ps_quote(target)};$s.Arguments={_ps_quote(args)};"
+            f"$s.HotKey='CTRL+SHIFT+R';$s.WorkingDirectory={_ps_quote(wd)};"
+            f"$s.IconLocation='shell32.dll,168';$s.Description='Reco';$s.Save()"
+        )
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                       check=True, capture_output=True, **_no_window_kwargs())
 
     # ── dependency installer (.exe only) ────────────────────────────────────────
     def _open_dep_installer(self):

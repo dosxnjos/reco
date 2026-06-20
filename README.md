@@ -34,8 +34,9 @@ Everything runs locally — nothing is uploaded. The interface is bilingual
 pip install -r requirements.txt
 python reco.py
 ```
-Or run `./setup.ps1` to install the dependencies and create a Start-Menu
-shortcut (**Ctrl+Shift+R**).
+Or run `./setup.ps1` to install the dependencies. The optional **Ctrl+Shift+R**
+keyboard shortcut is *opt-in* — enable it inside Reco under **Options** (it is
+never created automatically).
 
 Required: `soundcard`, `numpy`, `lameenc`. Optional: `scipy` (better resampling),
 `faster-whisper` (transcription; downloads a model ~0.5 GB on first use).
@@ -89,8 +90,9 @@ do sistema.
 pip install -r requirements.txt
 python reco.py
 ```
-Ou rode `./setup.ps1` para instalar as dependências e criar um atalho no Menu
-Iniciar (**Ctrl+Shift+R**).
+Ou rode `./setup.ps1` para instalar as dependências. O atalho de teclado
+**Ctrl+Shift+R** é *opcional* — ative dentro do Reco em **Opções** (ele nunca é
+criado automaticamente).
 
 Obrigatórias: `soundcard`, `numpy`, `lameenc`. Opcionais: `scipy` (melhor
 reamostragem), `faster-whisper` (transcrição; baixa um modelo ~0,5 GB no 1º uso).
