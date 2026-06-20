@@ -6,9 +6,17 @@
 # to %TEMP% on every launch — onedir keeps startup instant. The Whisper model
 # (INT8 IR) is downloaded from Hugging Face on first use, not bundled.
 
+import os
 from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 datas, binaries, hiddenimports = [], [], []
+
+# Bundle the Whisper model (INT8 IR) for a fully-offline first run. The model
+# updates rarely, so we ship it; if the folder isn't present at build time the app
+# falls back to download-on-first-use. build.ps1 fetches it before building.
+_model = os.path.join("models", "whisper-small-int8-ov")
+if os.path.isfile(os.path.join(_model, "openvino_encoder_model.xml")):
+    datas += [(_model, _model)]
 
 # soundcard loads cffi at runtime — collect package data + binaries.
 for pkg in ("soundcard", "openvino", "openvino_genai", "openvino_tokenizers",

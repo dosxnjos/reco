@@ -30,6 +30,14 @@ if ($Clean) {
     }
 }
 
+# Fetch the Whisper model to bundle (offline first run). Rarely updated, so shipped.
+$modelDir = "$PSScriptRoot\models\whisper-small-int8-ov"
+if (-not (Test-Path "$modelDir\openvino_encoder_model.xml")) {
+    Write-Host "Downloading Whisper model to bundle..." -ForegroundColor Yellow
+    & $pythonExe -c "from huggingface_hub import snapshot_download; snapshot_download('OpenVINO/whisper-small-int8-ov', local_dir=r'$modelDir')"
+    if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: model download failed; exe will download on first use." -ForegroundColor Yellow }
+}
+
 $spec = "$PSScriptRoot\reco.spec"
 $specToUse = $spec
 if ($Icon -and (Test-Path $Icon)) {
@@ -62,5 +70,5 @@ if (Test-Path $distDir) {
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "NOTE: transcription runs in-process via OpenVINO GenAI (NPU/iGPU/CPU)."
-Write-Host "      The Whisper model is downloaded on first use (needs internet once)."
-Write-Host "      Ship the whole dist\Reco\ folder; run Reco.exe inside it."
+Write-Host "      The Whisper model is bundled (fully offline). Ship the whole"
+Write-Host "      dist\Reco\ folder; run Reco.exe inside it."

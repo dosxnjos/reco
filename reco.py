@@ -215,6 +215,7 @@ _TR_EN = {
     "⚙ Opções": "⚙ Options",
     "⚙ Ocultar opções": "⚙ Hide options",
     "Transcrever…": "Transcribe…",
+    "← Gravar": "← Record",
     "Ocultar transcrição": "Hide transcription",
     # advanced labels
     "Entrada (mic):": "Input (mic):",
@@ -1409,8 +1410,12 @@ class App(tk.Tk):
         body.pack(fill="both", expand=True, padx=16, pady=12)
         self._body = body
 
-        self._build_meters(body)
-        self._build_recording(body)
+        # Recording and transcription are mutually exclusive views — you do one or
+        # the other, so the transcribe view replaces the recording view in place.
+        self._rec_section = tk.Frame(body, bg=BG)
+        self._rec_section.pack(fill="x")
+        self._build_meters(self._rec_section)
+        self._build_recording(self._rec_section)
         self._build_links(body)
         self._build_advanced(body)
         self._build_transcribe_section(body)
@@ -1475,6 +1480,7 @@ class App(tk.Tk):
     def _build_links(self, body):
         row = tk.Frame(body, bg=BG)
         row.pack(fill="x", pady=(10, 0))
+        self._links_row = row
         self._adv_link = self._link(row, t("⚙ Opções"), self._toggle_advanced)
         self._adv_link.pack(side="left")
         self._tr_link = self._link(row, t("Transcrever…"),
@@ -2020,7 +2026,6 @@ class App(tk.Tk):
     def _build_transcribe_section(self, body):
         sec = tk.Frame(body, bg=BG)
         self._tr_section = sec
-        tk.Frame(sec, bg=BORDER, height=1).pack(fill="x", pady=(10, 8))
         tk.Label(sec, text=t("TRANSCRIÇÃO"), bg=BG, fg=SUBTLE,
                  font=SEG_XS).pack(anchor="w", pady=(0, 6))
 
@@ -2052,15 +2057,20 @@ class App(tk.Tk):
                      anchor="w", pady=(8, 0))
 
     def _toggle_transcribe_section(self):
+        # Recording ⇄ transcribe are exclusive views — swap one for the other.
+        if self._state in (RECORDING, BUSY) or self._transcribing:
+            return
         self._tr_shown = not self._tr_shown
         if self._tr_shown:
             if not self._tr_sel and self._last_rec and self._last_rec.exists():
                 self._tr_sel = self._last_rec
                 self._tr_path_var.set(str(self._tr_sel))
-            self._tr_section.pack(fill="x")
-            self._tr_link.config(text=t("Ocultar transcrição"))
+            self._rec_section.pack_forget()
+            self._tr_section.pack(fill="x", before=self._links_row)
+            self._tr_link.config(text=t("← Gravar"))
         else:
             self._tr_section.pack_forget()
+            self._rec_section.pack(fill="x", before=self._links_row)
             self._tr_link.config(text=t("Transcrever…"))
         self.update_idletasks()
         self.geometry("")
