@@ -24,6 +24,9 @@ Everything runs locally — nothing is uploaded. The interface is bilingual
 - 📝 **Local transcription** (faster-whisper) that auto-saves a `.txt` next to your
   recordings. No cloud, fully private.
 - 🌐 **Bilingual UI** (PT/EN), auto-detected, switchable in Options.
+- 🎨 **Custom theme** — pick the background and accent colors in Options; text
+  contrast adjusts automatically. Frameless window with its own title bar.
+- ▶️ Play back the last recording; the window auto-resizes to its controls.
 - ⚙️ Compact window; advanced settings (devices, channels, sample rate, MP3
   bitrate, model, language) tucked behind a toggle.
 
@@ -80,6 +83,9 @@ do sistema.
 - 📝 **Transcrição local** (faster-whisper) que salva um `.txt` automaticamente
   junto das gravações. Sem nuvem, 100% privado.
 - 🌐 **Interface bilíngue** (PT/EN), detectada automaticamente, troca em Opções.
+- 🎨 **Tema personalizável** — escolha as cores de fundo e de destaque em Opções;
+  o contraste do texto se ajusta sozinho. Janela sem moldura, com barra própria.
+- ▶️ Reproduza a última gravação; a janela se ajusta ao tamanho dos botões.
 - ⚙️ Janela compacta; opções avançadas (dispositivos, canais, taxa, bitrate MP3,
   modelo, idioma) escondidas atrás de um link.
 

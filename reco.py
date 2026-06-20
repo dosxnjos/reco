@@ -14,7 +14,7 @@ faster-whisper. UI is bilingual (PT/EN), auto-detected from the system.
 
 import sys
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, colorchooser
 import threading
 import queue
 import time
@@ -32,19 +32,60 @@ IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME  = "Reco"
 APP_TITLE = "Reco"
 
-# ── Design tokens ─────────────────────────────────────────────────────────────
-BG     = "#181A1B"
-CARD   = "#272729"
-CARD_H = "#373742"
-CARD_A = "#362E28"
-ACCENT = "#E0825F"
-TEXT   = "#F5F5F7"
-MUTED  = "#B8BAC6"
-SUBTLE = "#969CA4"
-BORDER = "#464650"
+# ── Theme ─────────────────────────────────────────────────────────────────────
+# GREEN/AMBER/RED are fixed (VU meter); everything else derives from the chosen
+# background + accent via apply_theme(), which auto-picks readable text colors.
 GREEN  = "#30A46C"
 AMBER  = "#F5A623"
 RED_C  = "#E5484D"
+
+DEFAULT_BG     = "#181A1B"
+DEFAULT_ACCENT = "#E0825F"
+
+BG = CARD = CARD_H = CARD_A = ACCENT = ACCENT_FG = TEXT = MUTED = SUBTLE = BORDER = ""
+
+
+def _hex_to_rgb(h):
+    h = h.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+def _rgb_to_hex(rgb):
+    return "#%02X%02X%02X" % tuple(max(0, min(255, int(round(c)))) for c in rgb)
+
+def _lum(h):
+    r, g, b = _hex_to_rgb(h)
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+def _mix(h, target, amt):
+    a, b = _hex_to_rgb(h), _hex_to_rgb(target)
+    return _rgb_to_hex(tuple(a[i] + (b[i] - a[i]) * amt for i in range(3)))
+
+def _best_fg(bg_hex):
+    """Readable text on bg_hex: dark-gray on light colors, white on dark ones."""
+    return "#1A1A1C" if _lum(bg_hex) > 0.62 else "#FFFFFF"
+
+
+def apply_theme(bg_color, accent_color):
+    global BG, CARD, CARD_H, CARD_A, ACCENT, ACCENT_FG, TEXT, MUTED, SUBTLE, BORDER
+    BG = bg_color
+    ACCENT = accent_color
+    ACCENT_FG = _best_fg(accent_color)
+    if _lum(bg_color) < 0.5:                       # dark background
+        TEXT, MUTED, SUBTLE = "#F5F5F7", "#B8BAC6", "#969CA4"
+        CARD   = _mix(bg_color, "#FFFFFF", 0.06)
+        CARD_H = _mix(bg_color, "#FFFFFF", 0.13)
+        BORDER = _mix(bg_color, "#FFFFFF", 0.20)
+    else:                                          # light background
+        TEXT, MUTED, SUBTLE = "#1A1A1C", "#3C3C44", "#5C5C66"
+        CARD   = _mix(bg_color, "#000000", 0.05)
+        CARD_H = _mix(bg_color, "#000000", 0.11)
+        BORDER = _mix(bg_color, "#000000", 0.18)
+    CARD_A = _mix(bg_color, accent_color, 0.22)    # accent-tinted selection
+
+
+apply_theme(DEFAULT_BG, DEFAULT_ACCENT)
 
 SEG    = ("Segoe UI", 10)
 SEG_SM = ("Segoe UI", 9)
@@ -66,6 +107,8 @@ CONFIG_PATH = Path.home() / ".reco_config.json"
 
 _CFG_DEFAULTS: dict = {
     "language":    None,      # "pt" | "en" | None -> auto-detect from system
+    "bg_color":    DEFAULT_BG,
+    "accent_color": DEFAULT_ACCENT,
     "channels":    1,
     "sample_rate": 48000,     # 48 kHz = native WASAPI rate, no resampling
     "mp3_bitrate": 64,        # 64 kbps = small files, fine for speech
@@ -146,6 +189,13 @@ _TR_EN = {
     "⚡  Transcrever": "⚡  Transcribe",
     "✕  Excluir": "✕  Delete",
     "⚡  Transcrever + excluir": "⚡  Transcribe + delete",
+    "▶  Reproduzir": "▶  Play",
+    "Tema:": "Theme:",
+    "Fundo": "Background",
+    "Destaque": "Accent",
+    "Padrão": "Default",
+    "Cor de fundo": "Background color",
+    "Cor de destaque": "Accent color",
     # links
     "⚙ Opções": "⚙ Options",
     "⚙ Ocultar opções": "⚙ Hide options",
@@ -205,6 +255,7 @@ _TR_EN = {
     "Não foi possível excluir: {e}": "Couldn't delete: {e}",
     # status — transcription
     "Nada para transcrever.": "Nothing to transcribe.",
+    "Nada para reproduzir.": "Nothing to play.",
     "Arquivo não encontrado.": "File not found.",
     "Já há uma transcrição em andamento.": "A transcription is already running.",
     "faster-whisper não instalado — rode setup.ps1":
@@ -908,6 +959,9 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self._cfg          = load_config()
+        apply_theme(self._cfg.get("bg_color") or DEFAULT_BG,
+                    self._cfg.get("accent_color") or DEFAULT_ACCENT)
+        self.configure(bg=BG)
         self._state        = IDLE
         self._recorder     = DualRecorder() if (HAS_SC and HAS_NP and HAS_LAME) else None
         self._transcriber  = Transcriber()  if HAS_WHISPER else None
@@ -962,10 +1016,11 @@ class App(tk.Tk):
             self.overrideredirect(True)
 
     def _winbtn(self, parent, glyph, cmd, hover):
+        hf = _best_fg(hover)
         b = tk.Label(parent, text=glyph, font=("Segoe MDL2 Assets", 10),
                      bg=BG, fg=MUTED, cursor="hand2", padx=13)
         b.bind("<Button-1>", lambda e: cmd())
-        b.bind("<Enter>", lambda e, b=b, h=hover: b.config(bg=h, fg=TEXT))
+        b.bind("<Enter>", lambda e, b=b, h=hover, f=hf: b.config(bg=h, fg=f))
         b.bind("<Leave>", lambda e, b=b: b.config(bg=BG, fg=MUTED))
         return b
 
@@ -1026,14 +1081,14 @@ class App(tk.Tk):
     # ── widget factories ───────────────────────────────────────────────────────
     def _btn(self, parent, text, cmd, primary=False, danger=False, **kw):
         if danger:
-            bg, abg = RED_C,   "#B03030"
+            bg, abg, fg = RED_C, _mix(RED_C, "#000000", 0.18), "#FFFFFF"
         elif primary:
-            bg, abg = ACCENT,  "#BF6A4A"
+            bg, abg, fg = ACCENT, _mix(ACCENT, "#000000", 0.14), ACCENT_FG
         else:
-            bg, abg = CARD,    CARD_H
+            bg, abg, fg = CARD, CARD_H, TEXT
         b = tk.Button(
             parent, text=text, command=cmd,
-            bg=bg, fg=TEXT, activebackground=abg, activeforeground=TEXT,
+            bg=bg, fg=fg, activebackground=abg, activeforeground=fg,
             relief="flat", bd=0, cursor="hand2",
             font=SEG_SB if (primary or danger) else SEG,
             padx=12, pady=7, **kw)
@@ -1123,6 +1178,8 @@ class App(tk.Tk):
                                         self._conclude_delete, danger=True)
         self._btn_tr_del   = self._btn(self._btn_row2, t("⚡  Transcrever + excluir"),
                                         self._conclude_transcribe_and_delete)
+        self._btn_play     = self._btn(self._btn_row2, t("▶  Reproduzir"),
+                                        self._play_recording)
 
         self._timer_var = tk.StringVar(value="00:00:00")
         self._timer_lbl = tk.Label(self._btn_row, textvariable=self._timer_var,
@@ -1220,6 +1277,18 @@ class App(tk.Tk):
         self._lang_cb.pack(side="left")
         self._lang_var.trace_add("write", lambda *_: self._on_lang_change())
 
+        # Theme: pick background + accent (text colors auto-adjust for contrast)
+        trow = tk.Frame(self._adv, bg=BG)
+        trow.pack(fill="x", pady=(8, 0))
+        tk.Label(trow, text=t("Tema:"), bg=BG, fg=SUBTLE,
+                 font=SEG_XS).pack(side="left", padx=(0, 6))
+        self._link(trow, t("Fundo"), self._pick_bg, fg=ACCENT,
+                   font=SEG_XS).pack(side="left", padx=(0, 10))
+        self._link(trow, t("Destaque"), self._pick_accent, fg=ACCENT,
+                   font=SEG_XS).pack(side="left", padx=(0, 10))
+        self._link(trow, t("Padrão"), self._reset_theme, fg=SUBTLE,
+                   font=SEG_XS).pack(side="left")
+
         # Keyboard shortcut — opt-in (NOT created automatically by setup)
         self._sc_link = self._link(self._adv, "", self._toggle_shortcut)
         self._sc_link.pack(anchor="w", pady=(8, 0))
@@ -1274,7 +1343,35 @@ class App(tk.Tk):
         LANG = code
         self._cfg["language"] = code
         save_config(self._cfg)
-        # close aux windows (built in the old language)
+        self._rebuild_ui()
+
+    def _pick_bg(self):
+        _, hx = colorchooser.askcolor(color=BG, parent=self, title=t("Cor de fundo"))
+        if hx:
+            self._set_theme(hx, ACCENT)
+
+    def _pick_accent(self):
+        _, hx = colorchooser.askcolor(color=ACCENT, parent=self,
+                                      title=t("Cor de destaque"))
+        if hx:
+            self._set_theme(BG, hx)
+
+    def _reset_theme(self):
+        self._set_theme(DEFAULT_BG, DEFAULT_ACCENT)
+
+    def _set_theme(self, bg, accent):
+        if self._state in (RECORDING, BUSY):
+            return
+        apply_theme(bg, accent)
+        self._cfg["bg_color"] = BG
+        self._cfg["accent_color"] = ACCENT
+        save_config(self._cfg)
+        self.configure(bg=BG)
+        self._rebuild_ui()
+
+    def _rebuild_ui(self):
+        # Rebuild the whole UI (used on language/theme change). Aux windows were
+        # built with the old language/theme, so close them.
         for w in (self._tr_win, self._dep_win):
             try:
                 if w is not None and w.winfo_exists():
@@ -1283,12 +1380,12 @@ class App(tk.Tk):
                 pass
         self._tr_win = None
         self._dep_win = None
-        # rebuild the whole UI in the new language
         for c in self.winfo_children():
             c.destroy()
         self._adv_shown = False
+        self._apply_style()
         self._build()
-        self._toggle_advanced()      # keep options visible (where the selector is)
+        self._toggle_advanced()       # keep Options open (where the controls live)
         self._scan_devices()
         self.update_idletasks()
         self.geometry("")
@@ -1313,9 +1410,21 @@ class App(tk.Tk):
             self._timer_var.set(self._final_dur)
             self._timer_lbl.pack(side="left", padx=(16, 0))
             self._btn_excluir.pack(side="left", padx=(0, 8))
-            self._btn_tr_del.pack(side="left")
+            self._btn_tr_del.pack(side="left", padx=(0, 8))
+            self._btn_play.pack(side="left")
         elif state == BUSY:
             self._timer_lbl.pack(side="left")
+
+        # Refit so the window shrinks back when a row empties out. Tk quirk: an
+        # emptied frame keeps its old requested size, so force it small first.
+        try:
+            for fr in (self._btn_row, self._btn_row2):
+                if not any(w.winfo_manager() for w in fr.winfo_children()):
+                    fr.configure(width=1, height=1)
+            self.update_idletasks()
+            self.geometry("")
+        except Exception:
+            pass
 
     # ── device scan ───────────────────────────────────────────────────────────
     def _scan_devices(self):
@@ -1853,6 +1962,15 @@ class App(tk.Tk):
             os.startfile(str(OUTPUT_DIR))
         except Exception:
             pass
+
+    def _play_recording(self):
+        if self._last_rec and self._last_rec.exists():
+            try:
+                os.startfile(str(self._last_rec))   # default audio player
+            except Exception as e:
+                self._status(tf("Erro: {e}", e=e))
+        else:
+            self._status(t("Nada para reproduzir."))
 
     # ── keyboard shortcut (opt-in, created from here — never automatically) ──────
     def _shortcut_path(self) -> Path:
