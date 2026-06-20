@@ -21,7 +21,7 @@ Write-Host "Installing PyInstaller..." -ForegroundColor Yellow
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: failed to install PyInstaller." -ForegroundColor Red; exit 1 }
 
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
-& $pythonExe -m pip install soundcard lameenc numpy scipy --quiet
+& $pythonExe -m pip install soundcard lameenc numpy scipy av huggingface_hub openvino openvino-genai openvino-tokenizers --quiet
 if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: a dependency failed to install." -ForegroundColor Yellow }
 
 if ($Clean) {
@@ -49,16 +49,18 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-$exe = "$PSScriptRoot\dist\Reco.exe"
+$exe = "$PSScriptRoot\dist\Reco\Reco.exe"
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host " Build complete!" -ForegroundColor Green
 Write-Host " $exe"
-if (Test-Path $exe) {
-    $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-    Write-Host " Size: $mb MB"
+$distDir = "$PSScriptRoot\dist\Reco"
+if (Test-Path $distDir) {
+    $mb = [math]::Round(((Get-ChildItem $distDir -Recurse | Measure-Object Length -Sum).Sum) / 1MB, 1)
+    Write-Host " Folder size: $mb MB"
 }
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "NOTE: faster-whisper is NOT bundled. The .exe records on its own;"
-Write-Host "      for transcription it uses the system Python (auto-installs on demand)."
+Write-Host "NOTE: transcription runs in-process via OpenVINO GenAI (NPU/iGPU/CPU)."
+Write-Host "      The Whisper model is downloaded on first use (needs internet once)."
+Write-Host "      Ship the whole dist\Reco\ folder; run Reco.exe inside it."

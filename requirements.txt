@@ -6,5 +6,15 @@ lameenc          # MP3 encoding (bundled LAME, no ffmpeg needed)
 # Optional — better resampling when output rate != 48 kHz
 scipy
 
-# Optional — local transcription. Large; downloads a model (~0.5 GB) on first use.
-faster-whisper
+# Transcription (in-process, no Python/ffmpeg needed at runtime once bundled).
+# Decodes any audio to 16 kHz via PyAV; downloads the Whisper INT8 model on first use.
+av               # audio decoding (bundles ffmpeg libs)
+huggingface_hub  # downloads the model on first use
+
+# Windows/Linux x86 — OpenVINO GenAI (NPU / iGPU / CPU)
+openvino; platform_system != "Darwin"
+openvino-genai; platform_system != "Darwin"
+openvino-tokenizers; platform_system != "Darwin"
+
+# macOS Apple Silicon — MLX (Apple GPU)
+mlx-whisper; platform_system == "Darwin" and platform_machine == "arm64"
