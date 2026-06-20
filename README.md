@@ -37,7 +37,7 @@ the bundled app is fully self-contained (no Python, no ffmpeg).
   adjusts automatically. Frameless window with its own title bar.
 - ▶️ Play back the last recording. Record and Transcribe are one-or-the-other views.
 
-> Windows 10/11 (uses WASAPI). Recordings are saved to `Videos\Reco`.
+> Windows 10/11 (uses WASAPI). Recordings are saved to `Documents\Reco` (changeable in Options).
 
 ### Run from source
 ```powershell
@@ -106,7 +106,7 @@ app empacotado é autossuficiente (sem Python, sem ffmpeg).
   contraste do texto se ajusta sozinho. Janela sem moldura, com barra própria.
 - ▶️ Reproduza a última gravação. Gravar e Transcrever são telas alternadas (uma ou outra).
 
-> Apenas Windows 10/11 (usa WASAPI). As gravações vão para `Videos\Reco`.
+> Apenas Windows 10/11 (usa WASAPI). As gravações vão para `Documentos\Reco` (mudável nas Opções).
 
 ### Rodar pelo código-fonte
 ```powershell

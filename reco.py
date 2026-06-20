@@ -29,7 +29,7 @@ from pathlib import Path
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME    = "Reco"
 APP_TITLE   = "Reco"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.1.1"
 GITHUB_REPO = "dosxnjos/reco"
 
 # ── Theme ─────────────────────────────────────────────────────────────────────
