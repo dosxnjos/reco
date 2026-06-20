@@ -19,3 +19,9 @@ desktop.ini
 
 # Scratch
 *.log
+
+# logo working files — keep only the app icon + 1x1 png
+logo/.claude/
+logo/*.png
+!logo/logo_symbol_1x1.png
+logo/ChatGPT*

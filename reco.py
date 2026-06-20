@@ -144,6 +144,12 @@ def save_config(cfg: dict):
         pass
 
 
+def _icon_file() -> Path | None:
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    p = base / "logo" / "logo_symbol_1x1.ico"
+    return p if p.exists() else None
+
+
 def set_dark_titlebar(win):
     try:
         win.update_idletasks()
@@ -270,6 +276,7 @@ _TR_EN = {
     "Transcrevendo {n}…": "Transcribing {n}…",
     "Carregando modelo…": "Loading model…",
     "Transcrevendo…": "Transcribing…",
+    "Transcrevendo… {p}%": "Transcribing… {p}%",
     "Carregando modelo '{size}' (primeira vez faz download)…":
         "Loading model '{size}' (first time downloads it)…",
     "a transcrição falhou (código {c})": "transcription failed (code {c})",
@@ -454,11 +461,17 @@ _WORKER_SRC = (
     "         'ingl\\u00eas s\\u00e3o comuns.'),\n"
     "  'en': 'Work meeting in English with some product names and acronyms.',\n"
     "}\n"
-    "segs, _info = m.transcribe(audio, language=lang,\n"
-    "                           initial_prompt=PROMPTS.get(lang),\n"
-    "                           vad_filter=True,\n"
-    "                           vad_parameters={'min_silence_duration_ms': 400})\n"
-    "parts = [s.text.strip() for s in segs if s.text.strip()]\n"
+    "segs, info = m.transcribe(audio, language=lang,\n"
+    "                          initial_prompt=PROMPTS.get(lang),\n"
+    "                          vad_filter=True,\n"
+    "                          vad_parameters={'min_silence_duration_ms': 400})\n"
+    "total = getattr(info, 'duration', 0) or 0\n"
+    "parts = []\n"
+    "for s in segs:\n"
+    "    if s.text.strip():\n"
+    "        parts.append(s.text.strip())\n"
+    "    if total:\n"
+    "        print('PROG ' + str(min(99, int(s.end / total * 100))), flush=True)\n"
     "text = '\\n'.join(parts) or '(no content recognized)'\n"
     "import io\n"
     "with io.open(out_txt, 'w', encoding='utf-8') as f:\n"
@@ -901,12 +914,20 @@ class Transcriber:
                             self._model = model
                 if progress_cb:
                     progress_cb(t("Transcrevendo…"))
-                segs, _ = model.transcribe(
+                segs, info = model.transcribe(
                     str(path), language=lang,
                     initial_prompt=PROMPTS.get(lang),
                     vad_filter=True,
                     vad_parameters=dict(min_silence_duration_ms=400))
-                text = "\n".join(s.text.strip() for s in segs if s.text.strip())
+                total = getattr(info, "duration", 0) or 0
+                parts = []
+                for s in segs:
+                    if s.text.strip():
+                        parts.append(s.text.strip())
+                    if progress_cb and total:
+                        progress_cb(tf("Transcrevendo… {p}%",
+                                       p=min(99, int(s.end / total * 100))))
+                text = "\n".join(parts)
                 if done_cb:
                     done_cb(text or "(no content recognized)", None)
             except Exception as e:
@@ -960,6 +981,12 @@ class App(tk.Tk):
         self.resizable(False, False)
         self.overrideredirect(True)            # frameless — the header is the title bar
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        _ico = _icon_file()
+        if _ico:
+            try:
+                self.iconbitmap(default=str(_ico))
+            except Exception:
+                pass
 
         self._cfg          = load_config()
         apply_theme(self._cfg.get("bg_color") or DEFAULT_BG,
@@ -1827,6 +1854,14 @@ class App(tk.Tk):
                     self._post(lambda: status_cb(t("Carregando modelo…")))
                 elif l == "STAGE transcribing":
                     self._post(lambda: status_cb(t("Transcrevendo…")))
+                elif l.startswith("PROG "):
+                    try:
+                        pct = int(l[5:])
+                    except ValueError:
+                        pct = None
+                    if pct is not None:
+                        self._post(lambda p=pct:
+                                   status_cb(tf("Transcrevendo… {p}%", p=p)))
             proc.stdout.close()
             rc = proc.wait()
             if rc == 0 and out.exists():

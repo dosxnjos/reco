@@ -11,7 +11,7 @@ a = Analysis(
     ['reco.py'],
     pathex=[],
     binaries=_sc_binaries,
-    datas=_sc_datas,
+    datas=_sc_datas + [('logo/logo_symbol_1x1.ico', 'logo')],
     hiddenimports=[
         *_sc_hidden,
         'soundcard',
@@ -58,5 +58,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # icon='reco.ico',
+    icon='logo/logo_symbol_1x1.ico',
 )
