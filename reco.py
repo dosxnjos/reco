@@ -28,8 +28,10 @@ import subprocess
 from pathlib import Path
 
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
-APP_NAME  = "Reco"
-APP_TITLE = "Reco"
+APP_NAME    = "Reco"
+APP_TITLE   = "Reco"
+APP_VERSION = "0.1.0"
+GITHUB_REPO = "dosxnjos/reco"
 
 # ── Theme ─────────────────────────────────────────────────────────────────────
 # GREEN/AMBER/RED are fixed (VU meter); everything else derives from the chosen
@@ -289,6 +291,9 @@ _TR_EN = {
     "Baixando modelo '{size}' (primeira vez)…":
         "Downloading model '{size}' (first time)…",
     "Preparando modelo no {dev}…": "Preparing model on {dev}…",
+    "Atualizando modelo…": "Updating model…",
+    "Modelo atualizado.": "Model updated.",
+    "⬆ Nova versão {tag}": "⬆ New version {tag}",
     "a transcrição falhou (código {c})": "transcription failed (code {c})",
     "Erro na transcrição: {e}": "Transcription error: {e}",
     "Transcrito, mas falha ao salvar o .txt.":
@@ -518,25 +523,132 @@ def resolve_device(pref: str) -> str:
     return "CPU"
 
 
+MODEL_SENTINEL = "openvino_encoder_model.xml"
+
+
 def ov_model_repo(size: str) -> str:
     return f"OpenVINO/whisper-{size}-int8-ov"
 
 
+def _repo_for_dir(d: Path) -> str:
+    """The HF repo a local model folder came from (folder name is the repo name)."""
+    return f"OpenVINO/{d.name}"
+
+
+def _find_model_dir(size: str | None = None) -> Path | None:
+    """Locate the active OV model folder dynamically (the one holding the encoder
+    XML). A downloaded update in the user-data dir wins over the bundled copy."""
+    cands = []
+    user = _user_data_dir() / "models"
+    if user.is_dir():
+        cands += sorted(p for p in user.iterdir() if p.is_dir())
+    bundled = _bundled_models_dir()
+    if bundled.is_dir():
+        cands += sorted(p for p in bundled.iterdir() if p.is_dir())
+    valid = [d for d in cands if (d / MODEL_SENTINEL).exists()]
+    if size:
+        for d in valid:
+            if f"whisper-{size}-" in d.name:
+                return d
+    return valid[0] if valid else None
+
+
+def _write_revision(d: Path, repo: str):
+    try:
+        from huggingface_hub import HfApi
+        sha = HfApi().model_info(repo).sha
+        if sha:
+            (d / ".hf_revision").write_text(sha, encoding="utf-8")
+    except Exception:
+        pass
+
+
 def ensure_ov_model(size: str, progress=None) -> Path:
-    """Local dir with the OV IR model; bundled, cached, or downloaded on demand."""
-    sentinel = "openvino_encoder_model.xml"
-    bundled = _bundled_models_dir() / f"whisper-{size}-int8-ov"
-    if (bundled / sentinel).exists():
-        return bundled
-    dest = _user_data_dir() / "models" / f"whisper-{size}-int8-ov"
-    if (dest / sentinel).exists():
-        return dest
+    """Local dir with the OV IR model; bundled, updated, or downloaded on demand."""
+    d = _find_model_dir(size)
+    if d is not None:
+        return d
     if progress:
         progress(tf("Baixando modelo '{size}' (primeira vez)…", size=size))
     from huggingface_hub import snapshot_download
+    repo = ov_model_repo(size)
+    dest = _user_data_dir() / "models" / f"whisper-{size}-int8-ov"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    snapshot_download(ov_model_repo(size), local_dir=str(dest))
+    snapshot_download(repo, local_dir=str(dest))
+    _write_revision(dest, repo)
     return dest
+
+
+def _dir_writable(d: Path) -> bool:
+    try:
+        t = d / ".w_test"
+        t.write_text("x", encoding="utf-8"); t.unlink()
+        return True
+    except Exception:
+        return False
+
+
+def update_model_if_newer(status_cb=None):
+    """Check HF for a newer revision of the active model and replace it in place
+    (atomic-ish), or in the user-data dir if the install folder is read-only.
+    Fail-safe: any error (offline, API down…) leaves the current model intact."""
+    try:
+        d = _find_model_dir()
+        if d is None:
+            return
+        repo = _repo_for_dir(d)
+        from huggingface_hub import HfApi, snapshot_download
+        latest = HfApi().model_info(repo).sha
+        rev_file = d / ".hf_revision"
+        local = rev_file.read_text(encoding="utf-8").strip() if rev_file.exists() else None
+        if not latest or latest == local:
+            return
+        if status_cb:
+            status_cb(t("Atualizando modelo…"))
+        import tempfile, shutil
+        tmp = Path(tempfile.mkdtemp(prefix="reco_model_"))
+        snapshot_download(repo, revision=latest, local_dir=str(tmp))
+        target = d if _dir_writable(d.parent) else _user_data_dir() / "models" / d.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        bak = target.with_name(target.name + ".old")
+        if bak.exists():
+            shutil.rmtree(bak, ignore_errors=True)
+        if target.exists():
+            target.rename(bak)
+        shutil.move(str(tmp), str(target))
+        (target / ".hf_revision").write_text(latest, encoding="utf-8")
+        if bak.exists():
+            shutil.rmtree(bak, ignore_errors=True)
+        if status_cb:
+            status_cb(t("Modelo atualizado."))
+    except Exception:
+        pass
+
+
+# ── App update check (notify only — opens the download page) ────────────────────
+def _ver_tuple(s: str) -> tuple:
+    import re
+    nums = re.findall(r"\d+", s or "")
+    return tuple(int(x) for x in nums[:3]) if nums else (0,)
+
+
+def check_app_update():
+    """Return (tag, url) if a newer GitHub release exists, else None. Fail-safe."""
+    try:
+        import urllib.request, json
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/vnd.github+json", "User-Agent": "Reco"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        tag = data.get("tag_name") or ""
+        if _ver_tuple(tag) > _ver_tuple(APP_VERSION):
+            return tag, (data.get("html_url")
+                         or f"https://github.com/{GITHUB_REPO}/releases/latest")
+    except Exception:
+        pass
+    return None
+
 
 CANCELLED = "__cancelled__"   # sentinel: transcription stopped by the user
 
@@ -1278,6 +1390,44 @@ class App(tk.Tk):
         self.after(30, lambda: self._fade(0.0))
         self.after(40, self._drain_ui)
         self.after(100, self._scan_devices)
+        self._update_shown = False
+        self.after(1500, self._kick_update_checks)
+
+    # ── update checks (model: auto; app: notify only) ───────────────────────────
+    def _kick_update_checks(self):
+        if not HAS_OV and not HAS_MLX:
+            pass
+        else:
+            threading.Thread(target=lambda: update_model_if_newer(
+                status_cb=lambda m: self._post(lambda: self._status(m))),
+                daemon=True).start()
+        def _app():
+            res = check_app_update()
+            if res:
+                self._post(lambda: self._show_app_update(*res))
+        threading.Thread(target=_app, daemon=True).start()
+
+    def _show_app_update(self, tag, url):
+        if self._update_shown:
+            return
+        self._update_shown = True
+        try:
+            lk = self._link(self._links_row,
+                            tf("⬆ Nova versão {tag}", tag=tag),
+                            lambda: self._open_url(url), fg=ACCENT, font=SEG_XS)
+            lk.pack(side="left", padx=(12, 0))
+        except Exception:
+            pass
+
+    def _open_url(self, url):
+        try:
+            os.startfile(url)
+        except Exception:
+            try:
+                import webbrowser
+                webbrowser.open(url)
+            except Exception:
+                pass
 
     # ── frameless window: drag + minimize ───────────────────────────────────────
     def _drag_start(self, e):
