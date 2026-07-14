@@ -29,7 +29,7 @@ from pathlib import Path
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME    = "Reco"
 APP_TITLE   = "Reco"
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.2.0"
 GITHUB_REPO = "dosxnjos/reco"
 
 # ── Theme ─────────────────────────────────────────────────────────────────────
@@ -131,6 +131,19 @@ OUT_SR = 16000
 OUT_CH = 2
 MP3_BR = 128
 
+# Video/audio files we can pull an MP3 out of (PyAV decodes all of these).
+VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".wmv", ".flv", ".ts"}
+AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".ogg", ".opus", ".flac", ".aac", ".wma"}
+
+def is_video(path) -> bool:
+    return Path(path).suffix.lower() in VIDEO_EXTS
+
+# Extraction reuses the recording format (16 kHz, VBR), but mono — an MP4 has no
+# mic/system split to preserve, so a second channel would only double the size.
+# 64 kbps = the same ≈64 kbps/channel the recorder already uses.
+EXTRACT_CH = 1
+EXTRACT_BR = MP3_BR // 2
+
 def load_config() -> dict:
     cfg = dict(_CFG_DEFAULTS)
     try:
@@ -158,9 +171,13 @@ def save_config(cfg: dict):
         pass
 
 
-def _icon_file() -> Path | None:
+def _asset(*parts) -> Path:
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-    p = base / "logo" / "logo_symbol_1x1.ico"
+    return base.joinpath(*parts)
+
+
+def _icon_file() -> Path | None:
+    p = _asset("logo", "logo_symbol_1x1.ico")
     return p if p.exists() else None
 
 
@@ -323,6 +340,36 @@ _TR_EN = {
     "ESCOLHA O ÁUDIO (MP3, WAV…)": "CHOOSE AUDIO (MP3, WAV…)",
     "Arquivo": "File", "Data": "Date", "Duração": "Length", "Tamanho": "Size",
     "＋ Escolher outro arquivo…": "＋ Choose another file…",
+    # tray
+    "Abrir": "Open",
+    "Sair": "Quit",
+    "Reco — pronto": "Reco — ready",
+    "Reco — gravando {d}": "Reco — recording {d}",
+    "Reco — salvando gravação…": "Reco — saving recording…",
+    "Salvando antes de sair…": "Saving before exit…",
+    "Reco — pausado {d}": "Reco — paused {d}",
+    # pause / resume
+    "❚❚": "❚❚",
+    "❚❚  Pausar": "❚❚  Pause",
+    "▶  Continuar": "▶  Resume",
+    "Pausado — {d} gravado.": "Paused — {d} recorded.",
+    # convert section (video/heavy audio → light MP3)
+    "Converter…": "Convert…",
+    "CONVERSÃO": "CONVERSION",
+    "＋ Escolher vídeo ou áudio…": "＋ Choose video or audio…",
+    "Selecionar vídeo ou áudio": "Select video or audio",
+    "🎵  Converter para MP3": "🎵  Convert to MP3",
+    "MP3 leve: {sr} kHz mono, {br} kbps VBR.":
+        "Light MP3: {sr} kHz mono, {br} kbps VBR.",
+    "Origem: {a}": "Source: {a}",
+    "Convertendo… {p}%": "Converting… {p}%",
+    "MP3 salvo: {n}  ({a} → {b})": "MP3 saved: {n}  ({a} → {b})",
+    "O arquivo não tem faixa de áudio.": "The file has no audio track.",
+    "Falha ao converter: {e}": "Conversion failed: {e}",
+    "Já há uma conversão em andamento.": "A conversion is already running.",
+    "Conversão indisponível — instale av e lameenc.":
+        "Conversion unavailable — install av and lameenc.",
+    "Vídeo": "Video",
     "↺ Atualizar": "↺ Refresh",
     "⚡ Transcrever e salvar .txt": "⚡ Transcribe and save .txt",
     "Abrir pasta": "Open folder",
@@ -407,6 +454,12 @@ try:
 except ImportError:
     lameenc = None; HAS_LAME = False
 
+try:
+    import tray as _tray
+    HAS_TRAY = (os.name == "nt")
+except Exception:
+    _tray = None; HAS_TRAY = False
+
 
 # ── Transcription backend: OpenVINO GenAI (in-process, NPU / iGPU / CPU) ───────
 # One backend for everything. OpenVINO runs the whole Whisper model natively on
@@ -471,6 +524,67 @@ def decode_16k(path: Path, split: bool = False) -> list:
     if stereo and arr.shape[0] >= 2:
         return [np.ascontiguousarray(arr[0]), np.ascontiguousarray(arr[1])]
     return [np.ascontiguousarray(arr[0])]
+
+
+# ── MP3 extraction (MP4/MKV/… → MP3; also re-encodes heavy audio) ──────────────
+class NoAudioStream(Exception):
+    pass
+
+
+def extract_mp3(src: Path, dst: Path | None = None, sr: int = OUT_SR,
+                channels: int = EXTRACT_CH, bitrate: int = EXTRACT_BR,
+                progress=None) -> Path:
+    """Pull the audio out of a video (or re-encode an audio file) as MP3.
+
+    Streams frame-by-frame through the encoder instead of decoding the whole file
+    into memory first: a 3-hour meeting would otherwise sit in RAM as float32."""
+    import av
+    src = Path(src)
+    dst = Path(dst) if dst else src.with_suffix(".mp3")
+    if dst.resolve() == src.resolve():          # re-encoding an .mp3 onto itself
+        dst = src.with_name(f"{src.stem}_{sr // 1000}k.mp3")
+
+    enc = lameenc.Encoder()
+    enc.set_vbr(4)                               # 4 = MTRH (same as write_mp3)
+    enc.set_vbr_mean_bitrate_kbps(bitrate)
+    enc.set_in_sample_rate(sr)
+    enc.set_channels(channels)
+    enc.set_quality(2)
+
+    chunks = bytearray()
+    with av.open(str(src)) as cont:
+        if not cont.streams.audio:
+            raise NoAudioStream()
+        st = cont.streams.audio[0]
+        total = float(st.duration * st.time_base) if st.duration else (
+            float(cont.duration) / av.time_base if cont.duration else 0.0)
+        # s16 is packed/interleaved — exactly the byte layout lameenc expects.
+        rs = av.audio.resampler.AudioResampler(
+            format="s16", layout="mono" if channels == 1 else "stereo", rate=sr)
+        last_pct = -1
+        for frame in cont.decode(audio=0):
+            for r in rs.resample(frame):
+                chunks += enc.encode(r.to_ndarray().tobytes())
+            if progress and total and frame.pts is not None:
+                pct = min(99, int(float(frame.pts * st.time_base) / total * 100))
+                if pct != last_pct:
+                    last_pct = pct
+                    progress(pct)
+        for r in rs.resample(None):              # flush the resampler
+            chunks += enc.encode(r.to_ndarray().tobytes())
+    chunks += enc.flush()
+    if not chunks:
+        raise NoAudioStream()
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_bytes(bytes(chunks))
+    return dst
+
+
+def _fmt_size(n: int) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024.0
 
 
 # ── Acoustic echo cancellation (offline NLMS-style, frequency domain) ───────────
@@ -771,6 +885,7 @@ class NoAudioCaptured(Exception):
 
 class DualRecorder:
     def __init__(self):
+        self._pause_ev   = threading.Event()   # set = paused (audio is dropped)
         self._stop_ev    = threading.Event()
         self._mic_chunks = []
         self._sys_chunks = []
@@ -815,6 +930,7 @@ class DualRecorder:
         self._n_requested = (mic_id is not None) + (sys_id is not None)
         self._barrier     = threading.Barrier(max(1, self._n_requested))
         self._stop_ev.clear()
+        self._pause_ev.clear()
         self.recording    = True
 
         if mic_id is not None:
@@ -830,6 +946,21 @@ class DualRecorder:
 
     def all_failed(self) -> bool:
         return self._n_requested > 0 and self._n_errors >= self._n_requested
+
+    # Pausing keeps reading the WASAPI streams and throws the frames away, instead
+    # of stopping the readers: an unread capture buffer overruns, and restarting a
+    # stream would re-open the device (a click, and a fresh clock to re-align).
+    # Both channels drop in lockstep, so L/R stay in sync across the cut.
+    def pause(self):
+        if self.recording:
+            self._pause_ev.set()
+
+    def resume(self):
+        self._pause_ev.clear()
+
+    @property
+    def paused(self) -> bool:
+        return self._pause_ev.is_set()
 
     def _await_peer(self):
         if self._barrier is None:
@@ -891,6 +1022,8 @@ class DualRecorder:
                 self.mic_ok = True
                 while not self._stop_ev.is_set():
                     data = r.record(numframes=CHUNK)
+                    if self._pause_ev.is_set():
+                        continue                     # keep draining, keep nothing
                     arr = data[:, 0] if data.ndim > 1 else data
                     arr = np.ascontiguousarray(arr, dtype=np.float32)
                     with lock:
@@ -912,6 +1045,8 @@ class DualRecorder:
                 self.sys_ok = True
                 while not self._stop_ev.is_set():
                     data = r.record(numframes=CHUNK)
+                    if self._pause_ev.is_set():
+                        continue                     # keep draining, keep nothing
                     mono = data.mean(axis=1) if data.ndim > 1 else data
                     mono = np.ascontiguousarray(mono, dtype=np.float32)
                     with lock:
@@ -1294,7 +1429,8 @@ class VuMeter(tk.Canvas):
 
 
 # ── App states ────────────────────────────────────────────────────────────────
-IDLE, RECORDING, STOPPED, BUSY = "idle", "recording", "stopped", "busy"
+IDLE, RECORDING, PAUSED, STOPPED, BUSY = (
+    "idle", "recording", "paused", "stopped", "busy")
 
 LANG_LABELS = {"pt": "Português", "en": "English"}
 
@@ -1331,20 +1467,30 @@ class App(tk.Tk):
         self._mic_devs     = []
         self._sys_devs     = []
         self._start_ts     = 0.0
+        self._accum        = 0.0      # captured seconds before the current segment
         self._final_dur    = "00:00:00"
         self._adv_shown    = False
         self._tr_win       = None
         self._tr_sel       = None
-        self._tr_shown     = False
+        self._cv_sel       = None
+        self._extracting   = False
+        self._view         = "rec"    # "rec" | "tr" | "cv" (exclusive views)
         self._pop          = None     # floating hover popup (STOPPED actions)
         self._pop_after    = None
         self._pop_anchor   = None
         self._ui_q         = queue.Queue()
         self._closing      = False
+        self._quitting     = False
+        self._tray         = None
+        self._pinned       = True     # hover-shown windows auto-hide; clicked ones don't
+        self._hidden       = False
+        self._hover_after  = None
 
         self._apply_style()
         self._build()
+        self._init_tray()
         self.bind("<Map>", self._on_restore)
+        self.bind("<Button-1>", self._pin, add="+")   # clicking pins a hover-shown window
 
         # center on screen
         self.update_idletasks()
@@ -1536,6 +1682,7 @@ class App(tk.Tk):
         self._build_links(body)
         self._build_advanced(body)
         self._build_transcribe_section(body)
+        self._build_convert_section(body)
 
     def _build_meters(self, body):
         vu_row = tk.Frame(body, bg=BG)
@@ -1559,6 +1706,9 @@ class App(tk.Tk):
                                         self._start_rec, primary=True)
         self._btn_parar    = self._btn(self._btn_row, t("⬛  Parar"),
                                         self._stop_rec, danger=True)
+        self._btn_pausar   = self._btn(self._btn_row, t("❚❚"), self._pause_rec)
+        self._btn_seguir   = self._btn(self._btn_row, t("▶  Continuar"),
+                                        self._resume_rec, primary=True)
 
         # STOPPED state: compact icons. The icon itself performs the action;
         # hovering reveals a floating menu/caption over the interface (the window
@@ -1600,10 +1750,15 @@ class App(tk.Tk):
         self._links_row = row
         self._adv_link = self._link(row, t("⚙ Opções"), self._toggle_advanced)
         self._adv_link.pack(side="left")
+        # Packed right-to-left: Transcrever first, so Converter lands to its left.
         self._tr_link = self._link(row, t("Transcrever…"),
-                                   self._toggle_transcribe_section,
+                                   lambda: self._toggle_view("tr"),
                                    fg=ACCENT, font=SEG_SM)
         self._tr_link.pack(side="right")
+        self._cv_link = self._link(row, t("Converter…"),
+                                   lambda: self._toggle_view("cv"),
+                                   fg=ACCENT, font=SEG_SM)
+        self._cv_link.pack(side="right", padx=(0, 14))
 
     def _build_advanced(self, body):
         self._adv = tk.Frame(body, bg=BG)
@@ -1704,7 +1859,7 @@ class App(tk.Tk):
 
     def _set_language(self, code):
         global LANG
-        if code == LANG or self._state in (RECORDING, BUSY) or self._transcribing:
+        if code == LANG or self._state in (RECORDING, PAUSED, BUSY) or self._transcribing:
             return
         LANG = code
         self._cfg["language"] = code
@@ -1712,7 +1867,7 @@ class App(tk.Tk):
         self._rebuild_ui()
 
     def _pick_output_dir(self):
-        if self._state in (RECORDING, BUSY):
+        if self._state in (RECORDING, PAUSED, BUSY):
             return
         init = self._out_dir if self._out_dir.exists() else Path.home()
         d = filedialog.askdirectory(parent=self, title=t("Pasta de gravações"),
@@ -1738,7 +1893,7 @@ class App(tk.Tk):
         self._set_theme(DEFAULT_BG, DEFAULT_ACCENT)
 
     def _set_theme(self, bg, accent):
-        if self._state in (RECORDING, BUSY) or self._transcribing:
+        if self._state in (RECORDING, PAUSED, BUSY) or self._transcribing:
             return
         apply_theme(bg, accent)
         self._cfg["bg_color"] = BG
@@ -1759,9 +1914,13 @@ class App(tk.Tk):
         for c in self.winfo_children():
             c.destroy()
         self._adv_shown = False
-        self._tr_shown = False
+        self._view = "rec"
         self._apply_style()
         self._build()
+        if self._tray:                # menu labels are language-dependent
+            self._tray.remove()
+            self._tray = None
+            self._init_tray()
         self._toggle_advanced()       # keep Options open (where the controls live)
         self._scan_devices()
         self.update_idletasks()
@@ -1770,6 +1929,7 @@ class App(tk.Tk):
     # ── recording state machine ───────────────────────────────────────────────
     def _set_rec_state(self, state):
         self._hide_pop()
+        self.after_idle(self._sync_tray)      # red-dot icon follows the state
         for w in self._btn_row.winfo_children():
             w.pack_forget()
         for w in self._btn_row2.winfo_children():
@@ -1779,6 +1939,12 @@ class App(tk.Tk):
             self._btn_gravar.pack(side="left", padx=(0, 16))
             self._timer_lbl.pack(side="left")
         elif state == RECORDING:
+            self._btn_parar.pack(side="left", padx=(0, 8))
+            self._btn_pausar.pack(side="left", padx=(0, 16))
+            self._timer_lbl.pack(side="left")
+            self._dot.pack(side="left")
+        elif state == PAUSED:
+            self._btn_seguir.pack(side="left", padx=(0, 8))
             self._btn_parar.pack(side="left", padx=(0, 16))
             self._timer_lbl.pack(side="left")
             self._dot.pack(side="left")
@@ -1885,7 +2051,7 @@ class App(tk.Tk):
     def _scan_devices(self):
         if not (HAS_SC and HAS_NP):
             return
-        if self._state in (RECORDING, BUSY):
+        if self._state in (RECORDING, PAUSED, BUSY):
             self._status(t("Não é possível atualizar dispositivos durante a gravação."))
             return
         self._status(t("Buscando dispositivos…"))
@@ -1948,6 +2114,7 @@ class App(tk.Tk):
 
         self._state    = RECORDING
         self._start_ts = time.time()
+        self._accum    = 0.0
         self._set_rec_state(RECORDING)
         self._vu_mic.reset()
         self._vu_sys.reset()
@@ -1992,6 +2159,8 @@ class App(tk.Tk):
         self._status(msg)
 
     def _stop_rec(self):
+        if self._state == RECORDING:            # bank the running segment first
+            self._accum += time.time() - self._start_ts
         self._state = BUSY
         self._set_rec_state(BUSY)
         self._status(t("Salvando…"))
@@ -2025,10 +2194,7 @@ class App(tk.Tk):
 
     def _after_stop(self, path: Path):
         self._last_rec = path
-        elapsed = int(time.time() - self._start_ts)
-        h, r = divmod(elapsed, 3600)
-        m, s = divmod(r, 60)
-        self._final_dur = f"{h:02d}:{m:02d}:{s:02d}"
+        self._final_dur = self._fmt_dur(self._elapsed())   # excludes paused time
         self._vu_mic.reset()
         self._vu_sys.reset()
         self._set_combos_enabled(True)
@@ -2070,21 +2236,57 @@ class App(tk.Tk):
             self._timer_var.set("00:00:00")
 
     # ── timer / VU ──────────────────────────────────────────────────────────────
+    def _elapsed(self) -> int:
+        """Seconds of audio actually captured — paused time doesn't count."""
+        run = (time.time() - self._start_ts) if self._state == RECORDING else 0.0
+        return int(self._accum + run)
+
+    def _fmt_dur(self, secs: int) -> str:
+        h, r = divmod(int(secs), 3600)
+        m, s = divmod(r, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
     def _tick_timer(self):
         if self._state != RECORDING:
             return
-        e = int(time.time() - self._start_ts)
-        h, r = divmod(e, 3600)
-        m, s = divmod(r, 60)
-        self._timer_var.set(f"{h:02d}:{m:02d}:{s:02d}")
+        self._timer_var.set(self._fmt_dur(self._elapsed()))
+        self._sync_tray()             # tray tooltip counts up while hidden
         self.after(1000, self._tick_timer)
 
     def _blink_dot(self):
+        if self._state == PAUSED:
+            self._dot.config(fg=AMBER)        # steady amber = paused
+            return
         if self._state != RECORDING:
             return
         fg = self._dot.cget("fg")
         self._dot.config(fg=BG if fg == RED_C else RED_C)
         self.after(600, self._blink_dot)
+
+    # ── pause / resume ──────────────────────────────────────────────────────────
+    def _pause_rec(self):
+        if self._state != RECORDING or not self._recorder:
+            return
+        self._accum += time.time() - self._start_ts   # freeze the clock
+        self._recorder.pause()
+        self._state = PAUSED
+        self._set_rec_state(PAUSED)
+        self._timer_var.set(self._fmt_dur(self._elapsed()))
+        self._vu_mic.reset()
+        self._vu_sys.reset()
+        self._blink_dot()
+        self._status(tf("Pausado — {d} gravado.", d=self._timer_var.get()))
+
+    def _resume_rec(self):
+        if self._state != PAUSED or not self._recorder:
+            return
+        self._start_ts = time.time()
+        self._recorder.resume()
+        self._state = RECORDING
+        self._set_rec_state(RECORDING)
+        self._tick_timer()
+        self._blink_dot()
+        self._status(t("Gravando…  (mic + sistema)"))
 
     def _on_level(self, src, rms):
         if src == "mic":
@@ -2203,22 +2405,30 @@ class App(tk.Tk):
                  font=SEG_XS, wraplength=300, justify="left").pack(
                      anchor="w", pady=(8, 0))
 
-    def _toggle_transcribe_section(self):
-        # Recording ⇄ transcribe are exclusive views — swap one for the other.
-        if self._state in (RECORDING, BUSY) or self._transcribing:
+    def _toggle_view(self, view: str):
+        # Record / transcribe / convert are exclusive views — one replaces the
+        # other in place. Clicking the link of the current view goes back to Record.
+        self._show_view("rec" if self._view == view else view)
+
+    def _show_view(self, view: str):
+        if self._state in (RECORDING, PAUSED, BUSY) or self._transcribing:
             return
-        self._tr_shown = not self._tr_shown
-        if self._tr_shown:
-            if not self._tr_sel and self._last_rec and self._last_rec.exists():
-                self._tr_sel = self._last_rec
-                self._tr_path_var.set(str(self._tr_sel))
-            self._rec_section.pack_forget()
-            self._tr_section.pack(fill="x", before=self._links_row)
-            self._tr_link.config(text=t("← Gravar"))
-        else:
-            self._tr_section.pack_forget()
-            self._rec_section.pack(fill="x", before=self._links_row)
-            self._tr_link.config(text=t("Transcrever…"))
+        if getattr(self, "_extracting", False):
+            return
+        if view == "tr" and not self._tr_sel and self._last_rec and self._last_rec.exists():
+            self._tr_sel = self._last_rec
+            self._tr_path_var.set(str(self._tr_sel))
+
+        for sec in (self._rec_section, self._tr_section, self._cv_section):
+            sec.pack_forget()
+        self._view = view
+        {"rec": self._rec_section,
+         "tr":  self._tr_section,
+         "cv":  self._cv_section}[view].pack(fill="x", before=self._links_row)
+
+        back = t("← Gravar")
+        self._tr_link.config(text=back if view == "tr" else t("Transcrever…"))
+        self._cv_link.config(text=back if view == "cv" else t("Converter…"))
         self.update_idletasks()
         self.geometry("")
 
@@ -2234,15 +2444,118 @@ class App(tk.Tk):
             self._tr_btn.config(state="normal")
 
     def _tr_browse(self):
+        media = " ".join(f"*{e}" for e in sorted(AUDIO_EXTS | VIDEO_EXTS))
         p = filedialog.askopenfilename(
             title=t("Selecionar áudio"),
-            filetypes=[(t("Áudio"), "*.mp3 *.wav *.m4a *.ogg *.flac"),
+            filetypes=[(f'{t("Áudio")} / {t("Vídeo")}', media),
+                       (t("Áudio"), " ".join(f"*{e}" for e in sorted(AUDIO_EXTS))),
+                       (t("Vídeo"), " ".join(f"*{e}" for e in sorted(VIDEO_EXTS))),
                        (t("Todos"), "*.*")])
         if not p:
             return
         self._tr_sel = Path(p)
         self._tr_path_var.set(str(self._tr_sel))
         self._tr_set_status(t("Selecione um arquivo e clique em Transcrever."))
+
+    # ── convert section (MP4/… → MP3; also shrinks a heavy audio file) ──────────
+    def _build_convert_section(self, body):
+        sec = tk.Frame(body, bg=BG)
+        self._cv_section = sec
+        tk.Label(sec, text=t("CONVERSÃO"), bg=BG, fg=SUBTLE,
+                 font=SEG_XS).pack(anchor="w", pady=(0, 6))
+
+        nav = tk.Frame(sec, bg=BG)
+        nav.pack(fill="x")
+        self._link(nav, t("＋ Escolher vídeo ou áudio…"), self._cv_browse,
+                   fg=ACCENT, font=SEG_SM).pack(side="left")
+        self._link(nav, t("Abrir pasta"), self._open_cv_folder,
+                   font=SEG_SM).pack(side="right")
+
+        self._cv_path_var = tk.StringVar(value="")
+        tk.Label(sec, textvariable=self._cv_path_var, bg=BG, fg=SUBTLE,
+                 font=SEG_XS, wraplength=300, justify="left").pack(
+                     anchor="w", pady=(4, 0))
+
+        arow = tk.Frame(sec, bg=BG)
+        arow.pack(fill="x", pady=(8, 0))
+        self._cv_btn = self._btn(arow, t("🎵  Converter para MP3"),
+                                 self._cv_convert, primary=True)
+        self._cv_btn.pack(side="left")
+
+        self._cv_status_var = tk.StringVar(
+            value=tf("MP3 leve: {sr} kHz mono, {br} kbps VBR.",
+                     sr=OUT_SR // 1000, br=EXTRACT_BR))
+        tk.Label(sec, textvariable=self._cv_status_var, bg=BG, fg=SUBTLE,
+                 font=SEG_XS, wraplength=300, justify="left").pack(
+                     anchor="w", pady=(8, 0))
+
+    def _cv_set_status(self, msg):
+        self._cv_status_var.set(msg)
+
+    def _cv_browse(self):
+        media = " ".join(f"*{e}" for e in sorted(AUDIO_EXTS | VIDEO_EXTS))
+        p = filedialog.askopenfilename(
+            title=t("Selecionar vídeo ou áudio"),
+            filetypes=[(f'{t("Vídeo")} / {t("Áudio")}', media),
+                       (t("Vídeo"), " ".join(f"*{e}" for e in sorted(VIDEO_EXTS))),
+                       (t("Áudio"), " ".join(f"*{e}" for e in sorted(AUDIO_EXTS))),
+                       (t("Todos"), "*.*")])
+        if not p:
+            return
+        self._cv_sel = Path(p)
+        self._cv_path_var.set(str(self._cv_sel))
+        self._cv_set_status(tf("Origem: {a}", a=_fmt_size(self._cv_sel.stat().st_size)))
+
+    def _open_cv_folder(self):
+        folder = self._cv_sel.parent if self._cv_sel else self._out_dir
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            os.startfile(str(folder))
+        except Exception:
+            pass
+
+    def _cv_convert(self):
+        path = self._cv_sel
+        if not path or not path.exists():
+            self._cv_set_status(t("Selecione um arquivo válido."))
+            return
+        if not (HAS_AV and HAS_LAME):
+            self._cv_set_status(t("Conversão indisponível — instale av e lameenc."))
+            return
+        if self._extracting:
+            self._cv_set_status(t("Já há uma conversão em andamento."))
+            return
+
+        self._extracting = True
+        self._cv_btn.config(state="disabled")
+        self._cv_set_status(tf("Convertendo… {p}%", p=0))
+        src_size = path.stat().st_size
+
+        def done(msg, out: Path | None):
+            self._extracting = False
+            self._cv_btn.config(state="normal")
+            self._cv_set_status(msg)
+            if out:            # chain: the MP3 is what you'd transcribe next
+                self._tr_sel = out
+                self._tr_path_var.set(str(out))
+
+        def run():
+            try:
+                out = extract_mp3(
+                    path,
+                    progress=lambda p: self._post(
+                        lambda p=p: self._cv_set_status(
+                            tf("Convertendo… {p}%", p=p))))
+                msg = tf("MP3 salvo: {n}  ({a} → {b})", n=out.name,
+                         a=_fmt_size(src_size), b=_fmt_size(out.stat().st_size))
+                self._post(lambda: done(msg, out))
+            except NoAudioStream:
+                self._post(lambda: done(t("O arquivo não tem faixa de áudio."), None))
+            except Exception as e:
+                self._post(lambda m=str(e)[:80]: done(
+                    tf("Falha ao converter: {e}", e=m), None))
+
+        threading.Thread(target=run, daemon=True).start()
 
     def _tr_transcribe(self):
         path = self._tr_sel
@@ -2329,25 +2642,225 @@ class App(tk.Tk):
         subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
                        check=True, capture_output=True, **_no_window_kwargs())
 
+    # ── tray icon (hover shows this window over the tray; X hides into it) ──────
+    def _init_tray(self):
+        if not HAS_TRAY:
+            return
+        icons = {"idle": _asset("logo", "tray_idle.ico"),
+                 "rec":  _asset("logo", "tray_rec.ico")}
+        icons = {k: v for k, v in icons.items() if v.exists()}
+        if not icons:
+            return
+        try:
+            self._tray = _tray.Tray(
+                icons, t("Reco — pronto"),
+                {"open": t("Abrir"), "quit": t("Sair")},
+                on_hover=lambda: self._post(self._tray_hover),
+                on_click=lambda: self._post(lambda: self._show_from_tray(True)),
+                on_open=lambda: self._post(lambda: self._show_from_tray(True)),
+                on_quit=lambda: self._post(self._quit),
+                on_record=lambda: self._post(self._tray_toggle_rec),
+                rec_label=self._tray_rec_label,
+                on_pause=lambda: self._post(self._tray_toggle_pause),
+                pause_label=self._tray_pause_label)
+        except Exception as e:
+            print(f"[tray] {e}")
+            self._tray = None
+
+    def _tray_rec_label(self):
+        # Called by the tray while the menu is being built (same thread as Tk, since
+        # Tk's loop dispatches our WndProc), so reading the state here is safe.
+        if self._state in (RECORDING, PAUSED):
+            return t("⬛  Parar")
+        if self._state == IDLE:
+            return t("⬤  Gravar")
+        return None                   # BUSY / STOPPED: no sensible one-click action
+
+    def _tray_pause_label(self):
+        if self._state == RECORDING:
+            return t("❚❚  Pausar")
+        if self._state == PAUSED:
+            return t("▶  Continuar")
+        return None
+
+    def _tray_toggle_rec(self):
+        if self._state in (RECORDING, PAUSED):
+            self._stop_rec()
+            # Stopping leaves the save/transcribe/delete choice — show it, otherwise
+            # the recording would sit in limbo behind a hidden window.
+            self._show_from_tray(True)
+        elif self._state == IDLE:
+            self._start_rec()
+            if self._hidden:          # started from the tray → stay out of the way
+                self._sync_tray()
+
+    def _tray_toggle_pause(self):
+        if self._state == RECORDING:
+            self._pause_rec()
+        elif self._state == PAUSED:
+            self._resume_rec()
+
+    def _tray_hover(self):
+        # Hover shows the window without stealing focus; it stays until the cursor
+        # leaves both the window and the icon (see _hover_watch).
+        if self._tray is None or self._closing:
+            return
+        if not self._hidden:
+            return
+        self._show_from_tray(False)
+
+    def _anchor_to_tray(self):
+        """Park the window just above/beside the tray icon, clamped to the desktop."""
+        try:
+            self.update_idletasks()
+            w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+            wl, wt, wr, wb = _tray.work_area()
+            rect = self._tray.icon_rect() if self._tray else None
+            if rect:
+                il, it, ir, ib = rect
+                x = ir - w
+                y = it - h - 8 if it > (wb - wt) / 2 else ib + 8   # taskbar top/bottom
+            else:
+                x, y = wr - w - 12, wb - h - 12
+            x = max(wl + 4, min(x, wr - w - 4))
+            y = max(wt + 4, min(y, wb - h - 4))
+            self.geometry(f"+{int(x)}+{int(y)}")
+        except Exception:
+            pass
+
+    def _show_from_tray(self, activate: bool):
+        self._cancel_hover_watch()
+        self._hidden = False
+        self._pinned = bool(activate)
+        self.deiconify()
+        self._anchor_to_tray()
+        if activate:
+            self.overrideredirect(True)
+            self.lift()
+            self.focus_force()
+        else:
+            _tray.show_no_activate(self.winfo_id())
+            self.lift()
+            # Grace period: the window pops up under/near the cursor, but the user
+            # needs a moment to travel from the icon into it. Checking the hot zone
+            # immediately would hide it again on the very first tick.
+            self._hover_after = self.after(500, self._hover_watch)
+
+    def _hide_to_tray(self):
+        self._cancel_hover_watch()
+        self._hide_pop()
+        self._hidden = True
+        self._pinned = False
+        self.withdraw()
+
+    def _hover_watch(self):
+        # The hot zone is the window ∪ the icon: a cursor resting *on the icon*
+        # must not dismiss the window it just opened (WM_MOUSEMOVE stops firing
+        # when the mouse stops, so we poll instead of relying on a Leave event).
+        if self._closing or self._hidden or self._pinned:
+            return
+        try:
+            cx, cy = _tray.cursor_pos()
+            x, y = self.winfo_rootx(), self.winfo_rooty()
+            w, h = self.winfo_width(), self.winfo_height()
+            inside = (x - 6 <= cx <= x + w + 6) and (y - 6 <= cy <= y + h + 6)
+            if not inside and self._tray:
+                r = self._tray.icon_rect()
+                if r and (r[0] - 4 <= cx <= r[2] + 4) and (r[1] - 4 <= cy <= r[3] + 4):
+                    inside = True
+            if not inside:
+                self._hide_to_tray()
+                return
+        except Exception:
+            pass
+        self._hover_after = self.after(120, self._hover_watch)
+
+    def _cancel_hover_watch(self):
+        if self._hover_after:
+            try:
+                self.after_cancel(self._hover_after)
+            except Exception:
+                pass
+            self._hover_after = None
+
+    def _pin(self, _e=None):
+        # Any click inside the window pins it — otherwise moving the mouse to a
+        # file dialog or a combobox would make the window vanish mid-action.
+        self._pinned = True
+        self._cancel_hover_watch()
+
+    def _sync_tray(self):
+        if not self._tray:
+            return
+        live = self._state in (RECORDING, PAUSED)
+        # The red dot stays on while paused: a paused session is still "armed", and
+        # an idle-looking icon would read as "nothing is being recorded".
+        self._tray.set_state("rec" if live else "idle")
+        if self._state == RECORDING:
+            tip = tf("Reco — gravando {d}", d=self._timer_var.get())
+        elif self._state == PAUSED:
+            tip = tf("Reco — pausado {d}", d=self._timer_var.get())
+        else:
+            tip = t("Reco — pronto")
+        self._tray.set_tooltip(tip)
+
     # ── helpers ──────────────────────────────────────────────────────────────
     def _status(self, msg):
         self._status_var.set(msg)
 
     def _on_close(self):
-        self._closing = True
+        # X hides into the tray (a recording keeps running); Quit really exits.
+        if self._quitting:               # already saving-then-exiting: let it finish
+            return
+        if self._tray and self._tray.alive:
+            self._hide_to_tray()
+            return
+        self._quit()
+
+    def _quit(self):
+        # Quitting mid-recording must not throw the audio away: finish encoding the
+        # MP3 first, then exit. The window is brought up so "Salvando…" is visible
+        # instead of the app appearing to hang.
+        if self._quitting:
+            return
+        self._quitting = True             # NOT _closing: that would stop _drain_ui,
+                                          # and the save-then-exit callback rides it
         if self._recorder and self._recorder.recording:
-            self._recorder.abort()
-        try:
-            while True:
-                fn = self._ui_q.get_nowait()
+            self._show_from_tray(True)
+            self._state = BUSY
+            self._set_rec_state(BUSY)
+            self._status(t("Salvando antes de sair…"))
+            if self._tray:
+                self._tray.set_tooltip(t("Reco — salvando gravação…"))
+            sr, ch, br = self._out_settings()
+            out_dir = self._out_dir
+
+            def save_then_exit():
                 try:
-                    fn()
-                except Exception:
-                    pass
-        except queue.Empty:
-            pass
+                    self._recorder.stop(out_sr=sr, out_channels=ch, bitrate=br,
+                                        out_dir=out_dir)
+                except Exception as e:
+                    print(f"[quit] {e}")   # nothing captured / encode failed → just go
+                self._post(self._hard_exit)
+
+            threading.Thread(target=save_then_exit, daemon=True).start()
+            return
+        self._hard_exit()
+
+    def _hard_exit(self):
+        self._closing = True
         self._transcribing = False
-        self.destroy()
+        if self._tray:
+            self._tray.remove()
+        try:
+            self.destroy()
+        except Exception:
+            pass
+        # OpenVINO/WASAPI keep native threads alive that can outlive the Python
+        # interpreter's shutdown — without this the process lingers with no window
+        # (and, notably, keeps holding its own files locked).
+        sys.stdout.flush()
+        os._exit(0)
 
 
 if __name__ == "__main__":
@@ -2415,3 +2928,4 @@ if __name__ == "__main__":
         _root.destroy()
         sys.exit(1)
     App().mainloop()
+    os._exit(0)     # see App._quit: native OpenVINO/WASAPI threads can hang exit

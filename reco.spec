@@ -41,7 +41,11 @@ a = Analysis(
     ['reco.py'],
     pathex=[],
     binaries=binaries,
-    datas=datas + [('logo/logo_symbol_1x1.ico', 'logo')],
+    datas=datas + [('logo/logo_symbol_1x1.ico', 'logo'),
+                   # tray icons: idle + recording (red dot) — loaded from disk by
+                   # LoadImageW at runtime, so they must exist as real files.
+                   ('logo/tray_idle.ico', 'logo'),
+                   ('logo/tray_rec.ico', 'logo')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

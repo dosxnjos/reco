@@ -29,9 +29,20 @@ the bundled app is fully self-contained (no Python, no ffmpeg).
   mic is removed (offline adaptive filter using the loopback as reference), so the
   other party isn't duplicated across both channels.
 - 📊 Live level meters for mic and system.
+- ⏸️ **Pause / resume** a recording before saving — paused time is dropped from the
+  audio and from the clock, so a break doesn't end up in the file.
+- 🔔 **Lives in the tray** — closing the window hides Reco into the notification area
+  (a recording keeps running, and the icon shows a red dot with the elapsed time).
+  **Hover** the icon to bring the compact window back over the tray (stop, start,
+  convert, transcribe); **click** to pin it; **right-click** for Record/Stop,
+  Pause/Resume, Open and Quit. Quitting mid-recording saves the MP3 first.
 - 🎧 Saves a compact **MP3** (16 kHz stereo, 128 kbps VBR — small, plenty for speech).
 - 📝 **Local transcription** that auto-saves a `.txt` next to your recordings. No
   cloud, fully private.
+- 🎵 **MP4 → MP3** — pick a video (or a heavy audio file) in the Transcribe view and
+  hit *Extract MP3*: it re-encodes to the same lightweight format Reco records in
+  (16 kHz mono, 64 kbps VBR), typically a fraction of the original size. The MP3 is
+  saved next to the source and stays selected, ready to transcribe.
 - 🌐 **Bilingual UI** (PT/EN), auto-detected, switchable in Options.
 - 🎨 **Custom theme** — pick background and accent colors in Options; text contrast
   adjusts automatically. Frameless window with its own title bar.
@@ -98,9 +109,21 @@ app empacotado é autossuficiente (sem Python, sem ffmpeg).
   o microfone é removido (filtro adaptativo offline usando o loopback como
   referência), evitando que o interlocutor apareça duplicado nos dois canais.
 - 📊 Barras de nível ao vivo para mic e sistema.
+- ⏸️ **Pausar / continuar** a gravação antes de salvar — o tempo pausado não entra
+  no áudio nem no cronômetro, então uma interrupção não vai parar no arquivo.
+- 🔔 **Mora na bandeja** — fechar a janela recolhe o Reco para a área de notificação
+  (a gravação continua, e o ícone ganha um ponto vermelho com o tempo decorrido).
+  **Passe o mouse** sobre o ícone para trazer a janela compacta de volta sobre a
+  bandeja (parar, gravar, converter, transcrever); **clique** para fixá-la;
+  **botão direito** para Gravar/Parar, Pausar/Continuar, Abrir e Sair. Sair no meio
+  de uma gravação salva o MP3 antes de encerrar.
 - 🎧 Salva um **MP3** compacto (16 kHz estéreo, 128 kbps VBR — pequeno e ótimo para fala).
 - 📝 **Transcrição local** que salva um `.txt` automaticamente junto das gravações.
   Sem nuvem, 100% privado.
+- 🎵 **MP4 → MP3** — escolha um vídeo (ou um áudio pesado) na tela de Transcrição e
+  clique em *Extrair MP3*: ele é reconvertido para o mesmo formato leve em que o
+  Reco grava (16 kHz mono, 64 kbps VBR), normalmente uma fração do tamanho original.
+  O MP3 é salvo ao lado do arquivo de origem e já fica selecionado para transcrever.
 - 🌐 **Interface bilíngue** (PT/EN), detectada automaticamente, troca em Opções.
 - 🎨 **Tema personalizável** — escolha as cores de fundo e de destaque em Opções; o
   contraste do texto se ajusta sozinho. Janela sem moldura, com barra própria.
