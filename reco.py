@@ -113,6 +113,8 @@ _CFG_DEFAULTS: dict = {
     "output_dir":  None,      # save folder; None -> Documents\Reco
     "mic_device":  None,      # soundcard device id (str)
     "sys_device":  None,      # soundcard speaker id (str)
+    "mic_gain":    1.0,       # linear gain applied to the mic channel (0 dB = 1.0)
+    "sys_gain":    1.0,       # linear gain applied to the system channel
 }
 
 # Filename marker identifying a Reco dual-channel (mic + system) recording, so the
@@ -901,6 +903,17 @@ class DualRecorder:
         self.recording   = False
         self.mic_ok      = False
         self.sys_ok      = False
+        # Per-channel linear gain, baked into the saved file. Live-adjustable
+        # (read fresh each save/level callback), so a change applies uniformly to
+        # the whole recording and the VU meter reflects it in real time.
+        self.mic_gain    = 1.0
+        self.sys_gain    = 1.0
+
+    def set_gain(self, mic=None, sys=None):
+        if mic is not None:
+            self.mic_gain = float(mic)
+        if sys is not None:
+            self.sys_gain = float(sys)
 
     def start(self, mic_id, sys_id, on_level=None, on_error=None):
         if self.recording:
@@ -1029,7 +1042,8 @@ class DualRecorder:
                     with lock:
                         chunks.append(arr)
                     if self._on_level and arr.size:
-                        self._on_level("mic", float(np.sqrt(np.mean(arr ** 2))))
+                        self._on_level("mic",
+                                       float(np.sqrt(np.mean(arr ** 2))) * self.mic_gain)
         except Exception as e:
             self._fail("mic", str(e))
 
@@ -1052,7 +1066,8 @@ class DualRecorder:
                     with lock:
                         chunks.append(mono)
                     if self._on_level and mono.size:
-                        self._on_level("sys", float(np.sqrt(np.mean(mono ** 2))))
+                        self._on_level("sys",
+                                       float(np.sqrt(np.mean(mono ** 2))) * self.sys_gain)
         except Exception as e:
             self._fail("sys", str(e))
 
@@ -1080,6 +1095,12 @@ class DualRecorder:
 
         mic_f = self._resample(mic_raw.astype(np.float32), CAPTURE_SR, out_sr)
         sys_f = self._resample(sys_raw.astype(np.float32), CAPTURE_SR, out_sr)
+
+        # Per-channel gain, baked in. Clipping below caps any boost at full scale.
+        if self.mic_gain != 1.0:
+            mic_f = mic_f * self.mic_gain
+        if self.sys_gain != 1.0:
+            sys_f = sys_f * self.sys_gain
 
         n = max(len(mic_f), len(sys_f))
         mic_f = np.pad(mic_f, (0, max(0, n - len(mic_f))))[:n]
@@ -1397,18 +1418,59 @@ def make_transcriber():
     return None
 
 
-# ── VU Meter ──────────────────────────────────────────────────────────────────
-class VuMeter(tk.Canvas):
-    DECAY = 0.82
-    H = 4
+# ── Per-channel gain mapping (linear multiplier) ────────────────────────────────
+# The handle slides on a multiplier axis with unity (1.0×) at the visual center:
+# the left half maps 0×..1× (attenuate/mute), the right half 1×..10× (boost). Two
+# linear segments, so "no change" reads naturally in the middle. Values snap to
+# GAIN_STEP for clean readouts (1.0×, 2.5×…) and persist as-is in the config.
+GAIN_MIN   = 0.0
+GAIN_UNITY = 1.0
+GAIN_MAX   = 10.0
+GAIN_STEP  = 0.5
 
-    def __init__(self, parent, **kw):
+def gain_to_frac(g: float) -> float:
+    g = max(GAIN_MIN, min(g, GAIN_MAX))
+    if g <= GAIN_UNITY:
+        return 0.5 * (g - GAIN_MIN) / (GAIN_UNITY - GAIN_MIN)
+    return 0.5 + 0.5 * (g - GAIN_UNITY) / (GAIN_MAX - GAIN_UNITY)
+
+def frac_to_gain(f: float) -> float:
+    f = max(0.0, min(f, 1.0))
+    if f <= 0.5:
+        g = GAIN_MIN + (f / 0.5) * (GAIN_UNITY - GAIN_MIN)
+    else:
+        g = GAIN_UNITY + ((f - 0.5) / 0.5) * (GAIN_MAX - GAIN_UNITY)
+    g = round(g / GAIN_STEP) * GAIN_STEP          # snap to clean steps (…1.0, 1.5…)
+    return max(GAIN_MIN, min(g, GAIN_MAX))
+
+def fmt_gain(g: float) -> str:
+    return f"{g:.1f}x".replace(".", ",")          # 1.0 -> "1,0x" (pt-BR decimal)
+
+
+# ── VU Meter + gain handle ──────────────────────────────────────────────────────
+# Horizontal bar = live (gained) level; the vertical handle over it sets the
+# per-channel record gain (0×..1× left, 1×..10× right). Drag to attenuate/boost;
+# the multiplier readout under the bar shows the current value.
+class VuMeter(tk.Canvas):
+    DECAY    = 0.82
+    H        = 20            # tall enough to grab the handle
+    BAR_H    = 5            # level-bar thickness
+    HANDLE_W = 7
+
+    def __init__(self, parent, on_gain=None, **kw):
         kw.setdefault("width", 90)
-        super().__init__(parent, height=self.H, bg=CARD, bd=0,
-                         highlightthickness=0, **kw)
-        self._bar  = self.create_rectangle(0, 0, 0, self.H, fill=GREEN, outline="")
-        self._peak = 0.0
+        super().__init__(parent, height=self.H, bg=BG, bd=0,
+                         highlightthickness=0, cursor="sb_h_double_arrow", **kw)
+        self._on_gain = on_gain
+        self._peak    = 0.0
+        self._gain    = 1.0
+        self._track   = self.create_rectangle(0, 0, 0, 0, fill=BORDER, outline="")
+        self._bar     = self.create_rectangle(0, 0, 0, 0, fill=GREEN, outline="")
+        self._unity   = self.create_line(0, 0, 0, 0, fill=SUBTLE)
+        self._handle  = self.create_rectangle(0, 0, 0, 0, fill=ACCENT, outline="")
         self.bind("<Configure>", lambda _: self._draw())
+        self.bind("<Button-1>", self._drag)
+        self.bind("<B1-Motion>", self._drag)
 
     def update_level(self, rms):
         self._peak = max(self._peak * self.DECAY, min(rms * 3.0, 1.0))
@@ -1418,14 +1480,40 @@ class VuMeter(tk.Canvas):
         self._peak = 0.0
         self._draw()
 
-    def _draw(self):
+    def set_gain(self, g):
+        self._gain = max(GAIN_MIN, min(float(g), GAIN_MAX))
+        self._draw()
+
+    @property
+    def gain(self) -> float:
+        return self._gain
+
+    def _drag(self, e):
         w = max(self.winfo_width(), 1)
+        self._gain = frac_to_gain(e.x / w)
+        self._draw()
+        if self._on_gain:
+            self._on_gain(self._gain)
+
+    def _draw(self):
+        w  = max(self.winfo_width(), 1)
+        yc = self.H / 2
+        y0, y1 = yc - self.BAR_H / 2, yc + self.BAR_H / 2
+        # scale track + live level fill
+        self.coords(self._track, 0, y0, w, y1)
         bw = int(self._peak * w)
         color = (GREEN if self._peak < 0.45
                  else AMBER if self._peak < 0.75
                  else RED_C)
-        self.coords(self._bar, 0, 0, bw, self.H)
+        self.coords(self._bar, 0, y0, bw, y1)
         self.itemconfig(self._bar, fill=color)
+        # unity tick (0 dB) at the center
+        ux = int(gain_to_frac(1.0) * w)
+        self.coords(self._unity, ux, 2, ux, self.H - 2)
+        # draggable gain handle
+        hx   = int(gain_to_frac(self._gain) * w)
+        half = self.HANDLE_W / 2
+        self.coords(self._handle, hx - half, 0, hx + half, self.H)
 
 
 # ── App states ────────────────────────────────────────────────────────────────
@@ -1458,6 +1546,9 @@ class App(tk.Tk):
         self.configure(bg=BG)
         self._state        = IDLE
         self._recorder     = DualRecorder() if (HAS_SC and HAS_NP and HAS_LAME) else None
+        if self._recorder:
+            self._recorder.set_gain(mic=self._cfg.get("mic_gain", 1.0),
+                                    sys=self._cfg.get("sys_gain", 1.0))
         self._transcriber  = make_transcriber()
         if self._transcriber:
             self._transcriber.set_model(self._cfg.get("model", "small"))
@@ -1687,14 +1778,37 @@ class App(tk.Tk):
     def _build_meters(self, body):
         vu_row = tk.Frame(body, bg=BG)
         vu_row.pack(fill="x", pady=(0, 10))
-        for lbl, attr in [("MIC", "_vu_mic"), ("SISTEMA", "_vu_sys")]:
+        self._vu_mult = {}
+        for lbl, attr, src, cfg_key in [
+                ("MIC", "_vu_mic", "mic", "mic_gain"),
+                ("SISTEMA", "_vu_sys", "sys", "sys_gain")]:
             col = tk.Frame(vu_row, bg=BG)
             col.pack(side="left", fill="x", expand=True,
                      padx=(0, 5) if attr == "_vu_mic" else (5, 0))
             tk.Label(col, text=t(lbl), bg=BG, fg=SUBTLE, font=SEG_XS).pack(anchor="w")
-            vu = VuMeter(col)
+            vu = VuMeter(col, on_gain=lambda g, s=src: self._on_gain(s, g))
             vu.pack(fill="x")
+            # gain multiplier readout, centered under the bar
+            mult = tk.Label(col, text="", bg=BG, fg=MUTED, font=SEG_XS)
+            mult.pack(pady=(2, 0))
+            self._vu_mult[src] = mult
+            vu.set_gain(self._cfg.get(cfg_key, 1.0))
+            self._set_mult_label(src, vu.gain)
             setattr(self, attr, vu)
+
+    def _set_mult_label(self, src, g):
+        """Show the channel's current record gain as a multiplier (e.g. '1,0x')."""
+        self._vu_mult[src].config(text=fmt_gain(g))
+
+    def _on_gain(self, src, g):
+        self._set_mult_label(src, g)
+        if self._recorder:
+            if src == "mic":
+                self._recorder.set_gain(mic=g)
+            else:
+                self._recorder.set_gain(sys=g)
+        self._cfg["mic_gain" if src == "mic" else "sys_gain"] = round(g, 4)
+        save_config(self._cfg)
 
     def _build_recording(self, body):
         self._btn_row = tk.Frame(body, bg=BG)

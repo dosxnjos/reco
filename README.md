@@ -28,7 +28,12 @@ the bundled app is fully self-contained (no Python, no ffmpeg).
 - 🔇 **Echo cancellation** — if you're on speakers, the PC audio leaking into the
   mic is removed (offline adaptive filter using the loopback as reference), so the
   other party isn't duplicated across both channels.
-- 📊 Live level meters for mic and system.
+- 📊 Live level meters for mic and system, each with a **draggable gain slider** —
+  drag the handle over a meter to boost or attenuate what that channel records.
+  Center is unity (**1.0×**, no change); left attenuates down to 0×, right boosts
+  up to **10×**, and the current multiplier is shown under the bar. Handy when the
+  mic records much quieter than the system audio. The gain is baked into the saved
+  file and remembered between sessions.
 - ⏸️ **Pause / resume** a recording before saving — paused time is dropped from the
   audio and from the clock, so a break doesn't end up in the file.
 - 🔔 **Lives in the tray** — closing the window hides Reco into the notification area
@@ -108,7 +113,12 @@ app empacotado é autossuficiente (sem Python, sem ffmpeg).
 - 🔇 **Cancelamento de eco** — se você usa caixa de som, o áudio do PC que vaza para
   o microfone é removido (filtro adaptativo offline usando o loopback como
   referência), evitando que o interlocutor apareça duplicado nos dois canais.
-- 📊 Barras de nível ao vivo para mic e sistema.
+- 📊 Barras de nível ao vivo para mic e sistema, cada uma com um **slider de ganho
+  arrastável** — arraste o marcador sobre o medidor para aumentar ou reduzir o
+  volume que aquele canal grava. O centro é o normal (**1,0×**, sem alteração); à
+  esquerda atenua até 0× e à direita amplifica até **10×**, com o multiplicador
+  atual mostrado embaixo da barra. Útil quando o microfone grava bem mais baixo
+  que o áudio do sistema. O ganho é aplicado ao arquivo salvo e fica memorizado.
 - ⏸️ **Pausar / continuar** a gravação antes de salvar — o tempo pausado não entra
   no áudio nem no cronômetro, então uma interrupção não vai parar no arquivo.
 - 🔔 **Mora na bandeja** — fechar a janela recolhe o Reco para a área de notificação
