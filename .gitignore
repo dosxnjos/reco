@@ -22,6 +22,7 @@ desktop.ini
 
 # Scratch
 *.log
+temp/
 
 # logo working files — keep only the app icon + 1x1 png
 logo/.claude/

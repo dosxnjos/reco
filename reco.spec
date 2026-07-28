@@ -29,7 +29,7 @@ for pkg in ("soundcard", "openvino", "openvino_genai", "openvino_tokenizers",
 datas += collect_data_files("openvino", includes=["libs/cache.json"])
 
 hiddenimports += [
-    "soundcard", "cffi", "_cffi_backend", "lameenc",
+    "soundcard", "cffi", "_cffi_backend",
     "scipy.signal", "scipy.io",
     "openvino", "openvino_genai", "openvino_tokenizers",
     # huggingface_hub pulls these lazily during snapshot_download

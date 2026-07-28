@@ -41,12 +41,13 @@ the bundled app is fully self-contained (no Python, no ffmpeg).
   **Hover** the icon to bring the compact window back over the tray (stop, start,
   convert, transcribe); **click** to pin it; **right-click** for Record/Stop,
   Pause/Resume, Open and Quit. Quitting mid-recording saves the MP3 first.
-- 🎧 Saves a compact **MP3** (16 kHz stereo, 128 kbps VBR — small, plenty for speech).
+- 🎧 Saves a compact **MP3** (16 kHz stereo, 96 kbps — small, plenty for speech),
+  encoded *while* recording, so stopping is instant no matter how long the meeting was.
 - 📝 **Local transcription** that auto-saves a `.txt` next to your recordings. No
   cloud, fully private.
 - 🎵 **MP4 → MP3** — pick a video (or a heavy audio file) in the Transcribe view and
   hit *Extract MP3*: it re-encodes to the same lightweight format Reco records in
-  (16 kHz mono, 64 kbps VBR), typically a fraction of the original size. The MP3 is
+  (16 kHz mono, 64 kbps), typically a fraction of the original size. The MP3 is
   saved next to the source and stays selected, ready to transcribe.
 - 🌐 **Bilingual UI** (PT/EN), auto-detected, switchable in Options.
 - 🎨 **Custom theme** — pick background and accent colors in Options; text contrast
@@ -64,7 +65,7 @@ Or run `./setup.ps1` to install the dependencies. The optional **Ctrl+Shift+R**
 keyboard shortcut is *opt-in* — enable it inside Reco under **Options** (never
 created automatically).
 
-Required: `soundcard`, `numpy`, `lameenc`, `scipy`, `av`, `huggingface_hub`.
+Required: `soundcard`, `numpy`, `av`, `scipy`, `huggingface_hub`.
 Transcription backend: `openvino` + `openvino-genai` + `openvino-tokenizers`
 (Windows/Linux), or `mlx-whisper` (macOS Apple Silicon).
 
@@ -79,9 +80,10 @@ model are bundled, so it works **fully offline**. The VC++ runtime is included t
 ### How it works
 - Capture uses `soundcard` (WASAPI): each physical device is listed once, mics and
   speakers are separated, and system audio is captured via real loopback.
-- Recording is fixed at **16 kHz stereo** (L = mic, R = system), 128 kbps VBR —
+- Recording is fixed at **16 kHz stereo** (L = mic, R = system), 96 kbps —
   exactly what transcription, diarization and echo cancellation need.
-- Decoding uses PyAV (bundled ffmpeg libs). Transcription uses Whisper **small INT8**
+- Encoding and decoding both use PyAV (bundled ffmpeg libs). The MP3 is written
+  as the audio arrives, so memory stays flat and stopping only flushes the file. Transcription uses Whisper **small INT8**
   through OpenVINO GenAI (NPU/iGPU/CPU, auto) or MLX (Apple GPU). The device is
   chosen automatically; on machines without an NPU it falls back to the iGPU, then CPU.
 - The model is downloaded once (or bundled in the `.exe`) and cached locally.
@@ -127,12 +129,13 @@ app empacotado é autossuficiente (sem Python, sem ffmpeg).
   bandeja (parar, gravar, converter, transcrever); **clique** para fixá-la;
   **botão direito** para Gravar/Parar, Pausar/Continuar, Abrir e Sair. Sair no meio
   de uma gravação salva o MP3 antes de encerrar.
-- 🎧 Salva um **MP3** compacto (16 kHz estéreo, 128 kbps VBR — pequeno e ótimo para fala).
+- 🎧 Salva um **MP3** compacto (16 kHz estéreo, 96 kbps — pequeno e ótimo para fala),
+  codificado *durante* a gravação: parar é instantâneo, não importa o tamanho da reunião.
 - 📝 **Transcrição local** que salva um `.txt` automaticamente junto das gravações.
   Sem nuvem, 100% privado.
 - 🎵 **MP4 → MP3** — escolha um vídeo (ou um áudio pesado) na tela de Transcrição e
   clique em *Extrair MP3*: ele é reconvertido para o mesmo formato leve em que o
-  Reco grava (16 kHz mono, 64 kbps VBR), normalmente uma fração do tamanho original.
+  Reco grava (16 kHz mono, 64 kbps), normalmente uma fração do tamanho original.
   O MP3 é salvo ao lado do arquivo de origem e já fica selecionado para transcrever.
 - 🌐 **Interface bilíngue** (PT/EN), detectada automaticamente, troca em Opções.
 - 🎨 **Tema personalizável** — escolha as cores de fundo e de destaque em Opções; o
@@ -149,7 +152,7 @@ python reco.py
 Ou rode `./setup.ps1` para instalar as dependências. O atalho **Ctrl+Shift+R** é
 *opcional* — ative dentro do Reco em **Opções** (nunca é criado automaticamente).
 
-Obrigatórias: `soundcard`, `numpy`, `lameenc`, `scipy`, `av`, `huggingface_hub`.
+Obrigatórias: `soundcard`, `numpy`, `av`, `scipy`, `huggingface_hub`.
 Backend de transcrição: `openvino` + `openvino-genai` + `openvino-tokenizers`
 (Windows/Linux), ou `mlx-whisper` (macOS Apple Silicon).
 
@@ -165,9 +168,10 @@ também está incluso.
 ### Como funciona
 - A captura usa `soundcard` (WASAPI): cada dispositivo físico aparece uma vez, mics
   e alto-falantes são separados, e o áudio do sistema é capturado por loopback real.
-- A gravação é fixa em **16 kHz estéreo** (L = mic, R = sistema), 128 kbps VBR —
+- A gravação é fixa em **16 kHz estéreo** (L = mic, R = sistema), 96 kbps —
   exatamente o que transcrição, diarização e cancelamento de eco precisam.
-- A decodificação usa PyAV (libs do ffmpeg embutidas). A transcrição usa o Whisper
+- Codificação e decodificação usam PyAV (libs do ffmpeg embutidas). O MP3 é escrito
+  conforme o áudio chega, então a memória fica estável e parar só fecha o arquivo. A transcrição usa o Whisper
   **small INT8** via OpenVINO GenAI (NPU/iGPU/CPU, automático) ou MLX (GPU Apple). O
   device é escolhido sozinho; sem NPU, cai para a iGPU e depois a CPU.
 - O modelo é baixado uma vez (ou embutido no `.exe`) e fica em cache local.

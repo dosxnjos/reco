@@ -1,14 +1,13 @@
 # Core — required for recording
 soundcard        # WASAPI capture (mic + system loopback)
 numpy
-lameenc          # MP3 encoding (bundled LAME, no ffmpeg needed)
+av               # MP3 encode/decode + resampling (bundles ffmpeg libs)
 
-# Optional — better resampling when output rate != 48 kHz
+# Optional — echo cancellation on the transcribe screen
 scipy
 
 # Transcription (in-process, no Python/ffmpeg needed at runtime once bundled).
 # Decodes any audio to 16 kHz via PyAV; downloads the Whisper INT8 model on first use.
-av               # audio decoding (bundles ffmpeg libs)
 huggingface_hub  # downloads the model on first use
 
 # Windows/Linux x86 — OpenVINO GenAI (NPU / iGPU / CPU)

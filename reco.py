@@ -7,7 +7,8 @@ Audio capture uses the `soundcard` library (WASAPI):
   • Records system audio via real WASAPI loopback — does NOT depend on
     "Stereo Mix" being enabled.
 
-Recordings are encoded to MP3 (lameenc) — ~6-12x smaller than WAV, plenty for
+Recordings are encoded to MP3 (PyAV/libmp3lame, streamed while recording so
+stopping is instant) — ~6-12x smaller than WAV, plenty for
 speech/meetings and transcription. Transcription runs locally with
 faster-whisper. UI is bilingual (PT/EN), auto-detected from the system.
 """
@@ -21,9 +22,9 @@ import time
 import datetime
 import json
 import os
-import math
 import ctypes
 import subprocess
+from fractions import Fraction
 from pathlib import Path
 
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
@@ -128,10 +129,15 @@ def is_reco_recording(path) -> bool:
 
 # Recording format is fixed (not user-configurable): 16 kHz stereo (L=mic,
 # R=system) is exactly what transcription + channel diarization + echo
-# cancellation need; 128 kbps VBR ≈ 64 kbps/channel keeps files small.
+# cancellation need; 96 kbps ABR ≈ 48 kbps/channel keeps files small.
+#
+# ⚠️ 96, not the 128 this used to say: the old encoder ran LAME in vbr_mtrh, a
+# mode that *ignores* the mean bitrate — measured, the files always came out at
+# ~92 kbps no matter what the constant said. 96 kbps ABR reproduces that same
+# bitrate and spectrum, and now the number actually means something.
 OUT_SR = 16000
 OUT_CH = 2
-MP3_BR = 128
+MP3_BR = 96
 
 # Video/audio files we can pull an MP3 out of (PyAV decodes all of these).
 VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".wmv", ".flv", ".ts"}
@@ -140,11 +146,11 @@ AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".ogg", ".opus", ".flac", ".aac", ".wma"}
 def is_video(path) -> bool:
     return Path(path).suffix.lower() in VIDEO_EXTS
 
-# Extraction reuses the recording format (16 kHz, VBR), but mono — an MP4 has no
+# Extraction reuses the recording format (16 kHz), but mono — an MP4 has no
 # mic/system split to preserve, so a second channel would only double the size.
-# 64 kbps = the same ≈64 kbps/channel the recorder already uses.
+# 64 kbps mono ≈ the density the recorder writes per channel.
 EXTRACT_CH = 1
-EXTRACT_BR = MP3_BR // 2
+EXTRACT_BR = 64
 
 def load_config() -> dict:
     cfg = dict(_CFG_DEFAULTS)
@@ -285,8 +291,8 @@ _TR_EN = {
         "Warning: no audio output available for loopback.",
     "Não é possível atualizar dispositivos durante a gravação.":
         "Can't refresh devices while recording.",
-    "Captura indisponível — instale soundcard, numpy e lameenc.":
-        "Capture unavailable — install soundcard, numpy and lameenc.",
+    "Captura indisponível — instale soundcard, numpy e av.":
+        "Capture unavailable — install soundcard, numpy and av.",
     "Nenhuma fonte de áudio — abra Opções.":
         "No audio source — open Options.",
     # status — recording
@@ -298,7 +304,6 @@ _TR_EN = {
     "Falha ao capturar {which} (a outra fonte continua).":
         "Failed to capture {which} (the other source continues).",
     "Salvando…": "Saving…",
-    "Codificando MP3 e salvando…": "Encoding MP3 and saving…",
     "Erro ao salvar: {m}": "Error saving: {m}",
     "Nenhum áudio capturado — verifique as fontes selecionadas.":
         "No audio captured — check the selected sources.",
@@ -361,16 +366,16 @@ _TR_EN = {
     "＋ Escolher vídeo ou áudio…": "＋ Choose video or audio…",
     "Selecionar vídeo ou áudio": "Select video or audio",
     "🎵  Converter para MP3": "🎵  Convert to MP3",
-    "MP3 leve: {sr} kHz mono, {br} kbps VBR.":
-        "Light MP3: {sr} kHz mono, {br} kbps VBR.",
+    "MP3 leve: {sr} kHz mono, {br} kbps.":
+        "Light MP3: {sr} kHz mono, {br} kbps.",
     "Origem: {a}": "Source: {a}",
     "Convertendo… {p}%": "Converting… {p}%",
     "MP3 salvo: {n}  ({a} → {b})": "MP3 saved: {n}  ({a} → {b})",
     "O arquivo não tem faixa de áudio.": "The file has no audio track.",
     "Falha ao converter: {e}": "Conversion failed: {e}",
     "Já há uma conversão em andamento.": "A conversion is already running.",
-    "Conversão indisponível — instale av e lameenc.":
-        "Conversion unavailable — install av and lameenc.",
+    "Conversão indisponível — instale av.":
+        "Conversion unavailable — install av.",
     "Vídeo": "Video",
     "↺ Atualizar": "↺ Refresh",
     "⚡ Transcrever e salvar .txt": "⚡ Transcribe and save .txt",
@@ -451,12 +456,6 @@ except Exception:
     sc = None; HAS_SC = False
 
 try:
-    import lameenc
-    HAS_LAME = True
-except ImportError:
-    lameenc = None; HAS_LAME = False
-
-try:
     import tray as _tray
     HAS_TRAY = (os.name == "nt")
 except Exception:
@@ -528,6 +527,110 @@ def decode_16k(path: Path, split: bool = False) -> list:
     return [np.ascontiguousarray(arr[0])]
 
 
+# ── MP3 encoding (PyAV / libmp3lame) ───────────────────────────────────────────
+# ⚠️ Always encode through a *container*, never by concatenating raw encoder
+# output. A bare VBR/ABR MP3 carries no Xing/Info header, so every player has to
+# *guess* the duration from the bitrate of the first frames. A recording that
+# starts in silence begins at 8 kbps and then climbs to ~90 — the guess came out
+# ~8x too long, and VLC's remaining time jumped around instead of ticking down
+# (the bug this replaced). The mp3 muxer writes that header on close().
+#
+# ABR (not qscale): PyAV's global_quality path low-passes everything above
+# ~4 kHz — measured at −46 dB / −72 dB in the top two bands, which wrecks voice
+# and Whisper alike. See roadmap/2026-07-28-duracao-mp3-e-salvamento-instantaneo.md.
+def _open_mp3(path, sr: int, channels: int, bitrate_kbps: int):
+    """Open an MP3 container + encoder stream. Caller must close the container."""
+    import av
+    cont = av.open(str(path), "w")
+    st = cont.add_stream("mp3", rate=sr,
+                         layout="stereo" if channels == 2 else "mono")
+    st.codec_context.bit_rate = int(bitrate_kbps) * 1000
+    st.codec_context.options  = {"abr": "1"}
+    return cont, st
+
+
+class MP3Writer:
+    """Encodes the recording to MP3 *while* it is being captured.
+
+    The old path buffered every sample at 48 kHz and only encoded on stop():
+    ~11 s of waiting for 20 min of audio (growing linearly), plus ~2.8 GB of RAM
+    for a 2-hour meeting. Encoding as the audio arrives makes stopping a flush —
+    which is why OBS saves instantly while doing far more work.
+
+    feed() takes equal-length float32 blocks of both channels at `in_sr`. Gain is
+    applied per block, so moving a slider changes the audio from that moment on
+    (it used to be baked in at save time, i.e. retroactively over the whole file)."""
+
+    def __init__(self, path, in_sr: int, out_sr: int, channels: int,
+                 bitrate_kbps: int):
+        import av
+        self.path    = Path(path)
+        self.samples = 0                 # input frames fed (detects "nothing captured")
+        self._ch     = channels
+        self._in_sr  = in_sr
+        self._layout = "stereo" if channels == 2 else "mono"
+        self._cont, self._stream = _open_mp3(self.path, out_sr, channels,
+                                             bitrate_kbps)
+        # Stateful on purpose: resampling block by block with scipy would ring at
+        # every block edge; swresample carries the filter state across calls.
+        self._rs  = av.audio.resampler.AudioResampler(
+            format="fltp", layout=self._layout, rate=out_sr)
+        self._pts = 0
+
+    def feed(self, mic, sys_, mic_gain=1.0, sys_gain=1.0):
+        import av
+        n = min(len(mic), len(sys_))
+        if n <= 0:
+            return
+        if self._ch == 2:
+            planar = np.empty((2, n), dtype=np.float32)
+            planar[0] = np.clip(mic[:n] * np.float32(mic_gain), -1.0, 1.0)
+            planar[1] = np.clip(sys_[:n] * np.float32(sys_gain), -1.0, 1.0)
+        else:
+            mixed  = mic[:n] * np.float32(mic_gain) + sys_[:n] * np.float32(sys_gain)
+            planar = np.clip(mixed, -1.0, 1.0).astype(np.float32).reshape(1, n)
+        frame = av.AudioFrame.from_ndarray(planar, format="fltp",
+                                           layout=self._layout)
+        frame.sample_rate = self._in_sr
+        frame.pts         = self._pts
+        frame.time_base   = Fraction(1, self._in_sr)
+        self._pts    += n
+        self.samples += n
+        for r in self._rs.resample(frame):
+            self._mux(r)
+
+    def _mux(self, frame):
+        for pkt in self._stream.encode(frame):
+            self._cont.mux(pkt)
+
+    def close(self):
+        """Flush resampler + encoder, close the container (this writes the Xing
+        header — without it the file lies about its duration)."""
+        if self._cont is None:
+            return self.path
+        try:
+            for r in self._rs.resample(None):
+                self._mux(r)
+            self._mux(None)
+        finally:
+            self._cont.close()
+            self._cont = None
+        return self.path
+
+    def discard(self):
+        """Close and delete — aborted recording or nothing captured."""
+        try:
+            if self._cont is not None:
+                self._cont.close()
+        except Exception:
+            pass
+        self._cont = None
+        try:
+            self.path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 # ── MP3 extraction (MP4/MKV/… → MP3; also re-encodes heavy audio) ──────────────
 class NoAudioStream(Exception):
     pass
@@ -546,39 +649,39 @@ def extract_mp3(src: Path, dst: Path | None = None, sr: int = OUT_SR,
     if dst.resolve() == src.resolve():          # re-encoding an .mp3 onto itself
         dst = src.with_name(f"{src.stem}_{sr // 1000}k.mp3")
 
-    enc = lameenc.Encoder()
-    enc.set_vbr(4)                               # 4 = MTRH (same as write_mp3)
-    enc.set_vbr_mean_bitrate_kbps(bitrate)
-    enc.set_in_sample_rate(sr)
-    enc.set_channels(channels)
-    enc.set_quality(2)
-
-    chunks = bytearray()
     with av.open(str(src)) as cont:
         if not cont.streams.audio:
             raise NoAudioStream()
         st = cont.streams.audio[0]
         total = float(st.duration * st.time_base) if st.duration else (
             float(cont.duration) / av.time_base if cont.duration else 0.0)
-        # s16 is packed/interleaved — exactly the byte layout lameenc expects.
         rs = av.audio.resampler.AudioResampler(
-            format="s16", layout="mono" if channels == 1 else "stereo", rate=sr)
-        last_pct = -1
-        for frame in cont.decode(audio=0):
-            for r in rs.resample(frame):
-                chunks += enc.encode(r.to_ndarray().tobytes())
-            if progress and total and frame.pts is not None:
-                pct = min(99, int(float(frame.pts * st.time_base) / total * 100))
-                if pct != last_pct:
-                    last_pct = pct
-                    progress(pct)
-        for r in rs.resample(None):              # flush the resampler
-            chunks += enc.encode(r.to_ndarray().tobytes())
-    chunks += enc.flush()
-    if not chunks:
+            format="fltp", layout="mono" if channels == 1 else "stereo", rate=sr)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        out, out_st = _open_mp3(dst, sr, channels, bitrate)
+        fed, last_pct = 0, -1
+        try:
+            for frame in cont.decode(audio=0):
+                for r in rs.resample(frame):
+                    fed += r.samples
+                    for pkt in out_st.encode(r):
+                        out.mux(pkt)
+                if progress and total and frame.pts is not None:
+                    pct = min(99, int(float(frame.pts * st.time_base) / total * 100))
+                    if pct != last_pct:
+                        last_pct = pct
+                        progress(pct)
+            for r in rs.resample(None):          # flush the resampler
+                fed += r.samples
+                for pkt in out_st.encode(r):
+                    out.mux(pkt)
+            for pkt in out_st.encode(None):      # flush the encoder
+                out.mux(pkt)
+        finally:
+            out.close()                          # writes the Xing header
+    if not fed:
+        dst.unlink(missing_ok=True)
         raise NoAudioStream()
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_bytes(bytes(chunks))
     return dst
 
 
@@ -800,27 +903,6 @@ def _spk_them() -> str:
 # are no UI controls for them.
 
 
-def write_mp3(path: Path, data: "np.ndarray", sr: int, channels: int,
-              bitrate: int, vbr: bool = True):
-    """Encode float32 [-1,1] (mono (n,) or stereo (n,2)) to MP3 (VBR by default)."""
-    inter = np.ascontiguousarray(data, dtype=np.float32).reshape(-1)
-    if inter.size == 0:
-        raise ValueError("no audio to encode")
-    pcm16 = np.clip(np.round(inter * 32767), -32768, 32767).astype("<i2")
-    enc = lameenc.Encoder()
-    if vbr:
-        enc.set_vbr(4)                          # 4 = MTRH (standard VBR)
-        enc.set_vbr_mean_bitrate_kbps(bitrate)
-    else:
-        enc.set_bit_rate(bitrate)
-    enc.set_in_sample_rate(sr)
-    enc.set_channels(channels)
-    enc.set_quality(2)
-    mp3 = enc.encode(pcm16.tobytes())
-    mp3 += enc.flush()
-    path.write_bytes(mp3)
-
-
 # ── Device helpers (soundcard / WASAPI) ────────────────────────────────────────
 def list_capture_devices():
     if not HAS_SC:
@@ -886,26 +968,46 @@ class NoAudioCaptured(Exception):
 
 
 class DualRecorder:
+    """Captures mic + system in lockstep and encodes the MP3 as it goes.
+
+    Three threads: one reader per channel (they only append raw blocks) and one
+    encoder that pairs the two channels sample-for-sample and feeds MP3Writer.
+    Nothing is buffered for the whole session, so stop() is a flush and memory
+    stays flat regardless of how long the meeting runs."""
+
+    ENC_TICK = 0.2          # how often the encoder drains the capture buffers (s)
+
     def __init__(self):
         self._pause_ev   = threading.Event()   # set = paused (audio is dropped)
-        self._stop_ev    = threading.Event()
+        self._stop_ev    = threading.Event()   # set = capture threads wind down
+        self._drain_ev   = threading.Event()   # set = encoder does its final pass
         self._mic_chunks = []
         self._sys_chunks = []
-        self._lk_mic     = threading.Lock()
+        self._buf_mic    = np.zeros(0, np.float32)   # encoder-side leftovers: the
+        self._buf_sys    = np.zeros(0, np.float32)   # part of one channel whose
+        self._lk_mic     = threading.Lock()          # peer hasn't arrived yet
         self._lk_sys     = threading.Lock()
         self._lk_state   = threading.Lock()
         self._on_level   = None
         self._on_error   = None
         self._threads    = []
+        self._enc_thread = None
+        self._writer     = None
+        self._enc_err    = None
         self._barrier    = None
         self._n_requested = 0
         self._n_errors    = 0
         self.recording   = False
         self.mic_ok      = False
         self.sys_ok      = False
-        # Per-channel linear gain, baked into the saved file. Live-adjustable
-        # (read fresh each save/level callback), so a change applies uniformly to
-        # the whole recording and the VU meter reflects it in real time.
+        # A requested channel stops being "live" once its stream fails; from that
+        # point the encoder fills it with silence instead of waiting for blocks
+        # that will never come (otherwise one dead device stalls the pairing).
+        self._mic_live   = False
+        self._sys_live   = False
+        # Per-channel linear gain, applied as each block is encoded. Live-adjustable:
+        # a change applies from that moment on (it used to be baked in at save
+        # time, over the whole file — impossible once we encode while recording).
         self.mic_gain    = 1.0
         self.sys_gain    = 1.0
 
@@ -915,17 +1017,20 @@ class DualRecorder:
         if sys is not None:
             self.sys_gain = float(sys)
 
-    def start(self, mic_id, sys_id, on_level=None, on_error=None):
+    def start(self, mic_id, sys_id, on_level=None, on_error=None,
+              out_sr=OUT_SR, out_channels=OUT_CH, bitrate=MP3_BR, out_dir=None):
         if self.recording:
             return
         # Reap any leftover threads from a previous session before touching state.
         self._stop_ev.set()
+        self._drain_ev.set()
         if self._barrier is not None:
             try: self._barrier.abort()
             except Exception: pass
-        for t_ in self._threads:
+        for t_ in self._threads + ([self._enc_thread] if self._enc_thread else []):
             t_.join(timeout=3.0)
-        self._threads = []
+        self._threads    = []
+        self._enc_thread = None
 
         # Fresh per-session lists: a leaked thread can only append to the old
         # list, never pollute the current recording.
@@ -934,18 +1039,37 @@ class DualRecorder:
             self._mic_chunks = mic_chunks
         with self._lk_sys:
             self._sys_chunks = sys_chunks
+        # Same reason: an aborted encode can leave paired-but-unwritten audio
+        # behind, which would otherwise open the next recording.
+        self._buf_mic = np.zeros(0, np.float32)
+        self._buf_sys = np.zeros(0, np.float32)
 
         self._on_level    = on_level
         self._on_error    = on_error
         self.mic_ok       = False
         self.sys_ok       = False
         self._n_errors    = 0
+        self._enc_err     = None
+        self._mic_live    = mic_id is not None
+        self._sys_live    = sys_id is not None
         self._n_requested = (mic_id is not None) + (sys_id is not None)
         self._barrier     = threading.Barrier(max(1, self._n_requested))
         self._stop_ev.clear()
+        self._drain_ev.clear()
         self._pause_ev.clear()
-        self.recording    = True
 
+        # The file is created now, not at stop(): its timestamp is the start of
+        # the recording, and a crash mid-meeting leaves a playable partial MP3
+        # instead of nothing.
+        try:
+            self._writer = self._new_writer(out_sr, out_channels, bitrate, out_dir)
+        except Exception as e:
+            self._writer      = None
+            self._n_requested = 1                  # so all_failed() is True
+            self._fail("save", str(e))
+            return
+
+        self.recording    = True
         if mic_id is not None:
             th = threading.Thread(target=self._rec_mic,
                                   args=(mic_id, mic_chunks, self._lk_mic),
@@ -956,6 +1080,18 @@ class DualRecorder:
                                   args=(sys_id, sys_chunks, self._lk_sys),
                                   daemon=True)
             th.start(); self._threads.append(th)
+        self._enc_thread = threading.Thread(target=self._encode_loop, daemon=True)
+        self._enc_thread.start()
+
+    @staticmethod
+    def _new_writer(out_sr, out_channels, bitrate, out_dir) -> "MP3Writer":
+        folder = Path(out_dir) if out_dir else OUTPUT_DIR
+        folder.mkdir(parents=True, exist_ok=True)
+        # 'reco' marks this as a dual-channel (mic+system) recording (see RECO_TAG).
+        prefix = "gravacao_reco" if LANG == "pt" else "recording_reco"
+        ts     = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        return MP3Writer(folder / f"{prefix}_{ts}.mp3",
+                         CAPTURE_SR, out_sr, out_channels, bitrate)
 
     def all_failed(self) -> bool:
         return self._n_requested > 0 and self._n_errors >= self._n_requested
@@ -986,6 +1122,12 @@ class DualRecorder:
     def _fail(self, kind, msg):
         with self._lk_state:
             self._n_errors += 1
+        # Stop pairing against a channel that will never deliver again — the
+        # encoder pads it with silence from here on.
+        if kind == "mic":
+            self._mic_live = False
+        elif kind == "sys":
+            self._sys_live = False
         if self._barrier is not None:
             try: self._barrier.abort()
             except Exception: pass
@@ -993,32 +1135,45 @@ class DualRecorder:
         if self._on_error:
             self._on_error(kind, msg)
 
-    def stop(self, progress=None, out_sr=48000, out_channels=1, bitrate=128,
-             out_dir=None) -> Path:
-        self._stop_ev.set()
-        if self._barrier is not None:
-            try: self._barrier.abort()
-            except Exception: pass
-        for t_ in self._threads:
-            t_.join(timeout=3.0)
-        self.recording = False
-        with self._lk_mic:
-            have_mic = bool(self._mic_chunks)
-        with self._lk_sys:
-            have_sys = bool(self._sys_chunks)
-        if not have_mic and not have_sys:
+    def stop(self, progress=None) -> Path:
+        """Wind the threads down and close the file. Everything is already
+        encoded, so this only flushes — it does not depend on how long the
+        recording was."""
+        self._wind_down(timeout=3.0)
+        writer, self._writer = self._writer, None
+        if writer is None:
+            raise NoAudioCaptured()
+        if not writer.samples:
+            writer.discard()
             raise NoAudioCaptured()
         if progress:
-            progress(t("Codificando MP3 e salvando…"))
-        return self._save(out_sr, out_channels, bitrate, out_dir)
+            progress(t("Salvando…"))
+        path = writer.close()
+        if self._enc_err:                      # partial file, but better than none
+            print(f"[encode] {self._enc_err}")
+        return path
 
     def abort(self):
+        self._wind_down(timeout=2.0)
+        writer, self._writer = self._writer, None
+        if writer is not None:
+            writer.discard()
+
+    def _wind_down(self, timeout: float):
+        """Stop the capture threads, then let the encoder drain what they left."""
         self._stop_ev.set()
         if self._barrier is not None:
             try: self._barrier.abort()
             except Exception: pass
         for t_ in self._threads:
-            t_.join(timeout=2.0)
+            t_.join(timeout=timeout)
+        self._threads = []
+        # Only now: the capture threads are done appending, so the encoder's final
+        # pass sees every block there will ever be.
+        self._drain_ev.set()
+        if self._enc_thread is not None:
+            self._enc_thread.join(timeout=timeout)
+            self._enc_thread = None
         self.recording = False
 
     def _rec_mic(self, dev_id, chunks, lock):
@@ -1071,61 +1226,61 @@ class DualRecorder:
         except Exception as e:
             self._fail("sys", str(e))
 
-    @staticmethod
-    def _resample(arr: "np.ndarray", orig: int, target: int) -> "np.ndarray":
-        if orig == target or arr.size == 0:
-            return arr
-        try:
-            from scipy.signal import resample_poly
-            g = math.gcd(int(orig), int(target))
-            return resample_poly(arr.astype(np.float32), target // g, orig // g)
-        except ImportError:
-            new_len = max(1, -(-len(arr) * target // orig))
-            x_old = np.arange(len(arr))
-            x_new = np.linspace(0, len(arr) - 1, new_len)
-            return np.interp(x_new, x_old, arr.astype(np.float32)).astype(np.float32)
+    # ── encoder thread ─────────────────────────────────────────────────────────
+    def _encode_loop(self):
+        # Encoding runs here, never in the capture threads: a slow encode there
+        # would leave the WASAPI buffer unread and overrun it (dropped audio).
+        while not self._drain_ev.is_set():
+            self._pump()
+            self._drain_ev.wait(self.ENC_TICK)
+        self._pump(final=True)
 
-    def _save(self, out_sr: int, out_channels: int, bitrate: int, out_dir=None) -> Path:
+    def _drain_chunks(self):
+        """Take everything captured so far. Empties the lists in place — the
+        capture threads hold a reference to them, so they must not be replaced."""
         with self._lk_mic:
-            mic_raw = (np.concatenate(self._mic_chunks)
-                       if self._mic_chunks else np.zeros(0, np.float32))
+            mic = self._mic_chunks[:]
+            del self._mic_chunks[:]
         with self._lk_sys:
-            sys_raw = (np.concatenate(self._sys_chunks)
-                       if self._sys_chunks else np.zeros(0, np.float32))
+            sys_ = self._sys_chunks[:]
+            del self._sys_chunks[:]
+        return mic, sys_
 
-        mic_f = self._resample(mic_raw.astype(np.float32), CAPTURE_SR, out_sr)
-        sys_f = self._resample(sys_raw.astype(np.float32), CAPTURE_SR, out_sr)
+    def _pump(self, final: bool = False):
+        """Pair the two channels sample-for-sample and hand the pair to the writer.
 
-        # Per-channel gain, baked in. Clipping below caps any boost at full scale.
-        if self.mic_gain != 1.0:
-            mic_f = mic_f * self.mic_gain
-        if self.sys_gain != 1.0:
-            sys_f = sys_f * self.sys_gain
+        Only the overlap is encoded; the tail of whichever channel is ahead stays
+        buffered until its peer catches up, which is what keeps L and R in sync."""
+        if self._writer is None or self._enc_err:
+            return
+        new_mic, new_sys = self._drain_chunks()
+        if new_mic:
+            self._buf_mic = np.concatenate([self._buf_mic, *new_mic])
+        if new_sys:
+            self._buf_sys = np.concatenate([self._buf_sys, *new_sys])
 
-        n = max(len(mic_f), len(sys_f))
-        mic_f = np.pad(mic_f, (0, max(0, n - len(mic_f))))[:n]
-        sys_f = np.pad(sys_f, (0, max(0, n - len(sys_f))))[:n]
+        nm, ns = len(self._buf_mic), len(self._buf_sys)
+        # A channel that is gone (never requested, failed, or done capturing) can
+        # never catch up — pad it with silence so the survivor keeps flowing.
+        if (final or not self._mic_live) and ns > nm:
+            self._buf_mic = np.concatenate([self._buf_mic,
+                                            np.zeros(ns - nm, np.float32)])
+        if (final or not self._sys_live) and nm > ns:
+            self._buf_sys = np.concatenate([self._buf_sys,
+                                            np.zeros(nm - ns, np.float32)])
 
-        if out_channels == 2:
-            data = np.column_stack([
-                np.clip(mic_f, -1.0, 1.0),
-                np.clip(sys_f, -1.0, 1.0),
-            ])
-        else:
-            mixed = mic_f + sys_f
-            peak = float(np.abs(mixed).max()) if len(mixed) else 1.0
-            if peak > 0.95:
-                mixed = mixed * (0.95 / peak)
-            data = mixed
-
-        folder = Path(out_dir) if out_dir else OUTPUT_DIR
-        folder.mkdir(parents=True, exist_ok=True)
-        # 'reco' marks this as a dual-channel (mic+system) recording (see RECO_TAG).
-        prefix = "gravacao_reco" if LANG == "pt" else "recording_reco"
-        ts   = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        path = folder / f"{prefix}_{ts}.mp3"
-        write_mp3(path, data, out_sr, out_channels, bitrate)
-        return path
+        n = min(len(self._buf_mic), len(self._buf_sys))
+        if n <= 0:
+            return
+        try:
+            self._writer.feed(self._buf_mic[:n], self._buf_sys[:n],
+                              self.mic_gain, self.sys_gain)
+        except Exception as e:                   # disk full, codec error…
+            self._enc_err = e
+            print(f"[encode] {e}")
+            return
+        self._buf_mic = self._buf_mic[n:]
+        self._buf_sys = self._buf_sys[n:]
 
 
 # ── Transcriber: OpenVINO GenAI, in-process (NPU / iGPU / CPU) ──────────────────
@@ -1545,7 +1700,7 @@ class App(tk.Tk):
                     self._cfg.get("accent_color") or DEFAULT_ACCENT)
         self.configure(bg=BG)
         self._state        = IDLE
-        self._recorder     = DualRecorder() if (HAS_SC and HAS_NP and HAS_LAME) else None
+        self._recorder     = DualRecorder() if (HAS_SC and HAS_NP and HAS_AV) else None
         if self._recorder:
             self._recorder.set_gain(mic=self._cfg.get("mic_gain", 1.0),
                                     sys=self._cfg.get("sys_gain", 1.0))
@@ -1943,8 +2098,8 @@ class App(tk.Tk):
         self._sc_link.pack(anchor="w", pady=(8, 0))
         self._update_shortcut_link()
 
-        if not (HAS_SC and HAS_NP and HAS_LAME):
-            self._status(t("Captura indisponível — instale soundcard, numpy e lameenc."))
+        if not (HAS_SC and HAS_NP and HAS_AV):
+            self._status(t("Captura indisponível — instale soundcard, numpy e av."))
 
     def _toggle_advanced(self):
         self._adv_shown = not self._adv_shown
@@ -2209,7 +2364,7 @@ class App(tk.Tk):
 
     # ── recording actions ──────────────────────────────────────────────────────
     def _out_settings(self) -> tuple:
-        # Fixed format: 16 kHz stereo (L=mic, R=system) 128 kbps VBR — what
+        # Fixed format: 16 kHz stereo (L=mic, R=system) 96 kbps ABR — what
         # transcription, channel diarization and echo cancellation all need.
         return OUT_SR, OUT_CH, MP3_BR
 
@@ -2218,7 +2373,7 @@ class App(tk.Tk):
 
     def _start_rec(self):
         if not self._recorder:
-            self._status(t("Captura indisponível — instale soundcard, numpy e lameenc."))
+            self._status(t("Captura indisponível — instale soundcard, numpy e av."))
             return
         mic_id = id_for_name(self._mic_devs, self._mic_var.get())
         sys_id = id_for_name(self._sys_devs, self._sys_var.get())
@@ -2234,12 +2389,18 @@ class App(tk.Tk):
         self._vu_sys.reset()
         self._set_combos_enabled(False)
 
+        # Output settings go in at start(): the MP3 is written as we record, so
+        # the file (and its name's timestamp) is created now, not at stop().
+        sr, ch, br = self._out_settings()
         self._recorder.start(
             mic_id, sys_id,
             on_level=lambda src, rms: self._post(
                 lambda s=src, r=rms: self._on_level(s, r)),
             on_error=lambda src, msg: self._post(
-                lambda s=src, m=msg: self._on_stream_error(s, m)))
+                lambda s=src, m=msg: self._on_stream_error(s, m)),
+            out_sr=sr, out_channels=ch, bitrate=br, out_dir=self._out_dir)
+        if not self._recorder.recording:        # couldn't open the file
+            return
 
         self._tick_timer()
         self._blink_dot()
@@ -2252,6 +2413,9 @@ class App(tk.Tk):
 
     def _on_stream_error(self, src, msg):
         if self._state != RECORDING:
+            return
+        if src == "save":                       # couldn't open the MP3 for writing
+            self._abort_to_idle(tf("Erro ao salvar: {m}", m=msg[:80]))
             return
         which = t("microfone") if src == "mic" else t("áudio do sistema")
         if self._recorder and self._recorder.all_failed():
@@ -2278,15 +2442,11 @@ class App(tk.Tk):
         self._state = BUSY
         self._set_rec_state(BUSY)
         self._status(t("Salvando…"))
-        sr, ch, br = self._out_settings()
-
-        out_dir = self._out_dir
 
         def do_stop():
             try:
                 path = self._recorder.stop(
-                    progress=lambda m: self._post(lambda: self._status(m)),
-                    out_sr=sr, out_channels=ch, bitrate=br, out_dir=out_dir)
+                    progress=lambda m: self._post(lambda: self._status(m)))
                 self._post(lambda: self._after_stop(path))
             except NoAudioCaptured:
                 self._post(lambda: self._after_stop_error(
@@ -2597,7 +2757,7 @@ class App(tk.Tk):
         self._cv_btn.pack(side="left")
 
         self._cv_status_var = tk.StringVar(
-            value=tf("MP3 leve: {sr} kHz mono, {br} kbps VBR.",
+            value=tf("MP3 leve: {sr} kHz mono, {br} kbps.",
                      sr=OUT_SR // 1000, br=EXTRACT_BR))
         tk.Label(sec, textvariable=self._cv_status_var, bg=BG, fg=SUBTLE,
                  font=SEG_XS, wraplength=300, justify="left").pack(
@@ -2633,8 +2793,8 @@ class App(tk.Tk):
         if not path or not path.exists():
             self._cv_set_status(t("Selecione um arquivo válido."))
             return
-        if not (HAS_AV and HAS_LAME):
-            self._cv_set_status(t("Conversão indisponível — instale av e lameenc."))
+        if not HAS_AV:
+            self._cv_set_status(t("Conversão indisponível — instale av."))
             return
         if self._extracting:
             self._cv_set_status(t("Já há uma conversão em andamento."))
@@ -2932,9 +3092,9 @@ class App(tk.Tk):
         self._quit()
 
     def _quit(self):
-        # Quitting mid-recording must not throw the audio away: finish encoding the
-        # MP3 first, then exit. The window is brought up so "Salvando…" is visible
-        # instead of the app appearing to hang.
+        # Quitting mid-recording must not throw the audio away: close the MP3
+        # first, then exit. It is already encoded, so this is quick — the window
+        # still comes up so "Salvando…" is visible instead of a silent hang.
         if self._quitting:
             return
         self._quitting = True             # NOT _closing: that would stop _drain_ui,
@@ -2946,13 +3106,10 @@ class App(tk.Tk):
             self._status(t("Salvando antes de sair…"))
             if self._tray:
                 self._tray.set_tooltip(t("Reco — salvando gravação…"))
-            sr, ch, br = self._out_settings()
-            out_dir = self._out_dir
 
             def save_then_exit():
                 try:
-                    self._recorder.stop(out_sr=sr, out_channels=ch, bitrate=br,
-                                        out_dir=out_dir)
+                    self._recorder.stop()
                 except Exception as e:
                     print(f"[quit] {e}")   # nothing captured / encode failed → just go
                 self._post(self._hard_exit)
@@ -2984,7 +3141,7 @@ if __name__ == "__main__":
         backend = ("mlx-whisper" if HAS_MLX else "openvino" if HAS_OV else "none")
         lines = [
             f"frozen={IS_FROZEN} lang={LANG} HAS_SC={HAS_SC} HAS_NP={HAS_NP} "
-            f"HAS_LAME={HAS_LAME} HAS_OV={HAS_OV} HAS_AV={HAS_AV} HAS_MLX={HAS_MLX}",
+            f"HAS_OV={HAS_OV} HAS_AV={HAS_AV} HAS_MLX={HAS_MLX}",
             f"backend={backend}",
             f"ov_devices={devs}",
             f"resolved(AUTO)={resolve_device('AUTO') if HAS_OV else 'n/a'}",
@@ -3027,13 +3184,13 @@ if __name__ == "__main__":
         log.write_text(f"OK -> {txt}\n", encoding="utf-8")
         sys.exit(0)
 
-    if not (HAS_SC and HAS_NP and HAS_LAME):
+    if not (HAS_SC and HAS_NP and HAS_AV):
         _root = tk.Tk()
         _root.withdraw()
         missing = []
         if not HAS_NP:   missing.append("numpy")
         if not HAS_SC:   missing.append("soundcard")
-        if not HAS_LAME: missing.append("lameenc")
+        if not HAS_AV:   missing.append("av")
         messagebox.showerror(
             t("Dependências ausentes"),
             tf("Para gravar áudio, instale as dependências:\n\n  pip install {pkgs}\n\n"
