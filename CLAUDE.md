@@ -5,6 +5,10 @@ App de desktop (Windows, Tkinter) que grava **microfone + áudio do sistema**
 OpenVINO GenAI (Whisper), com diarização por canal e cancelamento de eco.
 Todo o código vive em `reco.py` (um arquivo só) + `tray.py` (bandeja).
 
+**Memória/decisões deste projeto:** `C:\Dev\cerebro\projetos\reco.md`
+(local desta máquina — ler antes de decisão não-trivial: pendências abertas,
+decisões recentes).
+
 ## REGRA: sempre compilar após alterar o código
 
 **Toda vez que mexer em `reco.py`/`tray.py` (ou qualquer coisa que entre no
