@@ -334,6 +334,57 @@ AEC a 7 dB não chega lá.
 
 ---
 
+## 7. Transcrição ao vivo — medido, e o resultado inverte a intuição
+
+Pedido do Gabriel (29/07, mesma conversa): transcrever **durante** a gravação,
+disparando ao detectar X ms de silêncio, com pontuação/interrogação corretas.
+
+**Previsão teórica, que estava ERRADA:** "o encoder do Whisper sempre processa
+30 s, então segmentar fino multiplica o custo; e trechos curtos perdem contexto,
+então a pontuação piora". Medido (`temp/exp_ao_vivo.py`, trecho de 180 s de fala
+real, `large-v3-turbo` @ iGPU):
+
+| corte por silêncio | chamadas | compute | latência típica | `?` /100 palavras | WER vs. hoje |
+| --- | --- | --- | --- | --- | --- |
+| **hoje** (janelas cegas de 30 s) | 6 | 21,1 s | só no fim | 2,41 | — |
+| 0,4 s | 31 (5,2×) | 22,6 s (1,1×) | ~2,8 s | 2,89 | 8,8% |
+| **0,8 s** ← recomendado | 21 (3,5×) | **18,7 s (0,9×)** | **~3,2 s** | **2,91** | 7,7% |
+| 1,5 s | 9 (1,5×) | 14,3 s (0,7×) | ~5,9 s | 2,07 | 9,9% |
+
+**Por que o custo não explode:** o piso por chamada existe (é o encoder) mas não
+domina. Medido isoladamente: 2 s → 0,37 s; 30 s → 0,62 s. Razão de 1,7×, não de
+10×. E o VAD **deixa de gastar chamadas com silêncio**, que hoje são transcritas
+à toa — o saldo fica neutro ou favorável.
+
+**Por que a pontuação melhora:** o corte cego de 30 s parte frases no meio, e o
+modelo pontua mal um fragmento sem começo nem fim. O VAD entrega **unidades de
+fala completas**. Contexto não é só o que vem antes — é a frase estar inteira.
+
+**Por que 1,5 s piora:** segmentos ficam grandes demais (média 18 s, **máx 76 s**)
+e estouram a janela de 30 s do Whisper, que trunca (2201 chars contra 2362).
+⚠️ **Requisito de implementação: partir à força qualquer segmento acima de ~28 s**,
+sem esperar o silêncio.
+
+**Consequência para a Fase 3:** o VAD estava classificado como otimização de
+velocidade. Medido, é também **ganho de qualidade** — sobe de prioridade, e serve
+aos dois modos (normal e ao vivo) com o mesmo código.
+
+**Desenho proposto (não implementado):** um quarto thread, ao lado do
+`_encode_loop`, consumindo uma fila — o laço de captura **não** pode ser tocado
+(o `CLAUDE.md` já registra que trabalho no thread de captura atrasa o WASAPI e
+estoura o buffer). Se a transcrição atrasar, atrasa sozinha.
+
+**Duas decisões pendentes, que são do Gabriel:**
+
+1. **Device.** O modo ao vivo ocupa o acelerador durante a reunião inteira — o
+   cenário exato em que a iGPU disputa com o vídeo da chamada. Testar na NPU é
+   obrigatório antes de fechar (ver § 1.4).
+2. **Rascunho ou definitivo?** O texto ao vivo diverge do final em ~8% (WER).
+   Recomendação: rascunho ao vivo + passada final ao parar. Mas é escolha de
+   produto.
+
+---
+
 ## 5. Regra da casa que vale aqui
 
 `CLAUDE.md` do projeto: **toda mudança em `reco.py` exige recompilar** com
