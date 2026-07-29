@@ -857,25 +857,50 @@ def _alinhar_canais(mic: "np.ndarray", ref: "np.ndarray",
 # não se tenta limpar o áudio, só decidir de quem é a fala em cada bloco.
 # Calibrado em tools/calibrar_dominancia.py (Fase 2.3 do roadmap
 # 2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md) contra dois
-# arquivos reais, usando os blocos "só o sistema fala" que tools/medir_eco.py já
-# identifica como ground truth de eco: k_db=12 é o menor valor que mantém o
-# falso-positivo em fala real (so_mic) em ≤ 2% — recall de eco cai pra 34,7%,
-# mas "na dúvida, manter o segmento" (roadmap § Riscos) pesa mais que pegar todo
+# arquivos reais, usando os blocos "só o sistema fala"/"só o mic fala" que
+# tools/medir_eco.py já identifica.
+# ⚠️ k_db=12 (primeira calibração, só contra so_mic) APAGOU fala real medida
+# numa gravação de 20 min: "Onde é que tá esse manual?" e "eu estou vendo
+# isso...", em double-talk (os dois canais acima do limiar ao mesmo tempo —
+# so_mic sozinho não pega esse caso, porque nele o sistema está mudo por
+# definição). k_db=15 é o menor valor que também mantém o flag em double-talk
+# (`ambos`) ≤ 10% — as duas falas voltam a aparecer nesse valor, confirmado por
+# transcrição real, não só pela métrica de bloco. Recall de eco cai pra 24,7%;
+# "na dúvida, manter o segmento" (roadmap § Riscos) pesa mais que pegar todo
 # eco. Não afinar por chute; rodar tools/calibrar_dominancia.py de novo com mais
-# gravações se houver motivo.
-K_DB_DOMINANCIA = 12.0
+# gravações se houver motivo, e conferir contra transcrição real antes de
+# baixar o valor — a métrica de bloco sozinha já mascarou uma perda real uma
+# vez.
+K_DB_DOMINANCIA = 15.0
 
 
 def dominancia_sistema(mic: "np.ndarray", sistema: "np.ndarray",
                        sr: int = 16000, bloco_s: float = 0.1,
-                       k_db: float = K_DB_DOMINANCIA, histerese: int = 3) -> "np.ndarray":
+                       k_db: float = K_DB_DOMINANCIA, histerese: int = 3,
+                       realinhar_s: float = 30.0) -> "np.ndarray":
     """Marca (booleano, por amostra) onde o canal do sistema domina o do mic —
     provável eco/interlocutor vazando, não fala do usuário.
 
     Compara energia por bloco de `bloco_s`; `histerese` blocos consecutivos
     discordando do estado atual são necessários pra trocar de estado (evita
-    picotar blocos isolados em fala de double-talk)."""
-    mic_al, sys_al = _alinhar_canais(mic, sistema, sr)
+    picotar blocos isolados em fala de double-talk).
+
+    ⚠️ Realinha a cada `realinhar_s` — um único alinhamento global (testado e
+    descartado nesta sessão) ignora a deriva de clock mic↔loopback (ARMADILHAS
+    "o teto do AEC é deriva de clock"): medido no arquivo de 80 min, o atraso
+    ótimo vai de 48 ms a 155 ms e chega a inverter de sinal perto dos 60 min —
+    um alinhamento só, calculado no início, erraria a decisão de dominância no
+    resto do arquivo inteiro. `cancel_echo` já reestima por isso; aqui o custo é
+    bem menor (uma correlação cruzada por bloco, não um STFT+solve)."""
+    passo = max(1, int(realinhar_s * sr))
+    n0 = min(len(mic), len(sistema))
+    partes_m, partes_s = [], []
+    for i in range(0, n0, passo):
+        m_al, s_al = _alinhar_canais(mic[i:i + passo], sistema[i:i + passo], sr)
+        partes_m.append(m_al[:passo])
+        partes_s.append(s_al[:passo])
+    mic_al = np.concatenate(partes_m)
+    sys_al = np.concatenate(partes_s)
     n = len(mic_al)
     bloco = max(1, int(bloco_s * sr))
     nb = -(-n // bloco)

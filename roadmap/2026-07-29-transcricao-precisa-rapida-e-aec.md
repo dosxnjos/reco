@@ -401,12 +401,20 @@ diarização + AEC ligados), texto de ambos comparado no mesmo arquivo:
 | legado (janela cega 30 s) | 4872 | 2,56 | 9,87 | 57,9 s |
 | **novo (VAD + agrupar 3 s + contexto)** | 4471 | **3,78** | **10,84** | **55,5 s** |
 
-Pontuação melhora nos dois eixos, como o roadmap previa (D1/D5). Tempo: **esta
-máquina tem ruído de 15-25% entre execuções isoladas** (medido: o mesmo código
-legado variou 42-58 s em runs não-consecutivas) — a comparação confiável é a
-**pareada**, rodando os dois em sequência imediata (mesmo estado térmico), que
-deu o novo caminho **levemente mais rápido**. Não tratar números de runs isoladas
-como definitivos.
+Pontuação melhora nos dois eixos, como o roadmap previa (D1/D5).
+
+⚠️ **Correção (revisão por par, mesmo dia):** a linha "tempo (par imediato)"
+acima **não sustenta** a conclusão de paridade que este documento chegou a
+registrar. Rodando os dois códigos repetidas vezes na mesma sessão: legado
+42/46/46 s (~45 s de média), novo 46/53/53/54 s (~52 s de média) — um par
+isolado favorável ao novo (o legado rodou **depois**, numa sessão com deriva
+térmica monotônica já documentada acima, o que enviesa a favor de quem roda
+primeiro) não é evidência suficiente. **Correto dizer:** o caminho novo mede
+**mais lento** que o legado nesta máquina para transcrição+diarização+AEC —
+a Fase 1.3 do roadmap de melhoria não bateu a própria meta de velocidade
+("tempo total não é maior que o de hoje"), mesmo com a pontuação melhor. Isso
+segue registrado como aceito (o ganho de qualidade compensa, e a Fase 2 mediu
+de onde vem boa parte do custo — ver § 8.1), mas sem o rótulo "paridade".
 
 **Achado que não estava nas tabelas de `exp_contexto.py`:** aquele script nunca
 chama `cancel_echo` — as tabelas de compute do § 7 acima e do roadmap de melhoria
@@ -422,6 +430,56 @@ tentativa.
 
 `ALVO_ACUMULO_S = 3.0` mantido como decidido em E3 (não foi preciso ajustar —
 o gargalo era o AEC por span, não o alvo de acúmulo).
+
+⚠️ **Correção:** a frase original desta seção atribuía o salto de 53s→68s
+(medido ao ligar a dominância de canal, Fase 2) à correlação cruzada de
+`_alinhar_canais` ("soma ~15-20% ao tempo"). Essa causa **não foi medida** —
+uma correlação FFT sobre o canal inteiro é sub-segundo; o salto real é dentro
+do ruído de 20%+ desta máquina já documentado acima (nenhuma repetição de
+"legado logo antes" foi feita naquele ponto da sessão). Correto dizer: **esta
+máquina não resolve diferenças de tempo abaixo de ~20% sem repetição
+pareada**, não atribuir uma causa específica sem ter isolado a variável.
+
+## 8.1 Fase 2 (dominância de canal) — dois bugs achados na revisão, corrigidos
+
+Uma segunda revisão (consulta ao `advisor`, 29/07) achou dois problemas reais
+no que tinha acabado de ser implementado e commitado — registrados aqui porque
+os testes automáticos (`test_e2e.py`) **não detectam nenhum dos dois**: eles
+checam "não é lixo" (repetição, compressão), não "não falta nada".
+
+**Bug 1 — alinhamento global, não por bloco.** `dominancia_sistema` calculava
+`_alinhar_canais` **uma vez** para o canal inteiro. `cancel_echo` reestima a
+cada 2 s de propósito (ver ARMADILHAS "o teto do AEC é deriva de clock"):
+medido agora no arquivo de 80 min (23/07), o atraso ótimo entre mic e sistema
+vai de **48 ms a 155 ms** e **inverte de sinal** perto dos 60 min. Um
+alinhamento só, feito no início, comparava mic no instante *t* com sistema em
+*t±0,5s* na maior parte de um arquivo de 2h — invertendo decisões de
+dominância no início e no fim de cada fala. **Corrigido:** `dominancia_sistema`
+agora reestima o alinhamento a cada 30 s (parâmetro `realinhar_s`), como
+`cancel_echo` já fazia — custo baixo, é só uma correlação cruzada por bloco,
+não o STFT+solve do AEC.
+
+**Bug 2 — `k_db` calibrado contra a população errada, apagou fala real.** A
+calibração original (`tools/calibrar_dominancia.py`) só media falso-positivo
+contra blocos "só o mic fala" (sistema mudo) — nessa população a dominância
+quase não dispara por construção, então FP≤2% não protegia do risco real, que
+o próprio roadmap de melhoria nomeia: "dominância corta fala legítima em
+double-talk". Rodando o A/B (legado × novo) numa gravação real de 20 min
+(28/07), com `k_db=12` (o valor calibrado antes), **duas falas reais do
+Gabriel desapareceram inteiras**: `"Onde é que tá esse manual?"` e `"eu estou
+vendo isso..."` — ausentes no texto novo, presentes no legado e presentes com
+Fase 1 sozinha (sem dominância). Isso é **pior** que o defeito original (D3 era
+atribuição errada de locutor; isso é perda de conteúdo).
+**Corrigido:** o script agora também mede o flag em blocos "ambos" (double-talk,
+sem rótulo verdadeiro, mas onde o corte pode estar apagando fala real) e exige
+`≤ 10%` além do `FP_MAX` de antes. `K_DB_DOMINANCIA` subiu de 12 para **15** —
+confirmado por transcrição real (não só pela métrica de bloco) que as duas
+falas voltam. Recall de eco cai de 34,9% para 24,7% — aceito, porque "na
+dúvida, manter o segmento" (§ Riscos) pesa mais que pegar todo eco.
+**Lição para not repetir:** métricas de bloco (recall/FP) são um proxy; a
+prova real é diff de transcrição pareada num arquivo onde o mecanismo dispara
+de verdade — o arquivo de validação original (27/07) mal acionava a
+dominância (só 3,7% do canal era "só sistema"), o que escondeu os dois bugs.
 
 ---
 

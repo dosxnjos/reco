@@ -313,14 +313,13 @@ Conserta o defeito mais visível. Independente da Fase 1.
    exigidos para trocar de estado (evita picotar).
 
 3. [x] **Calibrar `k_db` com dado, não por chute** (`C:\Dev\CLAUDE.md` § Decidir
-   por evidência). Escrito `tools/calibrar_dominancia.py`, varrendo `k_db` de 3
-   a 15 dB em dois arquivos reais, conferindo contra os blocos "só o sistema
-   fala" que `tools/medir_eco.py` já identifica (recall) e contra os blocos
-   "só o mic fala" (falso-positivo — fala real que não pode ser descartada).
-   **`K_DB_DOMINANCIA = 12.0`** — o menor valor que mantém falso-positivo ≤ 2%
-   em fala real (recall de eco cai pra 34,7%; "na dúvida, manter o segmento"
-   pesa mais). Comentário no código cita a medição.
-   **Pronto quando:** valor no código com comentário — ok.
+   por evidência). Escrito `tools/calibrar_dominancia.py`. **Revisado depois de
+   uma consulta ao `advisor` achar que a calibração inicial (`k_db=12`, só
+   contra so_mic) apagava fala real** — ver § 8.1 do roadmap irmão para o caso
+   concreto e a correção completa. **`K_DB_DOMINANCIA = 15.0`**, calibrado
+   contra três populações (so_sys, so_mic, e `ambos`/double-talk — a que
+   faltava), confirmado por transcrição real, não só por métrica de bloco.
+   **Pronto quando:** valor no código com comentário — ok, revisado.
 
 4. [x] **Aplicar em `_transcribe_channel`**, só no canal do mic e só com
    `diarize` e `aec` ligados (reusa o `ref` que já existe para o AEC).
@@ -328,24 +327,35 @@ Conserta o defeito mais visível. Independente da Fase 1.
    dominadas de dentro do grupo (`partes_livres`), não descarta o grupo
    inteiro — um grupo de VAD longo pode ter só alguns segundos de eco no meio
    de fala real, e votar por maioria do grupo perderia justamente esse caso.
-   ⚠️ **Achado ao investigar o "pronto quando":** medindo a energia real
-   amostra a amostra no trecho de `"Eu: É sempre nove"` (27/07, ~29,6-31,1s),
-   o canal do sistema **não domina de forma limpa** — a razão sys/mic oscila
-   entre −1 dB e +13 dB no mesmo segundo, sinal de **fala sobreposta
-   (cross-talk)**, não de eco puro vazando. Testado até `k_db=3` (bem mais
-   sensível que o calibrado) e a frase persiste — porque ela é,
-   verossimilmente, o próprio Gabriel repetindo "é sempre nove" em cima da
-   fala do interlocutor pra confirmar, não um artefato acústico. Dominância de
-   canal **não pode e não deve** "consertar" isso: quando as duas pessoas
-   falam ao mesmo tempo de verdade, a energia do mic é genuína e apagá-la
-   apagaria fala real do Gabriel (o oposto do que o roadmap pede em § Riscos).
-   **Validação alternativa do mecanismo, num arquivo de 20 min (28/07):**
-   27% da duração do canal do mic fica marcada como dominância do sistema, em
-   102 trechos contínuos > 1 s — evidência de que o mecanismo pega os casos de
-   eco puro reais, mesmo não pegando este cross-talk específico.
-   ⚠️ **Custo medido:** a correlação cruzada de `_alinhar_canais` sobre o canal
-   inteiro (uma vez por chamada) soma ~15-20% ao tempo de compute do canal do
-   mic — relevante pro orçamento da Fase 3 (modo ao vivo).
+   ⚠️ **Achado ao investigar o "pronto quando" original:** medindo a energia
+   real amostra a amostra no trecho de `"Eu: É sempre nove"` (27/07,
+   ~29,6-31,1s), o canal do sistema **não domina de forma limpa** — a razão
+   sys/mic oscila entre −1 dB e +13 dB no mesmo segundo, sinal de **fala
+   sobreposta (cross-talk)**, não de eco puro vazando. A frase persiste mesmo
+   em `k_db` bem mais sensível — porque ela é, verossimilmente, o próprio
+   Gabriel repetindo "é sempre nove" em cima da fala do interlocutor pra
+   confirmar, não um artefato acústico. Dominância de canal **não pode e não
+   deve** "consertar" isso: quando as duas pessoas falam ao mesmo tempo de
+   verdade, a energia do mic é genuína.
+   ⚠️⚠️ **Dois bugs achados numa segunda revisão (consulta ao `advisor`), antes
+   de fechar a fase — detalhe completo em § 8.1 do roadmap irmão:**
+   (1) `dominancia_sistema` alinhava só uma vez por canal inteiro; o atraso
+   mic↔sistema deriva (48-155 ms medidos no arquivo de 80 min, chega a
+   inverter de sinal perto dos 60 min) — corrigido pra realinhar a cada 30 s,
+   como `cancel_echo` já fazia.
+   (2) o `k_db=12` calibrado só contra `so_mic` **apagou duas falas reais** do
+   Gabriel numa gravação de 20 min real (confirmado por diff de transcrição
+   pareada, não só métrica de bloco) — corrigido subindo pra `k_db=15` e
+   acrescentando o critério de `ambos` na calibração.
+   **Validação do mecanismo (bug 2 corrigido), no mesmo arquivo de 20 min:**
+   com `k_db=15`, as duas falas voltam a aparecer, e o mecanismo ainda pega
+   eco real (recall 24,7% em `so_sys`, contra 34,9% do valor antigo — queda
+   aceita, porque perder fala real é pior que deixar passar eco).
+   ⚠️ **Custo:** o realinhamento a cada 30 s soma um custo real ao tempo de
+   compute do canal do mic, mas a tentativa de atribuí-lo a um número
+   específico (~15-20%) nesta sessão **não foi isolada corretamente** — ver
+   § 8.1 do roadmap irmão. Relevante pro orçamento da Fase 3 (modo ao vivo);
+   medir de novo com repetição pareada antes de fechar o orçamento do Dec1.
 
 5. [x] Recompilar e commitar.
 
