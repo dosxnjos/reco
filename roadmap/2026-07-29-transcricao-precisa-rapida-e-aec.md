@@ -385,6 +385,46 @@ estoura o buffer). Se a transcrição atrasar, atrasa sozinha.
 
 ---
 
+## 8. Fase 1 do roadmap de melhoria (VAD + contexto no modo lote) — implementada
+
+Executada a Fase 1 de
+[`2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md`](2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md):
+`segmentar_por_vad`/`agrupar_segmentos` (portados de `tools/exp_contexto.py`) e
+contexto via `initial_prompt` substituindo o laço de janelas cegas de 30 s em
+`OVTranscriber._transcribe_channel`.
+
+**Validação ponta a ponta** (`tools/test_e2e.py`, arquivo real de 27/07, 345 s,
+diarização + AEC ligados), texto de ambos comparado no mesmo arquivo:
+
+| | chars | `?`/100p | `,`/100p | tempo (par imediato) |
+| --- | --- | --- | --- | --- |
+| legado (janela cega 30 s) | 4872 | 2,56 | 9,87 | 57,9 s |
+| **novo (VAD + agrupar 3 s + contexto)** | 4471 | **3,78** | **10,84** | **55,5 s** |
+
+Pontuação melhora nos dois eixos, como o roadmap previa (D1/D5). Tempo: **esta
+máquina tem ruído de 15-25% entre execuções isoladas** (medido: o mesmo código
+legado variou 42-58 s em runs não-consecutivas) — a comparação confiável é a
+**pareada**, rodando os dois em sequência imediata (mesmo estado térmico), que
+deu o novo caminho **levemente mais rápido**. Não tratar números de runs isoladas
+como definitivos.
+
+**Achado que não estava nas tabelas de `exp_contexto.py`:** aquele script nunca
+chama `cancel_echo` — as tabelas de compute do § 7 acima e do roadmap de melhoria
+(E3) são só transcrição, sem AEC. No pipeline real, `cancel_echo` **por grupo**
+(não por span `ini:fim`, e não pré-limpando o canal inteiro em blocos de 30 s)
+foi a variante mais barata testada: limpar o span inteiro do grupo (incluindo
+silêncio interno) chegou a **6,4x tempo real** vs os **7,5-8,1x** do legado;
+concatenar só a fala do grupo antes de cancelar o eco recuperou a paridade.
+Pré-limpar o canal inteiro em blocos de 30 s antes do VAD (tentativa
+intermediária) foi a **pior** opção — reintroduz o custo de rodar AEC sobre o
+silêncio, que o VAD existe para evitar. Fica registrado para não repetir a
+tentativa.
+
+`ALVO_ACUMULO_S = 3.0` mantido como decidido em E3 (não foi preciso ajustar —
+o gargalo era o AEC por span, não o alvo de acúmulo).
+
+---
+
 ## 5. Regra da casa que vale aqui
 
 `CLAUDE.md` do projeto: **toda mudança em `reco.py` exige recompilar** com

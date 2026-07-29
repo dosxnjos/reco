@@ -249,23 +249,24 @@ vivo.
 Ordem por valor e risco crescente. Cada fase deixa o app funcionando e é
 reversível sozinha.
 
-### Fase 1 — VAD + contexto no modo lote (corrige D1, D2, D5, D6)
+### Fase 1 — VAD + contexto no modo lote (corrige D1, D2, D5, D6) ✅ EXECUTADA 29/07/2026
 
 Entrega qualidade **e** velocidade hoje, e constrói a base do modo ao vivo.
-Risco baixo: interno à transcrição.
+Risco baixo: interno à transcrição. Detalhe e números medidos:
+[roadmap irmão § 8](2026-07-29-transcricao-precisa-rapida-e-aec.md).
 
-1. [ ] **Criar `segmentar_por_vad(audio, sr=16000, sil_s=0.8, max_s=28.0,
+1. [x] **Criar `segmentar_por_vad(audio, sr=16000, sil_s=0.8, max_s=28.0,
    min_s=0.3)`** em `reco.py`, após `decode_16k`. Retorna `[(ini, fim)]`.
    **Portar de `tools/exp_contexto.py::vad()`** — já validada, inclusive a
    partição forçada. Não reinventar.
    **Pronto quando:** em arquivo real, nenhum segmento passa de 28 s e a soma dos
    segmentos é menor que a duração total (está pulando silêncio de fato).
 
-2. [ ] **Criar `agrupar_segmentos(segs, sr, alvo_s)`** — junta consecutivos até
+2. [x] **Criar `agrupar_segmentos(segs, sr, alvo_s)`** — junta consecutivos até
    somar `alvo_s` de fala; `alvo_s=0` devolve cada segmento sozinho. É o que
    materializa os dois presets de E3. Portar de `tools/exp_contexto.py::agrupar`.
 
-3. [ ] **Reescrever o laço de `_transcribe_channel`** para iterar sobre grupos em
+3. [x] **Reescrever o laço de `_transcribe_channel`** para iterar sobre grupos em
    vez de `i += step`, com `alvo_s=ALVO_ACUMULO_S` (E3). O offset de tempo de
    cada trecho passa a ser `ini/sr`. Declarar `ALVO_ACUMULO_S = 3.0` como
    constante de módulo, com o comentário exigido em E3 — o valor é ruído dentro
@@ -275,8 +276,14 @@ Risco baixo: interno à transcrição.
    causa do VAD.
    **Pronto quando:** `python tools/test_e2e.py <mp3>` passa (repetição ≤ 3,
    compressão ≤ 2,4) e o tempo total **não** é maior que o de hoje.
+   ⚠️ **Achado não previsto nesta implementação:** cancelar o eco (`cancel_echo`)
+   no *span* inteiro do grupo (`ini:fim`, incluindo silêncio interno) ou
+   pré-limpar o canal inteiro em blocos de 30 s antes do VAD saíram **mais
+   lentos** que a janela cega de hoje — as tabelas de compute do E3 nunca
+   incluíram AEC. A variante que ficou mais barata: concatenar só a fala do
+   grupo (dropando os gaps) antes de cancelar o eco. Ver § 8 do roadmap irmão.
 
-4. [ ] **Adicionar contexto (E4):** manter as últimas ~30 palavras transcritas
+4. [x] **Adicionar contexto (E4):** manter as últimas ~30 palavras transcritas
    **por canal** e passá-las em `cfg.initial_prompt` do envio seguinte. Zerar
    após janela descartada pelo anti-loop.
    ⚠️ Só quando o device resolvido **não** for NPU — `initial_prompt` estoura o
@@ -284,10 +291,12 @@ Risco baixo: interno à transcrição.
    **Pronto quando:** transcrever na NPU não levanta `roi_end <= max_dim`, e na
    iGPU o `?`/100 palavras sobe em relação ao passo 3.
 
-5. [ ] **Registrar o ganho medido** no roadmap irmão (antes/depois de `?`, `,` e
+5. [x] **Registrar o ganho medido** no roadmap irmão (antes/depois de `?`, `,` e
    tempo). Se a pontuação **piorar**, parar — a premissa da Fase 1 caiu.
+   Pontuação melhorou nos dois eixos (`?` 2,56→3,78, `,` 9,87→10,84); tempo
+   ficou na paridade em comparação pareada (ver § 8, máquina tem ruído alto).
 
-6. [ ] **Recompilar** (`powershell -ExecutionPolicy Bypass -File
+6. [x] **Recompilar** (`powershell -ExecutionPolicy Bypass -File
    "C:\Dev\Reco\build.ps1"`) e commitar. Regra do projeto, não opcional.
 
 ### Fase 2 — Diarização por dominância de canal (corrige D3)

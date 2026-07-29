@@ -570,6 +570,72 @@ def decode_16k(path: Path, split: bool = False) -> list:
     return [np.ascontiguousarray(arr[0])]
 
 
+# ── VAD e agrupamento (transcrição por segmento de fala, não janela cega) ──────
+# Portado de tools/exp_contexto.py — validado em três arquivos (roadmap
+# 2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md § E2/E3). Cortar às
+# cegas a 30 s parte frases no meio; o VAD corta no silêncio.
+_VAD_FRAME_S = 0.03
+
+
+def segmentar_por_vad(audio: "np.ndarray", sr: int = 16000, sil_s: float = 0.8,
+                       max_s: float = 28.0, min_s: float = 0.3) -> list:
+    """Detecta segmentos de fala por energia. Retorna [(ini, fim)] em amostras.
+
+    Limiar adaptativo (piso = percentil 20 da energia dos quadros de 30 ms; fala
+    = max(piso × 3, 0.0035)) — um limiar fixo não sobrevive a mudança de
+    ambiente/microfone. max_s força partição: acima de 30 s o Whisper trunca em
+    silêncio, sem erro nem aviso (D6)."""
+    frame = int(_VAD_FRAME_S * sr)
+    nf = len(audio) // frame
+    if nf == 0:
+        return []
+    e = np.array([np.sqrt(np.mean(audio[i*frame:(i+1)*frame] ** 2)) for i in range(nf)])
+    piso = max(float(np.percentile(e, 20)), 1e-5)
+    lim = max(piso * 3.0, 0.0035)
+    fala = e >= lim
+    min_sil = max(1, int(sil_s / _VAD_FRAME_S))
+    segs, ini, ult, sil = [], None, None, 0
+    for i, f in enumerate(fala):
+        if f:
+            if ini is None:
+                ini = i
+            ult, sil = i, 0
+        elif ini is not None:
+            sil += 1
+            if sil >= min_sil:
+                segs.append((ini*frame, (ult+1)*frame))
+                ini = None
+    if ini is not None:
+        segs.append((ini*frame, (ult+1)*frame))
+    out = []
+    for s, t in segs:
+        if t - s < int(min_s * sr):
+            continue
+        while t - s > int(max_s * sr):
+            out.append((s, s + int(max_s * sr)))
+            s += int(max_s * sr)
+        out.append((s, t))
+    return out
+
+
+def agrupar_segmentos(segs: list, sr: int, alvo_s: float) -> list:
+    """Junta segmentos consecutivos do VAD até somar `alvo_s` de fala.
+
+    alvo_s=0 devolve cada segmento sozinho (latência mínima, sem agrupar)."""
+    if alvo_s <= 0:
+        return [[s] for s in segs]
+    grupos, atual, acc = [], [], 0.0
+    for s, t in segs:
+        atual.append((s, t))
+        acc += (t - s) / sr
+        if acc >= alvo_s:
+            grupos.append(atual)
+            atual, acc = [], 0.0
+    if atual:
+        grupos.append(atual)
+    return grupos
+
+
 # ── MP3 encoding (PyAV / libmp3lame) ───────────────────────────────────────────
 # ⚠️ Always encode through a *container*, never by concatenating raw encoder
 # output. A bare VBR/ABR MP3 carries no Xing/Info header, so every player has to
@@ -1424,9 +1490,20 @@ class DualRecorder:
 
 
 # ── Transcriber: OpenVINO GenAI, in-process (NPU / iGPU / CPU) ──────────────────
+# Quanto de fala consecutiva (do VAD) juntar antes de mandar transcrever, no modo
+# lote e no modo ao vivo (Dec4 do roadmap 2026-07-29-melhoria... — preset único).
+# Medido em três arquivos, com a regra de decisão congelada ANTES de olhar o
+# resultado (§ E3): "agrupar ≫ não agrupar" é o achado robusto — 6,9% WER médio
+# contra 9,9% sem agrupar — mas o valor exato entre 3 e 10 s é RUÍDO (os
+# vencedores por arquivo foram 3s, 5s e 10s, um cada). Não afinar por intuição;
+# se houver motivo para mexer, rodar tools/exp_alvo.py com mais gravações.
+ALVO_ACUMULO_S = 3.0
+
+
 class OVTranscriber:
-    WIN = 30.0      # seconds per window — Whisper's native frame; also our
-                    # progress + cancellation granularity for long audio.
+    WIN = 30.0      # seconds per window — legacy blind-window fallback only
+                    # (segmentar_por_vad + agrupar_segmentos drive the real path
+                    # below); also the progress + cancellation granularity.
 
     def __init__(self):
         self._pipe    = None
@@ -1577,13 +1654,11 @@ class OVTranscriber:
         print("[transcribe] janela descartada: degenerada em todas as tentativas")
         return None, ""
 
-    def _transcribe_channel(self, pipe, cfg, audio, win_done, win_total,
-                            progress_cb, ref=None):
-        """Return ([(abs_start, text), …], windows_done); report progress per window.
-
-        If `ref` is given (the system channel), the echo of `ref` is cancelled from
-        each window before transcription — done per-window so memory stays bounded
-        even on multi-hour files (a whole-file FFT would blow up to many GB)."""
+    def _transcribe_channel_legacy(self, pipe, cfg, audio, win_done, win_total,
+                                   progress_cb, ref=None):
+        """Fallback cego de 30 s — usado só quando o VAD não acha nenhum segmento
+        de fala (arquivo degenerado, ou canal só-silêncio). Nunca deixar um
+        arquivo sem transcrição por causa do VAD (roadmap § Fase 1.3)."""
         segs = []
         step = int(self.WIN * 16000)
         n = len(audio)
@@ -1618,6 +1693,77 @@ class OVTranscriber:
                 progress_cb(tf("Transcrevendo… {p}%",
                                p=min(99, int(win_done / win_total * 100))))
             i += step
+        return segs, win_done
+
+    def _transcribe_channel(self, pipe, cfg, audio, win_done, win_total,
+                            progress_cb, ref=None):
+        """Return ([(abs_start, text), …], windows_done); report progress per window.
+
+        Segmenta por VAD (não janela cega) e agrupa até ALVO_ACUMULO_S de fala
+        antes de mandar (E2/E3 do roadmap 2026-07-29-melhoria...). Passa as
+        últimas ~30 palavras já transcritas como initial_prompt do envio
+        seguinte (E4) — só na iGPU/CPU: initial_prompt estoura o decoder
+        estático da NPU (roi_end <= max_dim), então o contexto é desligado
+        quando o device resolvido é NPU.
+
+        Se `ref` é dado (canal do sistema), o eco de `ref` é cancelado por grupo,
+        só na fala selecionada pelo VAD — não no arquivo/janela inteira. Medido
+        nesta sessão: limpar o canal inteiro em blocos de 30 s antes do VAD (como
+        fazia a janela cega) roda `cancel_echo` sobre o silêncio também, o que sai
+        mais caro que limpar só a fala; limpar por grupo é o que ficou mais
+        barato que a janela cega de hoje."""
+        sr = 16000
+        n = len(audio)
+        if n == 0:
+            return [], win_done
+        vad_segs = segmentar_por_vad(audio, sr)
+        if not vad_segs:
+            return self._transcribe_channel_legacy(
+                pipe, cfg, audio, win_done, win_total, progress_cb, ref=ref)
+
+        device = self._key[1] if self._key else resolve_device(self._devpref)
+        usar_contexto = (device != "NPU")
+
+        segs = []
+        contexto = None
+        grupos = agrupar_segmentos(vad_segs, sr, ALVO_ACUMULO_S)
+        for g in grupos:
+            if self._cancel.is_set():
+                return segs, win_done
+            # Concatenar só as partes de fala do grupo, não o span ini:fim —
+            # incluir o silêncio entre segmentos manda áudio morto pro Whisper e
+            # o eco cancelado é medido só na fala (comentário acima).
+            window = np.concatenate([audio[s:t] for s, t in g])
+            if ref is not None:
+                window = cancel_echo(window, np.concatenate([ref[s:t] for s, t in g]))
+            ini = g[0][0]
+            off = ini / sr
+            dur = sum((t - s) for s, t in g) / sr
+            rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
+            if rms >= self.SILENCE_RMS:        # skip near-silence (no hallucinations)
+                cfg.initial_prompt = (contexto or "") if usar_contexto else ""
+                res, txt_ok = self._generate_sem_loop(pipe, cfg, window)
+                if res is None:                # degenerate in every attempt
+                    contexto = None            # não propagar contexto envenenado
+                else:
+                    chunks = getattr(res, "chunks", None)
+                    novo = []
+                    if chunks:
+                        for c in chunks:
+                            txt = (c.text or "").strip()
+                            if txt:
+                                segs.append((off + float(c.start_ts), txt))
+                                novo.append(txt)
+                    elif txt_ok:
+                        segs.append((off, txt_ok))
+                        novo.append(txt_ok)
+                    if usar_contexto and novo:
+                        palavras = ((contexto or "") + " " + " ".join(novo)).split()
+                        contexto = " ".join(palavras[-30:])
+            win_done += dur / self.WIN
+            if progress_cb and win_total:
+                progress_cb(tf("Transcrevendo… {p}%",
+                               p=min(99, int(win_done / win_total * 100))))
         return segs, win_done
 
     def transcribe(self, path, lang="pt", diarize=False, aec=False,
