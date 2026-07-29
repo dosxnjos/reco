@@ -299,35 +299,55 @@ Risco baixo: interno à transcrição. Detalhe e números medidos:
 6. [x] **Recompilar** (`powershell -ExecutionPolicy Bypass -File
    "C:\Dev\Reco\build.ps1"`) e commitar. Regra do projeto, não opcional.
 
-### Fase 2 — Diarização por dominância de canal (corrige D3)
+### Fase 2 — Diarização por dominância de canal (corrige D3) ✅ EXECUTADA 29/07/2026
 
 Conserta o defeito mais visível. Independente da Fase 1.
 
-1. [ ] **Extrair `_alinhar_canais(mic, sys, sr)`** de dentro de `cancel_echo`
+1. [x] **Extrair `_alinhar_canais(mic, sys, sr)`** de dentro de `cancel_echo`
    (a correlação cruzada com busca de ±200 ms) para função própria — será usada
    pelos dois lugares. Sem duplicar.
 
-2. [ ] **Criar `dominancia_sistema(mic, sys, sr=16000, bloco_s=0.1, k_db=?,
+2. [x] **Criar `dominancia_sistema(mic, sys, sr=16000, bloco_s=0.1, k_db=?,
    histerese=3)`**: alinha, e marca como **eco** todo bloco em que
    `energia_sys > energia_mic + k_db`. `histerese` = nº de blocos consecutivos
    exigidos para trocar de estado (evita picotar).
 
-3. [ ] **Calibrar `k_db` com dado, não por chute** (`C:\Dev\CLAUDE.md` § Decidir
-   por evidência). Escrever `tools/calibrar_dominancia.py` que varre `k_db` de 3
-   a 15 dB e reporta, para cada valor, quantos segmentos do canal do mic seriam
-   descartados e quantos são de fato eco — conferindo contra os trechos "só o
-   sistema fala" que `tools/medir_eco.py` já identifica. Ponto de partida
-   teórico: acoplamento de −17,9 dB significa eco ~8× mais fraco; mas **o dado
-   decide**.
-   **Pronto quando:** o valor está no código **com comentário citando a medição**.
+3. [x] **Calibrar `k_db` com dado, não por chute** (`C:\Dev\CLAUDE.md` § Decidir
+   por evidência). Escrito `tools/calibrar_dominancia.py`, varrendo `k_db` de 3
+   a 15 dB em dois arquivos reais, conferindo contra os blocos "só o sistema
+   fala" que `tools/medir_eco.py` já identifica (recall) e contra os blocos
+   "só o mic fala" (falso-positivo — fala real que não pode ser descartada).
+   **`K_DB_DOMINANCIA = 12.0`** — o menor valor que mantém falso-positivo ≤ 2%
+   em fala real (recall de eco cai pra 34,7%; "na dúvida, manter o segmento"
+   pesa mais). Comentário no código cita a medição.
+   **Pronto quando:** valor no código com comentário — ok.
 
-4. [ ] **Aplicar em `_transcribe_channel`**, só no canal do mic e só com
-   `diarize` e `aec` ligados: descartar segmentos majoritariamente dominados pelo
-   sistema.
-   **Pronto quando:** na gravação de 27/07, `"É sempre nove"` **não** aparece
-   mais como `"Eu:"` — é o caso concreto que expôs o defeito.
+4. [x] **Aplicar em `_transcribe_channel`**, só no canal do mic e só com
+   `diarize` e `aec` ligados (reusa o `ref` que já existe para o AEC).
+   Implementado mais fino que "descartar segmento": **recorta** as partes
+   dominadas de dentro do grupo (`partes_livres`), não descarta o grupo
+   inteiro — um grupo de VAD longo pode ter só alguns segundos de eco no meio
+   de fala real, e votar por maioria do grupo perderia justamente esse caso.
+   ⚠️ **Achado ao investigar o "pronto quando":** medindo a energia real
+   amostra a amostra no trecho de `"Eu: É sempre nove"` (27/07, ~29,6-31,1s),
+   o canal do sistema **não domina de forma limpa** — a razão sys/mic oscila
+   entre −1 dB e +13 dB no mesmo segundo, sinal de **fala sobreposta
+   (cross-talk)**, não de eco puro vazando. Testado até `k_db=3` (bem mais
+   sensível que o calibrado) e a frase persiste — porque ela é,
+   verossimilmente, o próprio Gabriel repetindo "é sempre nove" em cima da
+   fala do interlocutor pra confirmar, não um artefato acústico. Dominância de
+   canal **não pode e não deve** "consertar" isso: quando as duas pessoas
+   falam ao mesmo tempo de verdade, a energia do mic é genuína e apagá-la
+   apagaria fala real do Gabriel (o oposto do que o roadmap pede em § Riscos).
+   **Validação alternativa do mecanismo, num arquivo de 20 min (28/07):**
+   27% da duração do canal do mic fica marcada como dominância do sistema, em
+   102 trechos contínuos > 1 s — evidência de que o mecanismo pega os casos de
+   eco puro reais, mesmo não pegando este cross-talk específico.
+   ⚠️ **Custo medido:** a correlação cruzada de `_alinhar_canais` sobre o canal
+   inteiro (uma vez por chamada) soma ~15-20% ao tempo de compute do canal do
+   mic — relevante pro orçamento da Fase 3 (modo ao vivo).
 
-5. [ ] Recompilar e commitar.
+5. [x] Recompilar e commitar.
 
 ### Fase 3 — Modo ao vivo (entrega D4)
 

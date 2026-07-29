@@ -825,6 +825,80 @@ def _fmt_size(n: int) -> str:
 # diarization is better served by energy dominance between channels than by
 # perfect cancellation. Full analysis in
 # roadmap/2026-07-29-transcricao-precisa-rapida-e-aec.md § 1.5.
+def _alinhar_canais(mic: "np.ndarray", ref: "np.ndarray",
+                    sr: int = 16000, maxlag_s: float = 0.2):
+    """Alinha `ref` a `mic` por correlação cruzada (busca ±maxlag_s).
+
+    Retorna (mic_pad, ref_alinhado), ambos do mesmo tamanho — paddados ao maior
+    dos dois. Extraído de dentro de `cancel_echo` (era só usado ali) para ser
+    reusado por `dominancia_sistema` (Fase 2 do roadmap
+    2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md) sem duplicar a
+    busca de atraso."""
+    from scipy.signal import correlate
+    n = max(len(mic), len(ref))
+    mic_p = np.pad(mic, (0, n - len(mic)))
+    ref_p = np.pad(ref, (0, n - len(ref)))
+    maxlag = int(maxlag_s * sr)
+    c = correlate(mic_p, ref_p, mode="full", method="fft")
+    lags = np.arange(-len(ref_p) + 1, len(mic_p))
+    win = np.abs(lags) <= maxlag
+    d = int(lags[win][np.argmax(np.abs(c[win]))])
+    ref_al = np.roll(ref_p, d)
+    if d > 0:
+        ref_al[:d] = 0
+    elif d < 0:
+        ref_al[d:] = 0
+    return mic_p, ref_al
+
+
+# Dominância de energia entre canais — não cancelamento de eco — é o que resolve
+# a diarização errada (D3): o AEC entrega só ~7 dB (teto de deriva de clock, ver
+# acima), o que não impede o eco residual de aparecer como fala do "Eu". Aqui
+# não se tenta limpar o áudio, só decidir de quem é a fala em cada bloco.
+# Calibrado em tools/calibrar_dominancia.py (Fase 2.3 do roadmap
+# 2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md) contra dois
+# arquivos reais, usando os blocos "só o sistema fala" que tools/medir_eco.py já
+# identifica como ground truth de eco: k_db=12 é o menor valor que mantém o
+# falso-positivo em fala real (so_mic) em ≤ 2% — recall de eco cai pra 34,7%,
+# mas "na dúvida, manter o segmento" (roadmap § Riscos) pesa mais que pegar todo
+# eco. Não afinar por chute; rodar tools/calibrar_dominancia.py de novo com mais
+# gravações se houver motivo.
+K_DB_DOMINANCIA = 12.0
+
+
+def dominancia_sistema(mic: "np.ndarray", sistema: "np.ndarray",
+                       sr: int = 16000, bloco_s: float = 0.1,
+                       k_db: float = K_DB_DOMINANCIA, histerese: int = 3) -> "np.ndarray":
+    """Marca (booleano, por amostra) onde o canal do sistema domina o do mic —
+    provável eco/interlocutor vazando, não fala do usuário.
+
+    Compara energia por bloco de `bloco_s`; `histerese` blocos consecutivos
+    discordando do estado atual são necessários pra trocar de estado (evita
+    picotar blocos isolados em fala de double-talk)."""
+    mic_al, sys_al = _alinhar_canais(mic, sistema, sr)
+    n = len(mic_al)
+    bloco = max(1, int(bloco_s * sr))
+    nb = -(-n // bloco)
+    dom = np.zeros(nb, dtype=bool)
+    for i in range(nb):
+        s, e = i * bloco, min(n, (i + 1) * bloco)
+        em = float(np.sqrt(np.mean(mic_al[s:e] ** 2))) + 1e-12
+        es = float(np.sqrt(np.mean(sys_al[s:e] ** 2))) + 1e-12
+        dom[i] = 20 * np.log10(es / em) > k_db
+    out = dom.copy()
+    estado, contagem = (bool(dom[0]) if nb else False), 0
+    for i in range(nb):
+        if dom[i] == estado:
+            contagem = 0
+        else:
+            contagem += 1
+            if contagem >= histerese:
+                estado = dom[i]
+                contagem = 0
+        out[i] = estado
+    return np.repeat(out, bloco)[:n]
+
+
 def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
                 sr: int = 16000, nfft: int = 1024, hop: int = 256,
                 taps: int = 6, bloco_s: float = 2.0,
@@ -854,24 +928,11 @@ def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
     if mic.size == 0 or ref.size == 0:
         return mic
     try:
-        from scipy.signal import stft, istft, correlate
+        from scipy.signal import stft, istft
     except Exception:
         return mic
     n0 = len(mic)
-    n = max(len(mic), len(ref))
-    mic = np.pad(mic, (0, n - len(mic)))
-    ref = np.pad(ref, (0, n - len(ref)))
-    # bulk delay of ref inside mic (search ±200 ms)
-    maxlag = int(0.2 * sr)
-    c = correlate(mic, ref, mode="full", method="fft")
-    lags = np.arange(-len(ref) + 1, len(mic))
-    win = np.abs(lags) <= maxlag
-    d = int(lags[win][np.argmax(np.abs(c[win]))])
-    ref_al = np.roll(ref, d)
-    if d > 0:
-        ref_al[:d] = 0
-    elif d < 0:
-        ref_al[d:] = 0
+    mic, ref_al = _alinhar_canais(mic, ref, sr)
 
     _, _, M = stft(mic, fs=sr, nperseg=nfft, noverlap=nfft - hop)
     _, _, S = stft(ref_al, fs=sr, nperseg=nfft, noverlap=nfft - hop)
@@ -1711,7 +1772,12 @@ class OVTranscriber:
         nesta sessão: limpar o canal inteiro em blocos de 30 s antes do VAD (como
         fazia a janela cega) roda `cancel_echo` sobre o silêncio também, o que sai
         mais caro que limpar só a fala; limpar por grupo é o que ficou mais
-        barato que a janela cega de hoje."""
+        barato que a janela cega de hoje.
+
+        `ref` também dispara a dominância de canal (Fase 2, D3): grupos onde o
+        sistema domina em energia sobre o mic são descartados sem transcrever —
+        é provável eco/interlocutor vazando, não fala do usuário. Só se aplica
+        ao canal do mic (quem chama passa `ref` só nesse caso)."""
         sr = 16000
         n = len(audio)
         if n == 0:
@@ -1723,6 +1789,25 @@ class OVTranscriber:
 
         device = self._key[1] if self._key else resolve_device(self._devpref)
         usar_contexto = (device != "NPU")
+        dom_mask = dominancia_sistema(audio, ref, sr) if ref is not None else None
+
+        def partes_livres(s, t):
+            """Sub-trechos de [s,t) onde o sistema NÃO domina — recorta o eco
+            fora do grupo em vez de descartar o grupo inteiro: um grupo longo
+            pode ter só alguns segundos de eco embutidos no meio de fala real,
+            e um voto por maioria do grupo inteiro perde justamente esse caso
+            (validado no caso concreto do D3, "É sempre nove")."""
+            if dom_mask is None:
+                return [(s, t)]
+            livre = ~dom_mask[s:t]
+            if livre.all():
+                return [(s, t)]
+            if not livre.any():
+                return []
+            corte = np.flatnonzero(np.diff(livre.astype(np.int8)) != 0) + 1
+            bordas = np.concatenate(([0], corte, [len(livre)]))
+            return [(s + int(bordas[i]), s + int(bordas[i+1]))
+                    for i in range(len(bordas) - 1) if livre[bordas[i]]]
 
         segs = []
         contexto = None
@@ -1730,15 +1815,22 @@ class OVTranscriber:
         for g in grupos:
             if self._cancel.is_set():
                 return segs, win_done
-            # Concatenar só as partes de fala do grupo, não o span ini:fim —
-            # incluir o silêncio entre segmentos manda áudio morto pro Whisper e
-            # o eco cancelado é medido só na fala (comentário acima).
-            window = np.concatenate([audio[s:t] for s, t in g])
-            if ref is not None:
-                window = cancel_echo(window, np.concatenate([ref[s:t] for s, t in g]))
             ini = g[0][0]
             off = ini / sr
             dur = sum((t - s) for s, t in g) / sr
+            partes = [p for s, t in g for p in partes_livres(s, t)]
+            if not partes:                     # grupo inteiro é eco/interlocutor
+                win_done += dur / self.WIN
+                if progress_cb and win_total:
+                    progress_cb(tf("Transcrevendo… {p}%",
+                                   p=min(99, int(win_done / win_total * 100))))
+                continue
+            # Concatenar só as partes de fala do grupo, não o span ini:fim —
+            # incluir o silêncio entre segmentos manda áudio morto pro Whisper e
+            # o eco cancelado é medido só na fala (comentário acima).
+            window = np.concatenate([audio[s:t] for s, t in partes])
+            if ref is not None:
+                window = cancel_echo(window, np.concatenate([ref[s:t] for s, t in partes]))
             rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
             if rms >= self.SILENCE_RMS:        # skip near-silence (no hallucinations)
                 cfg.initial_prompt = (contexto or "") if usar_contexto else ""
