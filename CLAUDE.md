@@ -93,8 +93,23 @@ Medições e alternativas descartadas:
   embaixo da barra (`fmt_gain`, ex. "1,0x"). Persistido em `~/.reco_config.json`
   (`mic_gain`/`sys_gain`). Helpers `gain_to_frac`/`frac_to_gain`/`fmt_gain` e
   constantes `GAIN_MIN/UNITY/MAX/STEP`. Ver `docs/CONSOLIDADO-2026-07-15.md`.
-- **Transcrição:** `OVTranscriber`, in-process, device `AUTO` (NPU/iGPU/CPU). Pula
-  janelas de 30 s quase-silenciosas (`SILENCE_RMS`) p/ Whisper não alucinar.
+- **Transcrição:** `OVTranscriber`, in-process. Modelo padrão **`large-v3-turbo`**
+  e device `AUTO` → **iGPU** (`resolve_device`, ordem `GPU → NPU → CPU`). As duas
+  coisas foram **medidas em 29/07/2026**, não escolhidas por intuição — antes eram
+  `small` e NPU-first. Pula janelas de 30 s quase-silenciosas (`SILENCE_RMS`).
+  Ver `roadmap/2026-07-29-transcricao-precisa-rapida-e-aec.md`.
+- **Defesa anti-loop (`_degenerado` / `_generate_sem_loop`):** o Whisper trava em
+  repetição (caso real: `"o que é"` 147× seguidas). ⚠️ **`no_repeat_ngram_size`
+  NÃO resolve — o `WhisperPipeline` o ignora em silêncio**, e o GenAI não expõe
+  `compression_factor_threshold`/`logprob_threshold`. A defesa é nossa: detecta
+  por compressão zlib (> 2,4) e n-grama repetido (> 3×), refaz com temperatura
+  0,2/0,4/0,6 e **descarta a janela** se tudo degenerar. Não substituir por
+  parâmetro de config achando que existe um.
+- **Cancelamento de eco (`cancel_echo`):** mínimos quadrados em blocos de 2 s com
+  6 taps + pós-supressão residual. Entrega **~7 dB** de ERLE no áudio real (a
+  versão anterior entregava ~3, apesar de "37 dB validados" — em eco sintético).
+  ⚠️ **O teto não é o filtro, é a deriva de clock** entre mic e loopback
+  (−65,8 ppm medidos, ~237 ms/hora). Não alongar o filtro esperando 20 dB.
 
 ## Ferramentas de apoio (`tools/`)
 
@@ -105,11 +120,31 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 | `test_encoder.py` | testa o encoder sem hardware: duração declarada == real, header Xing, L/R separados, pareamento dos canais e `close()` instantâneo. Rodar **sempre** que mexer em `MP3Writer`/`_pump` |
 | `test_gravacao_real.py [seg]` | grava de verdade pelos dispositivos padrão, mede o tempo do `stop()` e apaga o MP3 no fim |
 | `reparar_duracao.py <pasta> [--aplicar]` | conserta a duração de MP3 antigos por remux (ver a regra acima) |
+| `test_antiloop.py <mp3> [modelo] [device]` | roda as janelas mais fracas com e sem a defesa anti-loop. Rodar **sempre** que mexer em `_degenerado`/`_generate_sem_loop`. Critério: nenhum n-grama > 3× |
+| `test_e2e.py <mp3>` | transcrição ponta a ponta pelo caminho real do app (decode + diarização + AEC + anti-loop), com tempo e extrapolação para 2 h |
+| `medir_eco.py <mp3>` | acoplamento caixa→mic e ERLE do `cancel_echo` **em áudio real**. Rodar **sempre** que mexer no AEC — validar em eco sintético já mascarou uma implementação que entregava 3 dB |
+| `bench_final.py <mp3> [n]` | device × modelo: velocidade, extrapolação p/ 2 h, e qualidade por divergência (WER) contra o melhor modelo disponível. `BENCH_MODELOS`/`BENCH_DEVICES`/`BENCH_MODO=fracas` filtram |
+| `bench_convivencia.py <mp3> [n]` + `vizinho.py` | quanto a transcrição atrasa **outro app** (latência de um vizinho single-thread em processo separado). É o que decide iGPU × NPU |
 
 ## Config e persistência
 
 `~/.reco_config.json` via `load_config`/`save_config` (escrita atômica). Defaults
 em `_CFG_DEFAULTS`. Ao adicionar uma opção nova, incluir o default lá.
+
+⚠️ **Mudar um default NÃO alcança quem já usou o app.** `load_config()` deixa o
+arquivo salvo sobrescrever os defaults — o que é correto (a escolha do usuário
+tem de ganhar), mas significa que trocar `_CFG_DEFAULTS` é inócuo para qualquer
+config existente. Se a mudança **precisa** chegar aos usuários atuais, suba
+`CFG_MIGRACAO` e trate o caso em `_migra_config()`: ela roda uma vez (marcada em
+`_migracao` dentro do próprio JSON) e só promove valores que eram o **default
+antigo**, preservando escolha deliberada. Foi assim que `small` → `large-v3-turbo`
+e `NPU` → `AUTO` chegaram na máquina do Gabriel em 29/07/2026.
+
+## Armadilhas
+
+[`docs/ARMADILHAS.md`](docs/ARMADILHAS.md) — o que **parece** funcionar e não
+funciona, com sintoma e causa. Ler antes de mexer em transcrição, AEC ou
+benchmark; várias entradas já custaram tempo uma vez.
 
 ## Ritual
 

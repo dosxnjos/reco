@@ -8,7 +8,7 @@ transcribes it **on your machine**, labeling who said what. Nothing is uploaded.
 The interface is bilingual (Portuguese / English), auto-detected from your system.
 
 Transcription runs in-process via **OpenVINO GenAI** on Windows/Linux (Intel
-**NPU → iGPU → CPU**, auto-selected) and via **MLX** on macOS Apple Silicon — so
+**iGPU → NPU → CPU**, auto-selected) and via **MLX** on macOS Apple Silicon — so
 the bundled app is fully self-contained (no Python, no ffmpeg).
 
 <p align="center">
@@ -83,9 +83,13 @@ model are bundled, so it works **fully offline**. The VC++ runtime is included t
 - Recording is fixed at **16 kHz stereo** (L = mic, R = system), 96 kbps —
   exactly what transcription, diarization and echo cancellation need.
 - Encoding and decoding both use PyAV (bundled ffmpeg libs). The MP3 is written
-  as the audio arrives, so memory stays flat and stopping only flushes the file. Transcription uses Whisper **small INT8**
-  through OpenVINO GenAI (NPU/iGPU/CPU, auto) or MLX (Apple GPU). The device is
-  chosen automatically; on machines without an NPU it falls back to the iGPU, then CPU.
+  as the audio arrives, so memory stays flat and stopping only flushes the file. Transcription uses Whisper
+  **large-v3-turbo INT8** through OpenVINO GenAI (iGPU/NPU/CPU) or MLX (Apple
+  GPU). The device defaults to the iGPU — measured fastest here: 2 h of audio in
+  ~19 min end to end **with diarization on**, which transcribes both channels and
+  so does twice the work (~10 min with it off). It is selectable, because the NPU
+  is the better choice while you are on a video call: it barely notices
+  concurrent load, where the iGPU competes with drawing the screen.
 - The model is downloaded once (or bundled in the `.exe`) and cached locally.
 
 ### License
@@ -103,7 +107,7 @@ compacto e transcreve **na sua máquina**, identificando quem falou. Nada é env
 para a nuvem. A interface é bilíngue (PT/EN), detectada pelo idioma do sistema.
 
 A transcrição roda in-process via **OpenVINO GenAI** no Windows/Linux (Intel
-**NPU → iGPU → CPU**, automático) e via **MLX** no macOS Apple Silicon — então o
+**iGPU → NPU → CPU**, automático) e via **MLX** no macOS Apple Silicon — então o
 app empacotado é autossuficiente (sem Python, sem ffmpeg).
 
 ### Recursos
@@ -172,8 +176,12 @@ também está incluso.
   exatamente o que transcrição, diarização e cancelamento de eco precisam.
 - Codificação e decodificação usam PyAV (libs do ffmpeg embutidas). O MP3 é escrito
   conforme o áudio chega, então a memória fica estável e parar só fecha o arquivo. A transcrição usa o Whisper
-  **small INT8** via OpenVINO GenAI (NPU/iGPU/CPU, automático) ou MLX (GPU Apple). O
-  device é escolhido sozinho; sem NPU, cai para a iGPU e depois a CPU.
+  **large-v3-turbo INT8** via OpenVINO GenAI (iGPU/NPU/CPU) ou MLX (GPU Apple). O
+  device vem na iGPU — medida como a mais rápida aqui: 2 h de áudio em ~19 min
+  ponta a ponta **com diarização ligada**, que transcreve os dois canais e portanto
+  faz o dobro do trabalho (~10 min sem ela). É selecionável, porque a NPU é a
+  melhor escolha durante uma videochamada: ela quase não sente carga concorrente,
+  enquanto a iGPU disputa com o desenho da tela.
 - O modelo é baixado uma vez (ou embutido no `.exe`) e fica em cache local.
 
 ### Licença

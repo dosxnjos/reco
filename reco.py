@@ -107,7 +107,12 @@ _CFG_DEFAULTS: dict = {
     "language":    None,      # "pt" | "en" | None -> auto-detect from system
     "bg_color":    DEFAULT_BG,
     "accent_color": DEFAULT_ACCENT,
-    "model":       "small",
+    # large-v3-turbo, not small: measured 29/07/2026, `small` locks into
+    # repetition loops on low-energy windows (221 back-to-back repeats of one
+    # phrase, compression 4.44) where turbo peaks at 3 (compression 1.85). Costs
+    # ~25% speed and 828 MB, and is worth both. See
+    # roadmap/2026-07-29-transcricao-precisa-rapida-e-aec.md § 1.2.
+    "model":       "large-v3-turbo",
     "device":      "AUTO",    # OpenVINO device pref: AUTO | NPU | GPU | CPU
     "diarize":     True,      # channel-based diarization (mic = "Eu", system = others)
     "aec":         True,      # cancel PC-audio echo bleeding into the mic
@@ -152,6 +157,35 @@ def is_video(path) -> bool:
 EXTRACT_CH = 1
 EXTRACT_BR = 64
 
+# Bump when a default changes in a way that must reach users who already have a
+# saved config. Without this, changing _CFG_DEFAULTS is a no-op for everyone who
+# has ever opened the app: load_config() lets the saved file win, by design.
+CFG_MIGRACAO = 1
+
+
+def _migra_config(cfg: dict) -> bool:
+    """Carry saved configs forward when a default changes. Returns True if the
+    file needs rewriting.
+
+    Migration 1 (29/07/2026) — model small → large-v3-turbo and device NPU →
+    AUTO. Both old values were defaults nobody chose: the model and device
+    selectors had been removed from the UI, so whatever sat in the file got there
+    automatically. `small` locks into repetition loops (measured: 221 identical
+    repeats on one window) and NPU-first was picked without measuring; AUTO now
+    resolves to the iGPU, which is ~55% faster on large-v3-turbo. Anyone who does
+    want NPU can select it — the control is back."""
+    v = int(cfg.get("_migracao", 0) or 0)
+    if v >= CFG_MIGRACAO:
+        return False
+    if v < 1:
+        if cfg.get("model") == "small":
+            cfg["model"] = "large-v3-turbo"
+        if cfg.get("device") == "NPU":
+            cfg["device"] = "AUTO"
+    cfg["_migracao"] = CFG_MIGRACAO
+    return True
+
+
 def load_config() -> dict:
     cfg = dict(_CFG_DEFAULTS)
     try:
@@ -164,6 +198,11 @@ def load_config() -> dict:
             pass
     except Exception:
         pass
+    if _migra_config(cfg):
+        try:
+            save_config(cfg)
+        except Exception:
+            pass          # migration re-runs next launch; not worth failing over
     return cfg
 
 def save_config(cfg: dict):
@@ -274,8 +313,12 @@ _TR_EN = {
     "Atalho removido.": "Shortcut removed.",
     "Não foi possível criar o atalho: {e}":
         "Couldn't create the shortcut: {e}",
-    "tiny · small (padrão) · medium · large-v3-turbo":
-        "tiny · small (default) · medium · large-v3-turbo",
+    "tiny · small · medium · large-v3-turbo (padrão)":
+        "tiny · small · medium · large-v3-turbo (default)",
+    "Preparando '{size}' no {dev} pela primeira vez — isso leva alguns minutos "
+    "e só acontece uma vez.":
+        "Preparing '{size}' on {dev} for the first time — this takes a few "
+        "minutes and happens only once.",
     "Mono": "Mono",
     "Estéreo": "Stereo",
     "16.000 Hz": "16,000 Hz",
@@ -692,23 +735,63 @@ def _fmt_size(n: int) -> str:
         n /= 1024.0
 
 
-# ── Acoustic echo cancellation (offline NLMS-style, frequency domain) ───────────
+# ── Acoustic echo cancellation (offline, least squares over short blocks) ──────
+# What this can and cannot do — measured 29/07/2026 on Gabriel's own recordings,
+# so nobody re-litigates it from intuition:
+#
+#   acoustic coupling (speaker -> mic):  -17.9 dB (5.7 min) / -23.7 dB (80 min)
+#   ERLE, previous implementation:       +3.2 dB / +3.7 dB   (in the real audio)
+#   ERLE, this implementation:           +7.2 dB, costing 0.3 dB of near-end voice
+#
+# The previous version's docstring claimed ~37 dB, and that was honest — on
+# *synthetic* echo, linear and time-invariant. It collapsed to ~3 dB on real
+# audio because it estimated ONE complex gain per frequency bin for a whole 30 s
+# window, which assumes the acoustic path is invariant for 30 s and fits inside a
+# single FFT frame (64 ms). Neither holds in a room.
+#
+# ⚠️ Do not expect 20-40 dB here, and do not "fix" this by making the filter
+# longer. The ceiling is CLOCK DRIFT: mic and loopback run off independent
+# hardware clocks. Measured on the 80-minute recording, the optimal alignment
+# drifts -65.8 ppm (~237 ms per hour, sigma = 2314 samples); on the 5.7-minute
+# one it is rock stable (sigma = 0). No linear filter tracks that without
+# continuous resampling. Getting past ~10 dB means compensating drift AND the
+# speaker's non-linear distortion — expensive, and unnecessary, because channel
+# diarization is better served by energy dominance between channels than by
+# perfect cancellation. Full analysis in
+# roadmap/2026-07-29-transcricao-precisa-rapida-e-aec.md § 1.5.
 def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
-                sr: int = 16000, nfft: int = 1024, hop: int = 256) -> "np.ndarray":
+                sr: int = 16000, nfft: int = 1024, hop: int = 256,
+                taps: int = 6, bloco_s: float = 2.0,
+                residual: bool = True, beta: float = 0.1,
+                lam: float = 1e-3) -> "np.ndarray":
     """Remove the echo of `ref` (system loopback) bleeding into `mic`.
 
-    For users on speakers, the PC audio leaks acoustically into the microphone,
-    duplicating the other party's voice across both channels and confusing the
-    channel diarization. We have a perfect far-end reference (the loopback), so we
-    estimate the (time-invariant) echo path per frequency bin by least squares and
-    subtract it. Offline, pure numpy/scipy. Validated ~37 dB ERLE on synthetic
-    echo. If `ref` carries no energy this is a near no-op."""
+    On speakers, the PC audio leaks acoustically into the microphone, duplicating
+    the other party's voice across both channels and confusing channel
+    diarization. We hold a perfect far-end reference (the loopback), so we
+    estimate the echo path by least squares and subtract it.
+
+    Two things differ from the previous version, and both are load-bearing:
+      `taps` > 1  — the filter spans taps*hop ≈ 96 ms of reverberation instead of
+                    assuming the echo fits in one FFT frame;
+      `bloco_s`   — re-estimated every 2 s instead of once per 30 s window, which
+                    tracks you moving, the volume changing, and slow clock drift.
+
+    Least squares (closed form, Tikhonov-regularised) rather than an adaptive
+    NLMS on purpose: an NLMS prototype diverged to -38 dB here, because its step
+    normalisation explodes whenever the reference channel goes quiet. `lam` is
+    relative to each block's own energy, which is what keeps the normal equations
+    solvable during silence. `beta` floors the residual-suppression gain at
+    -20 dB; suppressing to zero makes the silence sound robotic.
+
+    Offline, pure numpy/scipy. A near no-op if `ref` carries no energy."""
     if mic.size == 0 or ref.size == 0:
         return mic
     try:
         from scipy.signal import stft, istft, correlate
     except Exception:
         return mic
+    n0 = len(mic)
     n = max(len(mic), len(ref))
     mic = np.pad(mic, (0, n - len(mic)))
     ref = np.pad(ref, (0, n - len(ref)))
@@ -723,11 +806,56 @@ def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
         ref_al[:d] = 0
     elif d < 0:
         ref_al[d:] = 0
+
     _, _, M = stft(mic, fs=sr, nperseg=nfft, noverlap=nfft - hop)
     _, _, S = stft(ref_al, fs=sr, nperseg=nfft, noverlap=nfft - hop)
-    H = (np.sum(M * np.conj(S), axis=1) / (np.sum(np.abs(S) ** 2, axis=1) + 1e-8))[:, None]
-    _, mic_c = istft(M - H * S, fs=sr, nperseg=nfft, noverlap=nfft - hop)
-    return mic_c[:len(mic)].astype(np.float32)
+    nb, nt = M.shape
+    taps = max(1, min(taps, nt))
+
+    # X[k, t, p] = S[k, t-p] — the reference delayed by p frames.
+    X = np.zeros((nb, nt, taps), np.complex128)
+    for p in range(taps):
+        X[:, p:, p] = S[:, :nt - p]
+
+    E = np.empty_like(M)
+    Yh = np.empty_like(M)
+    passo = max(1, int(bloco_s * sr / hop))
+    olho = np.eye(taps)
+    for t0 in range(0, nt, passo):
+        t1 = min(nt, t0 + passo)
+        Xb, Mb = X[:, t0:t1, :], M[:, t0:t1]
+        # Normal equations per bin: (X^H X + lam*tr*I) h = X^H m
+        A = np.einsum("btp,btq->bpq", np.conj(Xb), Xb)
+        b = np.einsum("btp,bt->bp", np.conj(Xb), Mb)
+        tr = np.trace(A, axis1=1, axis2=2).real / taps
+        A += (lam * np.maximum(tr, 1e-12))[:, None, None] * olho
+        try:
+            # b needs the explicit trailing axis: numpy 2.x only treats the right
+            # hand side as a stack of vectors when it is shaped (..., n, 1).
+            h = np.linalg.solve(A, b[:, :, None])[:, :, 0]
+        except np.linalg.LinAlgError:
+            h = np.zeros((nb, taps), np.complex128)
+        y = np.einsum("btp,bp->bt", Xb, h)
+        Yh[:, t0:t1] = y
+        E[:, t0:t1] = Mb - y
+
+    if residual:
+        # Where the estimated echo dominates the residual, attenuate. This is the
+        # part that catches the speaker's NON-LINEAR distortion, which no linear
+        # filter reaches.
+        pe = 0.7 * np.abs(Yh) ** 2
+        pr = np.abs(E) ** 2
+        E = E * np.maximum(beta, 1.0 - pe / (pr + pe + 1e-12))
+
+    _, out = istft(E, fs=sr, nperseg=nfft, noverlap=nfft - hop)
+    out = out[:n0].astype(np.float32)
+    # Safety net: if the "cleaned" signal came out louder than the input, the
+    # estimate is garbage — hand back the original rather than damage the audio.
+    r_in = float(np.sqrt(np.mean(mic[:n0] ** 2))) if n0 else 0.0
+    r_out = float(np.sqrt(np.mean(out ** 2))) if out.size else 0.0
+    if r_out > r_in * 1.05:
+        return mic[:n0].astype(np.float32)
+    return out
 
 
 # ── OpenVINO device + model management ──────────────────────────────────────────
@@ -740,13 +868,25 @@ def ov_available_devices() -> list:
 
 
 def resolve_device(pref: str) -> str:
-    """Map a preferred device to one that exists (pref → NPU → GPU → CPU)."""
+    """Map a preferred device to one that exists (pref → GPU → NPU → CPU).
+
+    ⚠️ The order is GPU-first, and that is a measured decision, not a hunch
+    (29/07/2026 — it used to be NPU-first, chosen without measuring). With
+    large-v3-turbo on this machine: iGPU 11.1x realtime, NPU 5.5x, CPU 4.4x —
+    i.e. 2 h of audio in ~12, ~19 and ~65 minutes. CPU is last for a second
+    reason: with `small` it also hallucinated far more than the accelerators.
+
+    The NPU stays a first-class option (selectable in the UI) because it is
+    immune to contention in a way the iGPU is not: under concurrent load the
+    iGPU lost 52% of its speed and the NPU lost 3%. Someone transcribing during
+    a video call should pick NPU — the iGPU is the only one of the three that
+    competes with drawing the screen."""
     avail = ov_available_devices()
     def has(d):                       # available_devices may report 'GPU.0' etc.
         return any(a == d or a.startswith(d + ".") for a in avail)
     if pref and has(pref):
         return pref
-    for d in ("NPU", "GPU", "CPU"):
+    for d in ("GPU", "NPU", "CPU"):
         if has(d):
             return d
     return "CPU"
@@ -1291,7 +1431,7 @@ class OVTranscriber:
     def __init__(self):
         self._pipe    = None
         self._key     = None        # (size, device) the live pipeline was built for
-        self._size    = "small"
+        self._size    = _CFG_DEFAULTS["model"]
         self._devpref = "AUTO"
         self._lock    = threading.Lock()
         self._cancel  = threading.Event()
@@ -1315,14 +1455,27 @@ class OVTranscriber:
         if self._pipe is not None and self._key == key:
             return self._pipe
         model_dir = ensure_ov_model(size, progress=progress_cb)
-        if progress_cb:
-            progress_cb(tf("Preparando modelo no {dev}…", dev=device))
         import openvino_genai as og
         cache = _user_data_dir() / "ovcache"
         cache.mkdir(parents=True, exist_ok=True)
-        # CACHE_DIR persists the compiled blob so the NPU's first-run compile (~40 s)
-        # happens only once, ever; later loads are near-instant.
+        # CACHE_DIR persists the compiled blob so the first-run compile happens
+        # only once per (model, device) — but that first run is *long*: measured
+        # 415 s for large-v3-turbo on the NPU (29/07/2026). Without a warning the
+        # window just sits there and the user assumes it hung, so we track which
+        # combinations have already been compiled and say so up front.
+        marca = cache / f".compilado-{size}-{device}"
+        if progress_cb:
+            if marca.exists():
+                progress_cb(tf("Preparando modelo no {dev}…", dev=device))
+            else:
+                progress_cb(tf("Preparando '{size}' no {dev} pela primeira vez — "
+                               "isso leva alguns minutos e só acontece uma vez.",
+                               size=size, dev=device))
         pipe = og.WhisperPipeline(str(model_dir), device, CACHE_DIR=str(cache))
+        try:
+            marca.touch()
+        except Exception:
+            pass          # cosmetic only: at worst the warning shows again
         self._pipe, self._key = pipe, key
         return pipe
 
@@ -1335,15 +1488,94 @@ class OVTranscriber:
         cfg.language = "<|%s|>" % lang
         cfg.task = "transcribe"
         cfg.return_timestamps = True
-        # Break runaway repetition loops (a common Whisper failure on noise).
-        try:
-            cfg.no_repeat_ngram_size = 4
-        except Exception:
-            pass
+        # ⚠️ Do NOT add no_repeat_ngram_size here expecting it to stop repetition
+        # loops. The attribute exists on WhisperGenerationConfig, so setting it
+        # raises nothing — but WhisperPipeline ignores it. Measured 29/07/2026:
+        # generating with it off and set to 4 produced byte-identical text
+        # (2590/2590 and 1427/1427 chars). Loop defence lives in _degenerado()
+        # below, in our own code, because openvino_genai 2026.2.1 exposes neither
+        # compression_factor_threshold nor logprob_threshold — the pair reference
+        # Whisper uses to detect a degenerate window and redo it.
+        #
         # NOTE: initial_prompt / hotwords overflow the NPU's static decoder
         # ("roi_end <= max_dim"), so we deliberately don't set them — language is
         # already forced, and channel diarization keeps each voice clean.
         return cfg
+
+    # Whisper's classic failure: instead of emitting nothing on a near-empty
+    # window, the decoder locks into a loop. A real case from Gabriel's own
+    # 18/07 recording: "o que é" repeated 147 times in a row — 1.3k characters of
+    # garbage, 4.5% of the file. Reproduced with `small` on CPU.
+    COMPRESSAO_MAX = 2.4    # reference Whisper's compression_ratio_threshold
+    REPETICOES_MAX = 3      # same n-gram back-to-back more than this = degenerate
+
+    @staticmethod
+    def _degenerado(txt: str) -> bool:
+        """True when the text looks like a decoder loop rather than speech.
+
+        Two independent signals, because each misses cases the other catches:
+        zlib compression ratio (a loop compresses far better than prose) and
+        back-to-back repetition of any 1..8-word n-gram (catches short loops in
+        an otherwise long, healthy window)."""
+        if not txt or len(txt) < 40:
+            return False
+        import zlib
+        b = txt.encode("utf-8")
+        if len(b) / max(1, len(zlib.compress(b))) > OVTranscriber.COMPRESSAO_MAX:
+            return True
+        ws = txt.split()
+        for n in range(1, 9):
+            i = 0
+            while i + n <= len(ws):
+                g = ws[i:i + n]
+                c = 1
+                while ws[i + c * n:i + (c + 1) * n] == g:
+                    c += 1
+                if c > OVTranscriber.REPETICOES_MAX:
+                    return True
+                i += 1 if c == 1 else c * n
+        return False
+
+    @staticmethod
+    def _texto_de(res) -> str:
+        ch = getattr(res, "chunks", None)
+        if ch:
+            return " ".join((c.text or "").strip() for c in ch).strip()
+        return (" ".join(res.texts).strip()
+                if getattr(res, "texts", None) else "")
+
+    # Temperatures tried in order when a window comes back degenerate. This is
+    # reference Whisper's temperature fallback, reimplemented here because the
+    # GenAI pipeline doesn't provide it.
+    TEMPERATURAS = (0.2, 0.4, 0.6)
+
+    def _generate_sem_loop(self, pipe, cfg, window):
+        """Transcribe one window, redoing it with rising temperature while the
+        result looks like a loop. Returns (res, texto) — texto empty if every
+        attempt degenerated, in which case dropping the window is the right
+        outcome: no text beats 147 repetitions."""
+        res = pipe.generate(window, cfg)
+        txt = self._texto_de(res)
+        if not self._degenerado(txt):
+            return res, txt
+        for temp in self.TEMPERATURAS:
+            if self._cancel.is_set():
+                break
+            try:
+                cfg.do_sample = True
+                cfg.temperature = temp
+                alt = pipe.generate(window, cfg)
+                alt_txt = self._texto_de(alt)
+            except Exception as e:
+                print(f"[transcribe] retry T={temp} falhou: {e}")
+                break
+            finally:
+                cfg.do_sample = False
+                cfg.temperature = 1.0
+            if not self._degenerado(alt_txt):
+                return alt, alt_txt
+        print("[transcribe] janela descartada: degenerada em todas as tentativas")
+        return None, ""
 
     def _transcribe_channel(self, pipe, cfg, audio, win_done, win_total,
                             progress_cb, ref=None):
@@ -1365,18 +1597,22 @@ class OVTranscriber:
             off = i / 16000.0
             rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
             if rms >= self.SILENCE_RMS:        # skip near-silence (no hallucinations)
-                res = pipe.generate(window, cfg)
+                res, txt_ok = self._generate_sem_loop(pipe, cfg, window)
+                if res is None:                # degenerate in every attempt
+                    win_done += 1
+                    if progress_cb and win_total:
+                        progress_cb(tf("Transcrevendo… {p}%",
+                                       p=min(99, int(win_done / win_total * 100))))
+                    i += step
+                    continue
                 chunks = getattr(res, "chunks", None)
                 if chunks:
                     for c in chunks:
                         txt = (c.text or "").strip()
                         if txt:
                             segs.append((off + float(c.start_ts), txt))
-                else:
-                    txt = (" ".join(res.texts).strip()
-                           if getattr(res, "texts", None) else "")
-                    if txt:
-                        segs.append((off, txt))
+                elif txt_ok:
+                    segs.append((off, txt_ok))
             win_done += 1
             if progress_cb and win_total:
                 progress_cb(tf("Transcrevendo… {p}%",
@@ -1462,7 +1698,7 @@ class MLXTranscriber:
     WIN = 30.0
 
     def __init__(self):
-        self._size   = "small"
+        self._size   = _CFG_DEFAULTS["model"]
         self._lock   = threading.Lock()
         self._cancel = threading.Event()
 
@@ -1706,7 +1942,7 @@ class App(tk.Tk):
                                     sys=self._cfg.get("sys_gain", 1.0))
         self._transcriber  = make_transcriber()
         if self._transcriber:
-            self._transcriber.set_model(self._cfg.get("model", "small"))
+            self._transcriber.set_model(self._cfg.get("model", _CFG_DEFAULTS["model"]))
             self._transcriber.set_device(self._cfg.get("device", "AUTO"))
         self._transcribing = False
         self._last_rec     = None
@@ -2065,8 +2301,25 @@ class App(tk.Tk):
         tk.Label(frow, textvariable=self._dir_var, bg=BG, fg=MUTED, font=SEG_XS,
                  anchor="w").pack(side="left", fill="x", expand=True)
 
-        # Model (small), device (Auto: NPU→iGPU→CPU), channel diarization and echo
-        # cancellation are all automatic now — no controls here on purpose.
+        # Processing device. Diarization, echo cancellation and the model stay
+        # automatic, but the device came back as a control on 29/07/2026 because
+        # there is a real trade-off only the user can settle: the iGPU is the
+        # fastest (2 h of audio in ~12 min vs ~19 on the NPU) but it is also the
+        # only one competing with drawing the screen — under concurrent load it
+        # lost 52% of its speed where the NPU lost 3%. Transcribing during a
+        # video call is exactly when you want NPU.
+        drow = tk.Frame(self._adv, bg=BG)
+        drow.pack(fill="x", pady=(8, 0))
+        tk.Label(drow, text=t("Processar em:"), bg=BG, fg=SUBTLE,
+                 font=SEG_XS).pack(side="left", padx=(0, 4))
+        self._dev_var = tk.StringVar(value=self._cfg.get("device", "AUTO"))
+        self._dev_cb = ttk.Combobox(
+            drow, textvariable=self._dev_var, state="readonly",
+            values=["AUTO"] + [d for d in ("GPU", "NPU", "CPU")
+                               if d in ov_available_devices()],
+            style="XS.TCombobox", font=SEG_XS, width=8)
+        self._dev_cb.pack(side="left")
+        self._dev_var.trace_add("write", lambda *_: self._on_device_pref_change())
 
         # language selector
         lrow = tk.Frame(self._adv, bg=BG)
@@ -2119,6 +2372,18 @@ class App(tk.Tk):
         if dev_id:
             self._cfg[cfg_key] = dev_id
             save_config(self._cfg)
+
+    def _on_device_pref_change(self):
+        """Which accelerator runs Whisper. Takes effect on the next transcription:
+        the live pipeline is keyed by (model, device), so OVTranscriber rebuilds
+        it by itself when the key changes."""
+        pref = (self._dev_var.get() or "AUTO").strip()
+        if pref == self._cfg.get("device"):
+            return
+        self._cfg["device"] = pref
+        save_config(self._cfg)
+        if self._transcriber:          # None when deps for transcription are missing
+            self._transcriber.set_device(pref)
 
     def _on_lang_change(self):
         label = self._lang_var.get()
@@ -2597,7 +2862,7 @@ class App(tk.Tk):
 
         self._transcribing = True
         status_cb(tf("Transcrevendo {n}…", n=path.name))
-        self._transcriber.set_model(self._cfg.get("model", "small"))
+        self._transcriber.set_model(self._cfg.get("model", _CFG_DEFAULTS["model"]))
         self._transcriber.set_device(self._cfg.get("device", "AUTO"))
 
         # Channel diarization + echo cancellation only apply to Reco's own
@@ -3167,7 +3432,7 @@ if __name__ == "__main__":
                            encoding="utf-8")
             sys.exit(2)
         cfg = load_config()
-        tr.set_model(cfg.get("model", "small"))
+        tr.set_model(cfg.get("model", _CFG_DEFAULTS["model"]))
         tr.set_device(cfg.get("device", "AUTO"))
         ev = threading.Event(); out = {}
         tr.transcribe(
