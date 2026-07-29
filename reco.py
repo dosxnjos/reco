@@ -121,6 +121,10 @@ _CFG_DEFAULTS: dict = {
     "sys_device":  None,      # soundcard speaker id (str)
     "mic_gain":    1.0,       # linear gain applied to the mic channel (0 dB = 1.0)
     "sys_gain":    1.0,       # linear gain applied to the system channel
+    # Rascunho de transcrição durante a gravação (Fase 3 do roadmap
+    # 2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md). Default False:
+    # ocupa o acelerador durante a reunião inteira; o usuário liga quando quiser.
+    "live":        False,
 }
 
 # Filename marker identifying a Reco dual-channel (mic + system) recording, so the
@@ -1282,6 +1286,7 @@ class DualRecorder:
         self._lk_state   = threading.Lock()
         self._on_level   = None
         self._on_error   = None
+        self._on_pair    = None
         self._threads    = []
         self._enc_thread = None
         self._writer     = None
@@ -1309,7 +1314,7 @@ class DualRecorder:
         if sys is not None:
             self.sys_gain = float(sys)
 
-    def start(self, mic_id, sys_id, on_level=None, on_error=None,
+    def start(self, mic_id, sys_id, on_level=None, on_error=None, on_pair=None,
               out_sr=OUT_SR, out_channels=OUT_CH, bitrate=MP3_BR, out_dir=None):
         if self.recording:
             return
@@ -1338,6 +1343,7 @@ class DualRecorder:
 
         self._on_level    = on_level
         self._on_error    = on_error
+        self._on_pair     = on_pair
         self.mic_ok       = False
         self.sys_ok       = False
         self._n_errors    = 0
@@ -1571,6 +1577,17 @@ class DualRecorder:
             self._enc_err = e
             print(f"[encode] {e}")
             return
+        # Modo ao vivo (Fase 3): mesmo trecho pareado que acabou de ir pro MP3,
+        # já com o ganho aplicado (E1 — o VAD tem que ver o mesmo nível que o
+        # Gabriel ouve e que vai pro arquivo). ⚠️ O callback só pode enfileirar
+        # — qualquer trabalho real aqui reintroduz o bug que a arquitetura de
+        # três threads existe para evitar (WASAPI atrasa, buffer estoura).
+        if self._on_pair is not None:
+            try:
+                self._on_pair(self._buf_mic[:n] * np.float32(self.mic_gain),
+                              self._buf_sys[:n] * np.float32(self.sys_gain))
+            except Exception as e:
+                print(f"[live] on_pair falhou: {e}")
         self._buf_mic = self._buf_mic[n:]
         self._buf_sys = self._buf_sys[n:]
 
@@ -1957,6 +1974,169 @@ class OVTranscriber:
         return "\n".join(lines)
 
 
+# ── Transcrição ao vivo (Fase 3) ────────────────────────────────────────────────
+# Segmento fechado, não janela deslizante (Dec5 do roadmap
+# 2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md): o VAD detecta o
+# fim da fala, transcreve uma vez, o texto nunca muda depois — mais barato e
+# mais legível que reprocessar os últimos N segundos continuamente. O texto ao
+# vivo é RASCUNHO (Dec2): a passada final ao parar (Fase 3.7) roda o preset de
+# lote de verdade — com dominância de canal (Fase 2) — e substitui.
+class LiveTranscriber:
+    ESPERA_MAX_S = 20.0   # corte por tempo de espera — fala arrastada não trava o texto
+    FILA_MAX_S = 60.0     # acima disso, descarta o mais antigo (rascunho atrasado
+                          # não vale perder áudio — a passada final cobre tudo)
+
+    def __init__(self, transcriber: OVTranscriber, lang: str = "pt"):
+        self._tr = transcriber          # pipeline JÁ carregado — nunca uma 2a instância (828 MB)
+        self._lang = lang
+        self._q = queue.Queue()
+        self._lock = threading.Lock()
+        self._pend_amostras = 0         # amostras (48 kHz) na fila, p/ política de descarte
+        self._thread = None
+        self._stop_ev = threading.Event()
+        self._on_text = None
+        self._on_warn = None
+        # Estado por canal: cauda de áudio a 16 kHz ainda não enviada, contexto
+        # (initial_prompt) das últimas ~30 palavras, e o relógio do corte por espera.
+        self._cauda = {"mic": np.zeros(0, np.float32), "sys": np.zeros(0, np.float32)}
+        self._contexto = {"mic": None, "sys": None}
+        self._ultimo_envio = time.monotonic()
+
+    def start(self, on_text=None, on_warn=None):
+        """on_text(canal, texto) por trecho transcrito; on_warn(msg) se descartar fila."""
+        self._on_text = on_text
+        self._on_warn = on_warn
+        self._stop_ev.clear()
+        self._ultimo_envio = time.monotonic()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def feed_pair(self, mic_48k: "np.ndarray", sys_48k: "np.ndarray"):
+        """Único método chamado pelo `on_pair` do `DualRecorder` — SÓ enfileira,
+        nenhum trabalho real aqui (mesma regra do próprio `on_pair`)."""
+        if self._thread is None or not self._thread.is_alive():
+            return
+        with self._lock:
+            self._pend_amostras += len(mic_48k)
+            descartou = False
+            while self._pend_amostras / CAPTURE_SR > self.FILA_MAX_S:
+                try:
+                    velho_mic, _ = self._q.get_nowait()
+                except queue.Empty:
+                    break
+                self._pend_amostras -= len(velho_mic)
+                descartou = True
+        if descartou and self._on_warn:
+            self._on_warn(t("Transcrição ao vivo atrasada — descartando áudio antigo do rascunho."))
+        self._q.put((mic_48k, sys_48k))
+
+    def stop(self, wait: bool = True, timeout: float = 15.0):
+        """Sinaliza parada. `wait=True` (default) bloqueia até a fila esvaziar —
+        é o que permite a passada final (Fase 3.7) nunca rodar `pipe.generate`
+        ao mesmo tempo que este worker (drain-then-start)."""
+        self._stop_ev.set()
+        if wait and self._thread is not None:
+            self._thread.join(timeout=timeout)
+
+    def _loop(self):
+        try:
+            while not self._stop_ev.is_set() or not self._q.empty():
+                try:
+                    mic_48k, sys_48k = self._q.get(timeout=1.0)
+                    with self._lock:
+                        self._pend_amostras -= len(mic_48k)
+                except queue.Empty:
+                    mic_48k = sys_48k = None
+                if mic_48k is not None:
+                    self._processar_par(mic_48k, sys_48k)
+                self._checar_corte_por_espera()
+        except Exception as e:
+            print(f"[live] worker morreu: {e}")   # nunca derruba a gravação
+
+    @staticmethod
+    def _resample_16k(x: "np.ndarray") -> "np.ndarray":
+        from scipy.signal import resample_poly
+        # CAPTURE_SR (48000) / 16000 = 3 — razão exata, sem necessidade de ratio geral.
+        return resample_poly(x, 1, CAPTURE_SR // 16000).astype(np.float32)
+
+    def _processar_par(self, mic_48k, sys_48k):
+        try:
+            mic_16k = self._resample_16k(mic_48k)
+            sys_16k = self._resample_16k(sys_48k)
+        except Exception as e:
+            print(f"[live] resample falhou: {e}")
+            return
+        self._cauda["mic"] = np.concatenate([self._cauda["mic"], mic_16k])
+        self._cauda["sys"] = np.concatenate([self._cauda["sys"], sys_16k])
+        self._enviar_grupos_fechados("mic")
+        self._enviar_grupos_fechados("sys")
+
+    def _enviar_grupos_fechados(self, canal: str):
+        """Manda transcrever todo grupo de VAD já FECHADO (seguido de silêncio
+        real ou de corte forçado por `max_s`) — nunca o último grupo, que ainda
+        pode estar em andamento. Segmento fechado, não janela deslizante (Dec5)."""
+        audio = self._cauda[canal]
+        if audio.size == 0:
+            return
+        segs = segmentar_por_vad(audio, 16000)
+        if not segs:
+            return
+        grupos = agrupar_segmentos(segs, 16000, ALVO_ACUMULO_S)
+        if len(grupos) < 2:
+            return                      # só o último grupo existe — ainda em andamento
+        for g in grupos[:-1]:
+            self._transcrever_grupo(canal, audio, g)
+            self._ultimo_envio = time.monotonic()
+        # mantém só o que ainda não foi enviado (o último grupo + o que veio depois)
+        corte = grupos[-2][-1][1]       # fim do penúltimo grupo == início do que sobra
+        self._cauda[canal] = audio[corte:]
+
+    def _checar_corte_por_espera(self):
+        """Fala arrastada sem pausa >=0,8s nunca fecha um grupo sozinha — sem
+        isso o texto ficaria parado indefinidamente (roadmap 3.2)."""
+        if time.monotonic() - self._ultimo_envio < self.ESPERA_MAX_S:
+            return
+        for canal in ("mic", "sys"):
+            audio = self._cauda[canal]
+            if audio.size == 0:
+                continue
+            segs = segmentar_por_vad(audio, 16000)
+            grupo = [(0, audio.size)] if not segs else \
+                [(segs[0][0], audio.size)]
+            self._transcrever_grupo(canal, audio, grupo)
+            self._cauda[canal] = np.zeros(0, np.float32)
+        self._ultimo_envio = time.monotonic()
+
+    def _transcrever_grupo(self, canal: str, audio: "np.ndarray", grupo: list):
+        window = np.concatenate([audio[s:t] for s, t in grupo])
+        rms = float(np.sqrt(np.mean(window ** 2))) if window.size else 0.0
+        if rms < OVTranscriber.SILENCE_RMS:
+            return
+        try:
+            pipe = self._tr._pipeline(None)
+            device = self._tr._key[1] if self._tr._key else resolve_device(self._tr._devpref)
+            cfg = self._tr._gen_cfg(pipe, self._lang)
+            usar_contexto = (device != "NPU")   # initial_prompt estoura o decoder da NPU
+            cfg.initial_prompt = (self._contexto[canal] or "") if usar_contexto else ""
+            res, txt = self._tr._generate_sem_loop(pipe, cfg, window)
+        except Exception as e:
+            print(f"[live] transcrição falhou, rascunho segue sem esse trecho: {e}")
+            return
+        if res is None:                 # degenerado em todas as tentativas
+            self._contexto[canal] = None
+            return
+        chunks = getattr(res, "chunks", None)
+        texto = " ".join((c.text or "").strip() for c in chunks).strip() if chunks else txt
+        if not texto:
+            return
+        if usar_contexto:
+            palavras = ((self._contexto[canal] or "") + " " + texto).split()
+            self._contexto[canal] = " ".join(palavras[-30:])
+        if self._on_text:
+            spk = _spk_me() if canal == "mic" else _spk_them()
+            self._on_text(spk, texto)
+
+
 # ── Transcriber: MLX (Apple Silicon GPU) — macOS only ──────────────────────────
 # Same interface as OVTranscriber so the App is backend-agnostic. mlx-whisper runs
 # the model on the Apple GPU via Apple's MLX framework; the device selector and
@@ -2213,6 +2393,8 @@ class App(tk.Tk):
             self._transcriber.set_model(self._cfg.get("model", _CFG_DEFAULTS["model"]))
             self._transcriber.set_device(self._cfg.get("device", "AUTO"))
         self._transcribing = False
+        self._live         = None     # LiveTranscriber ativo durante a gravação (Fase 3)
+        self._live_was_on  = False    # travado no início da gravação — não muda no meio
         self._last_rec     = None
         self._mic_devs     = []
         self._sys_devs     = []
@@ -2515,7 +2697,44 @@ class App(tk.Tk):
                  font=SEG_XS, wraplength=300, justify="left").pack(
                      anchor="w", pady=(6, 0))
 
+        # Painel de texto ao vivo (Fase 3) — só aparece durante uma gravação com
+        # "live" ligado. Rola conforme chega; nenhum peso de fonte acima de 600
+        # (Segoe UI Semibold = 600, CLAUDE.md § Convenções).
+        self._live_frame = tk.Frame(body, bg=BG)
+        self._live_text = tk.Text(
+            self._live_frame, height=8, width=38, bg=CARD, fg=TEXT,
+            font=SEG_SM, wrap="word", relief="flat", bd=0,
+            highlightthickness=1, highlightbackground=BORDER, padx=8, pady=6,
+            state="disabled")
+        self._live_text.tag_configure("spk", foreground=ACCENT, font=SEG_SB)
+        sb = ttk.Scrollbar(self._live_frame, command=self._live_text.yview)
+        self._live_text.configure(yscrollcommand=sb.set)
+        self._live_text.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        # não faz .pack() do _live_frame aqui — só quando a gravação com live
+        # ligado começa (_start_rec/_after_stop controlam a visibilidade)
+
         self._set_rec_state(IDLE)
+
+    def _live_clear(self):
+        self._live_text.config(state="normal")
+        self._live_text.delete("1.0", "end")
+        self._live_text.config(state="disabled")
+
+    def _live_append(self, spk: str, texto: str):
+        self._live_text.config(state="normal")
+        self._live_text.insert("end", f"{spk}: ", ("spk",))
+        self._live_text.insert("end", f"{texto}\n")
+        self._live_text.see("end")
+        self._live_text.config(state="disabled")
+
+    def _live_show(self, show: bool):
+        if show:
+            self._live_frame.pack(fill="both", expand=True, pady=(8, 0))
+        else:
+            self._live_frame.pack_forget()
+        self.update_idletasks()
+        self.geometry("")
 
     def _build_links(self, body):
         row = tk.Frame(body, bg=BG)
@@ -2614,6 +2833,20 @@ class App(tk.Tk):
         self._link(trow, t("Padrão"), self._reset_theme, fg=SUBTLE,
                    font=SEG_XS).pack(side="left")
 
+        # Transcrição ao vivo (Fase 3, rascunho — Dec2): desligado por padrão,
+        # consome o acelerador durante a gravação inteira. O checkbox fica
+        # desabilitado durante a gravação — o modo vale para a PRÓXIMA sessão,
+        # não muda no meio (self._live_was_on trava a escolha no início).
+        lvrow = tk.Frame(self._adv, bg=BG)
+        lvrow.pack(fill="x", pady=(8, 0))
+        self._live_var = tk.BooleanVar(value=bool(self._cfg.get("live")))
+        self._live_chk = tk.Checkbutton(
+            lvrow, text=t("Transcrição ao vivo (rascunho, iGPU)"),
+            variable=self._live_var, command=self._on_live_toggle,
+            bg=BG, fg=SUBTLE, activebackground=BG, activeforeground=TEXT,
+            selectcolor=BG, highlightthickness=0, bd=0, font=SEG_XS)
+        self._live_chk.pack(anchor="w")
+
         # Keyboard shortcut — opt-in (NOT created automatically by setup)
         self._sc_link = self._link(self._adv, "", self._toggle_shortcut)
         self._sc_link.pack(anchor="w", pady=(8, 0))
@@ -2652,6 +2885,10 @@ class App(tk.Tk):
         save_config(self._cfg)
         if self._transcriber:          # None when deps for transcription are missing
             self._transcriber.set_device(pref)
+
+    def _on_live_toggle(self):
+        self._cfg["live"] = bool(self._live_var.get())
+        save_config(self._cfg)
 
     def _on_lang_change(self):
         label = self._lang_var.get()
@@ -2922,6 +3159,24 @@ class App(tk.Tk):
         self._vu_sys.reset()
         self._set_combos_enabled(False)
 
+        # Modo ao vivo (Fase 3, Dec2): rascunho durante a gravação, substituído
+        # pela passada final ao parar. A escolha trava no início — mudar o
+        # checkbox no meio da gravação não afeta a sessão em andamento.
+        self._live_was_on = bool(self._cfg.get("live")) and self._transcriber is not None
+        on_pair = None
+        if self._live_was_on:
+            self._live = LiveTranscriber(self._transcriber, lang=self._whisper_lang())
+            self._live_clear()
+            self._live_show(True)
+            self._live.start(
+                on_text=lambda spk, txt: self._post(
+                    lambda s=spk, x=txt: self._live_append(s, x)),
+                on_warn=lambda msg: self._post(lambda m=msg: self._status(m)))
+            on_pair = self._live.feed_pair
+        else:
+            self._live = None
+            self._live_show(False)
+
         # Output settings go in at start(): the MP3 is written as we record, so
         # the file (and its name's timestamp) is created now, not at stop().
         sr, ch, br = self._out_settings()
@@ -2931,8 +3186,12 @@ class App(tk.Tk):
                 lambda s=src, r=rms: self._on_level(s, r)),
             on_error=lambda src, msg: self._post(
                 lambda s=src, m=msg: self._on_stream_error(s, m)),
+            on_pair=on_pair,
             out_sr=sr, out_channels=ch, bitrate=br, out_dir=self._out_dir)
         if not self._recorder.recording:        # couldn't open the file
+            if self._live:
+                self._live.stop(wait=False)
+                self._live = None
             return
 
         self._tick_timer()
@@ -2961,6 +3220,10 @@ class App(tk.Tk):
     def _abort_to_idle(self, msg):
         if self._recorder and self._recorder.recording:
             self._recorder.abort()
+        if self._live:
+            self._live.stop(wait=False)      # gravação descartada — não precisa drenar
+            self._live = None
+        self._live_show(False)
         self._vu_mic.reset()
         self._vu_sys.reset()
         self._set_combos_enabled(True)
@@ -2980,17 +3243,32 @@ class App(tk.Tk):
             try:
                 path = self._recorder.stop(
                     progress=lambda m: self._post(lambda: self._status(m)))
+                # Drain-then-start (Fase 3, decisão do roadmap): esvazia a fila
+                # do rascunho ANTES de qualquer passada final poder rodar — nunca
+                # duas chamadas a pipe.generate no mesmo WhisperPipeline ao
+                # mesmo tempo (self._live é o único produtor daqui em diante,
+                # já que o recorder parou de alimentar on_pair).
+                if self._live:
+                    self._post(lambda: self._status(t("Fechando rascunho ao vivo…")))
+                    self._live.stop(wait=True, timeout=15.0)
                 self._post(lambda: self._after_stop(path))
             except NoAudioCaptured:
+                if self._live:
+                    self._live.stop(wait=False)
                 self._post(lambda: self._after_stop_error(
                     t("Nenhum áudio capturado — verifique as fontes selecionadas.")))
             except Exception as e:
+                if self._live:
+                    self._live.stop(wait=False)
                 self._post(lambda msg=str(e): self._after_stop_error(
                     tf("Erro ao salvar: {m}", m=msg)))
+            finally:
+                self._live = None
 
         threading.Thread(target=do_stop, daemon=True).start()
 
     def _after_stop_error(self, msg):
+        self._live_show(False)
         self._set_combos_enabled(True)
         self._vu_mic.reset()
         self._vu_sys.reset()
@@ -3007,7 +3285,35 @@ class App(tk.Tk):
         self._set_combos_enabled(True)
         self._state = STOPPED
         self._set_rec_state(STOPPED)
-        self._status(tf("Salvo: {n}  —  Escolha o que fazer:", n=path.name))
+        if self._live_was_on:
+            # Dec2: o texto ao vivo é RASCUNHO — a passada final roda agora,
+            # com a máquina livre da disputa da gravação, e substitui o painel.
+            self._status(tf("Salvo: {n}  —  refinando a transcrição…", n=path.name))
+            self._run_live_final_pass(path)
+        else:
+            self._live_show(False)
+            self._status(tf("Salvo: {n}  —  Escolha o que fazer:", n=path.name))
+
+    def _run_live_final_pass(self, path: Path):
+        def done(text, err):
+            if err:
+                self._status(tf("Rascunho mantido — passada final falhou: {e}", e=err))
+                return
+            self._live_clear()
+            txt = self._autosave_txt(path, text)
+            for linha in (text or "").split("\n"):
+                if not linha.strip():
+                    continue
+                if ": " in linha:
+                    spk, _, resto = linha.partition(": ")
+                    self._live_append(spk, resto)
+                else:
+                    self._live_append("", linha)
+            if txt:
+                self._status(tf("Transcrição final pronta: {n}", n=txt.name))
+            else:
+                self._status(t("Transcrição final pronta (falha ao salvar o .txt)."))
+        self._run_transcriber(path, self._status, done)
 
     def _conclude_save(self):
         self._state = IDLE

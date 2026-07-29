@@ -96,8 +96,28 @@ Medições e alternativas descartadas:
 - **Transcrição:** `OVTranscriber`, in-process. Modelo padrão **`large-v3-turbo`**
   e device `AUTO` → **iGPU** (`resolve_device`, ordem `GPU → NPU → CPU`). As duas
   coisas foram **medidas em 29/07/2026**, não escolhidas por intuição — antes eram
-  `small` e NPU-first. Pula janelas de 30 s quase-silenciosas (`SILENCE_RMS`).
-  Ver `roadmap/2026-07-29-transcricao-precisa-rapida-e-aec.md`.
+  `small` e NPU-first. Segmenta por VAD (`segmentar_por_vad`/`agrupar_segmentos`,
+  não janela cega de 30 s — fallback só se o VAD não achar fala), agrupa até
+  `ALVO_ACUMULO_S=3.0` de fala e passa contexto via `initial_prompt` (últimas
+  ~30 palavras por canal, desligado na NPU). Diarização usa `dominancia_sistema`
+  para descartar trechos do mic dominados pelo sistema (eco/interlocutor), com
+  `k_db=15` calibrado em `tools/calibrar_dominancia.py` — **⚠️ calibrar só contra
+  "só o mic fala" já apagou fala real uma vez** (29/07), sempre confira também a
+  população de double-talk (`ambos`) e valide por diff de transcrição real, não
+  só por métrica de bloco. Ver `roadmap/2026-07-29-transcricao-precisa-rapida-e-aec.md`
+  e `roadmap/2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md`.
+- **Transcrição ao vivo (`LiveTranscriber`, config `"live"`, default `False`):**
+  rascunho durante a gravação, thread própria + `queue.Queue`, alimentada pelo
+  `on_pair` do `DualRecorder._pump` (callback só enfileira — nenhum trabalho real
+  ali). Segmento fechado (VAD), não janela deslizante — o texto nunca se
+  reescreve. Reusa o pipeline já carregado do `OVTranscriber` (nunca uma 2ª
+  instância, 828 MB). Ao parar: `LiveTranscriber.stop(wait=True)` **drena a fila
+  antes de** disparar a passada final (`_run_live_final_pass` → `_run_transcriber`,
+  o mesmo caminho da transcrição manual) — nunca duas chamadas a `pipe.generate`
+  no mesmo `WhisperPipeline` ao mesmo tempo. ⚠️ **O teste de estresse de 20 min
+  real (gravação real, memória, UI) ainda não rodou** — validado só em gravações
+  curtas (5-25s) e simulação de 90s; não tratar como "pronto pra uso diário" até
+  isso acontecer.
 - **Defesa anti-loop (`_degenerado` / `_generate_sem_loop`):** o Whisper trava em
   repetição (caso real: `"o que é"` 147× seguidas). ⚠️ **`no_repeat_ngram_size`
   NÃO resolve — o `WhisperPipeline` o ignora em silêncio**, e o GenAI não expõe
@@ -125,6 +145,10 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 | `medir_eco.py <mp3>` | acoplamento caixa→mic e ERLE do `cancel_echo` **em áudio real**. Rodar **sempre** que mexer no AEC — validar em eco sintético já mascarou uma implementação que entregava 3 dB |
 | `bench_final.py <mp3> [n]` | device × modelo: velocidade, extrapolação p/ 2 h, e qualidade por divergência (WER) contra o melhor modelo disponível. `BENCH_MODELOS`/`BENCH_DEVICES`/`BENCH_MODO=fracas` filtram |
 | `bench_convivencia.py <mp3> [n]` + `vizinho.py` | quanto a transcrição atrasa **outro app** (latência de um vizinho single-thread em processo separado). É o que decide iGPU × NPU |
+| `bench_convivencia_pipeline.py <mp3>` | igual acima, mas com o pipeline REAL (`OVTranscriber.transcribe`, VAD+contexto+dominância) em vez de `pipe.generate()` cru — o que decide o orçamento de device do modo ao vivo |
+| `calibrar_dominancia.py <mp3...>` | calibra `k_db` de `dominancia_sistema` contra `so_sys`/`so_mic`/`ambos` (double-talk) — rodar de novo com mais gravações se mexer no limiar; **sempre conferir por diff de transcrição real depois**, métrica de bloco sozinha já mascarou perda de fala real |
+| `test_live.py <mp3> [seg]` | alimenta `LiveTranscriber` com um MP3 real em tempo real simulado (resample 16k→48k→16k), mede latência mediana do rascunho |
+| `test_live_integration.py [seg]` | grava de verdade com `DualRecorder`+`LiveTranscriber` ligados, confere duração do MP3, tempo de drain e a passada final rodando sem conflito depois |
 
 ## Config e persistência
 

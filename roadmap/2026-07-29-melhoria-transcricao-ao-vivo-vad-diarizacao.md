@@ -359,40 +359,38 @@ Conserta o defeito mais visível. Independente da Fase 1.
 
 5. [x] Recompilar e commitar.
 
-### Fase 3 — Modo ao vivo (entrega D4) ⛔ NÃO INICIADA — bloqueada em duas coisas do Gabriel
+### Fase 3 — Modo ao vivo (entrega D4) 🟡 IMPLEMENTADA, teste de estresse (3.6) PENDENTE DO GABRIEL
 
 Maior esforço, e o único risco sério: **não pode degradar a gravação.** Gravar é
 a função primária; transcrever é secundária.
 
-⚠️ **Por que parar aqui e não começar a Fase 3 nesta sessão** (decidido em
-consulta ao `advisor`, 29/07): o passo 3.6 é um gate que **exige o Gabriel na
-máquina** — 20 min de gravação real, conferir duração do MP3 contra o relógio,
-L/R sincronizado, UI não travar. Escrever os passos 3.1-3.5 e 3.7 (~600 linhas
-de threading novo, compilado no exe que ele usa todo dia) e só then entregar um
-teste que só ele pode rodar inverte a ordem certa pra uma fase cujo risco
-declarado é "não pode degradar a gravação". Fases 1 e 2 são um ponto de parada
-coerente: executadas, validadas com dado real, compiladas, commitadas.
+**Histórico desta fase:** parada de propósito na sessão de 29/07 (consulta ao
+`advisor`) até os dois pré-requisitos abaixo estarem resolvidos e o Gabriel
+autorizar prosseguir. Autorizado, os passos 1-5, 7 e 8 foram implementados e
+validados com gravações reais curtas (5-25s) na mesma sessão. **O passo 3.6
+(20 min reais) continua sendo o único gate que exige uma pessoa na máquina** —
+não é algo que se autocertifique com testes automatizados, e por isso o código
+está commitado mas o `live` não deve ser considerado "confiavelmente pronto
+pra uso diário" até essa validação acontecer.
 
 **Duas coisas para resolver ANTES do passo 3.1** (achadas revisando o já
 executado, ainda não fazem parte do roadmap original):
 
-1. **O orçamento de device do Dec1 está desatualizado.** "iGPU ~20% de
-   ocupação" foi medido no pipeline **anterior** à Fase 1/2. O caminho atual já
-   mede mais lento que o legado (~52 s vs ~45 s no arquivo de 27/07, § 8 do
-   roadmap irmão) mais o realinhamento a cada 30 s da Fase 2. O modo ao vivo
-   tem que caber no custo por segundo **de hoje**, não no de antes. Medir com
-   `tools/bench_convivencia.py`, repetição pareada, antes do passo 3.1.
-2. **Concorrência entre `LiveTranscriber` (3.2) e a passada final (3.7).** Ao
-   parar com o modo ao vivo ligado, 3.7 dispara uma transcrição de arquivo
-   inteiro enquanto a fila do `LiveTranscriber` pode ainda estar drenando —
-   duas threads chamando `pipe.generate` no mesmo `WhisperPipeline`, e
-   `_generate_sem_loop` muta `cfg.do_sample`/`cfg.temperature` numa config
-   compartilhada. `self._lock` do `OVTranscriber` hoje só protege
-   `_size`/`_devpref`. **Decisão proposta (pendente de confirmação do
-   Gabriel):** esvaziar a fila do `LiveTranscriber` antes de iniciar a passada
-   final ("drain-then-start"), não tentar rodar as duas ao mesmo tempo — mais
-   simples e não custa nada no instante de parar (o usuário já espera a
-   passada final rodar depois).
+1. [x] **O orçamento de device do Dec1 estava desatualizado — remedido.**
+   "iGPU ~20% de ocupação" tinha sido medido no pipeline **anterior** à Fase
+   1/2. Escrito `tools/bench_convivencia_pipeline.py` (reusa `VizinhoProc` de
+   `bench_convivencia.py`, mas roda `OVTranscriber.transcribe()` de verdade —
+   diarize+aec, VAD+contexto+dominância — em vez de `pipe.generate()` cru).
+   Medido 2× no arquivo de 27/07, iGPU: vizinho fica **1,2-1,4× mais lento**
+   (trabalho ocioso 1,4-1,8ms → 1,7-2,6ms sob transcrição; `acorda_p95`
+   praticamente inalterado, 0,7-1,0ms). Orçamento de hoje **está OK** pro modo
+   ao vivo — segue Dec1 (iGPU, não NPU, que é da webcam).
+2. [x] **Concorrência entre `LiveTranscriber` (3.2) e a passada final (3.7) —
+   decidido: drain-then-start.** Ao parar com o modo ao vivo ligado, a
+   passada final espera o `LiveTranscriber` esvaziar a fila e devolver a
+   thread antes de disparar a transcrição completa — nunca duas chamadas a
+   `pipe.generate` no mesmo `WhisperPipeline` ao mesmo tempo. Implementado via
+   `LiveTranscriber.stop(wait=True)` bloqueante (ver 3.2/3.3 abaixo).
 
 1. [ ] **Expor o par sincronizado.** Em `_pump`, após o `self._writer.feed(...)`
    bem-sucedido, chamar `self._on_pair(mic_com_ganho, sys_com_ganho)` com o mesmo
@@ -417,38 +415,56 @@ executado, ainda não fazem parte do roadmap original):
    **Pronto quando:** alimentado com um MP3 em tempo real simulado, produz texto
    incremental com latência mediana ≤ 5 s.
 
-3. [ ] **Respeitar pausa e falha:** com a gravação pausada o `DualRecorder`
-   descarta frames — o `LiveTranscriber` simplesmente para de receber, sem
-   estado especial. E **qualquer** exceção nele deve ser capturada e logada sem
-   propagar: transcrição quebrada **não pode** derrubar a gravação.
-   **Pronto quando:** matar o pipeline no meio (simular exceção) mantém o MP3
-   íntegro até o fim.
+3. [x] **Respeitar pausa e falha:** com a gravação pausada o `DualRecorder`
+   descarta frames antes de `_pump` — `on_pair` simplesmente não é chamado
+   durante a pausa, sem estado especial no `LiveTranscriber` (verificado no
+   código, é assim por construção). **Qualquer** exceção é capturada e logada
+   sem propagar — testado disparando uma exceção de propósito dentro de
+   `on_pair`: a gravação seguiu e o MP3 saiu com a duração certa
+   (`python -c "..."` ad hoc, 5s gravados = 4,78s declarados).
+   **Pronto quando:** matar o pipeline no meio mantém o MP3 íntegro — ok.
 
-4. [ ] **UI:** painel de texto ao vivo na tela de gravação, rolando conforme
-   chega, com marcação de quem falou (o `LiveTranscriber` sabe o canal).
-   ⚠️ **Nenhum peso de fonte acima de 600** (`C:\Dev\CLAUDE.md` § Convenções).
-   **Pronto quando:** grava, o texto aparece, a UI não congela.
+4. [x] **UI:** painel de texto ao vivo (`tk.Text` com scrollbar) na tela de
+   gravação, com marcação de quem falou (tag `ACCENT`+`SEG_SB`), só visível
+   quando a gravação atual tem `live` ligado. `SEG_SB` = "Segoe UI Semibold"
+   (peso 600 — não passa do teto).
+   **Pronto quando:** grava, o texto aparece, a UI não congela — validado com
+   `tools/test_live_integration.py` (gravação real de 25s, thread própria não
+   bloqueia o encoder nem a UI).
 
-5. [ ] **Config `"live"` (bool, default `False`)** em `_CFG_DEFAULTS`, com
-   checkbox na tela avançada. Desligado por padrão: consome acelerador durante a
-   gravação, o usuário liga quando quiser.
-   ⚠️ **Não precisa de migração** — chave nova, `load_config` já cobre pelo
-   default. Migração só é necessária ao **mudar** default existente (CLAUDE.md
-   § Config).
-   **Pronto quando:** desligado, o comportamento é o de hoje.
+5. [x] **Config `"live"` (bool, default `False`)** em `_CFG_DEFAULTS`, com
+   checkbox (`tk.Checkbutton`) na tela avançada. A escolha trava no início da
+   gravação (`self._live_was_on`) — mudar o checkbox no meio não afeta a
+   sessão em andamento.
+   **Pronto quando:** desligado, o comportamento é o de hoje — ok (painel
+   fica oculto, `on_pair=None` passado ao `DualRecorder`).
 
-6. [ ] 🔴 **TESTE DE ESTRESSE — bloqueante.** Gravar **20 minutos** com o modo ao
-   vivo ligado, na iGPU, e verificar: (a) a duração do MP3 bate com o tempo real
-   (±1 s) — nada de áudio perdido; (b) L e R continuam sincronizados; (c) a UI
-   não travou. **Se qualquer um falhar, a Fase 3 não entra.** Registrar no md.
+6. [ ] 🔴 **TESTE DE ESTRESSE — bloqueante, PENDENTE DO GABRIEL.** Gravar
+   **20 minutos** com o modo ao vivo ligado, na iGPU, e verificar: (a) a
+   duração do MP3 bate com o tempo real (±1 s); (b) L e R continuam
+   sincronizados; (c) a UI não travou. **Se qualquer um falhar, a Fase 3 não
+   entra.** ⚠️ Este é o único passo que exige uma pessoa na máquina — não pode
+   ser autocertificado. Os passos 1-5 e 7 foram implementados e testados com
+   gravações reais **curtas** (5-25s) e um teste simulado de 90s; a validação
+   de 20 min real (memória acumulando, VU meter, cliques na UI durante a
+   gravação) ainda não aconteceu. Registrar aqui o resultado quando rodar.
 
-7. [ ] **Passada final ao parar (Dec2):** ao encerrar com modo ao vivo ligado,
-   disparar a transcrição completa do arquivo (preset lote) e **substituir** o
-   rascunho, deixando claro na UI que está refinando.
-   **Pronto quando:** o texto final é idêntico ao que a transcrição normal
-   produziria para o mesmo arquivo.
+7. [x] **Passada final ao parar (Dec2):** ao encerrar com modo ao vivo ligado,
+   `_after_stop` dispara `_run_live_final_pass` (reusa `_run_transcriber`, o
+   mesmo caminho da transcrição manual — diarização + AEC + dominância de
+   canal) e substitui o painel com o texto final.
+   ⚠️ **Drain-then-start implementado:** `LiveTranscriber.stop(wait=True)` é
+   chamado e o `join()` retorna **depois** que a fila esvazia, ANTES de
+   `_run_live_final_pass` disparar — nunca duas chamadas a `pipe.generate` no
+   mesmo `WhisperPipeline` ao mesmo tempo.
+   **Pronto quando:** validado com `tools/test_live_integration.py` — grava
+   25s real, `stop()` drena em 0,7s, a passada final roda depois sem erro.
+   ⚠️ Não testado bit-a-bit "texto final idêntico ao da transcrição normal"
+   porque **é literalmente a mesma chamada** (`_run_transcriber`) — não há como
+   divergir.
 
-8. [ ] Recompilar, commitar, atualizar `README.md` e `CLAUDE.md` do projeto.
+8. [x] Recompilar, commitar. `README.md`/`CLAUDE.md` do projeto atualizados
+   junto (ver commit da Fase 3).
 
 ---
 
@@ -494,7 +510,7 @@ executado, ainda não fazem parte do roadmap original):
 
 | risco | probabilidade | mitigação |
 | --- | --- | --- |
-| **Modo ao vivo degrada a gravação** (áudio perdido) | média | Callback só enfileira (3.1), fila com descarte (3.2), exceção isolada (3.3) e **teste de estresse bloqueante** (3.6). Se falhar, a fase não entra |
+| **Modo ao vivo degrada a gravação** (áudio perdido) | média (não descartada — só validada em curto) | Callback só enfileira (3.1, medido: contagem de amostras bate com a duração do MP3), fila com descarte (3.2), exceção isolada (3.3, testado). **Teste de estresse de 20 min (3.6) continua pendente do Gabriel** — validado só em gravações curtas (5-25s) e simulação de 90s até aqui. Se o teste de 20 min falhar, desligar `live` até investigar — o `_CFG_DEFAULTS["live"]=False` já protege quem nunca mexeu no checkbox |
 | VAD segmenta mal em ambiente ruidoso | média | Limiar adaptativo ao próprio áudio + **fallback obrigatório** para janelas de 30 s (1.3) |
 | `k_db` calibrado só em duas gravações | **alta** | Calibrar por script (2.3), valor comentado no código, reavaliar em ambiente diferente |
 | Dominância corta fala legítima em *double-talk* | média | Histerese (2.2) e limiar conservador — na dúvida **manter** o segmento. Transcrever eco é menos grave que apagar fala real |
