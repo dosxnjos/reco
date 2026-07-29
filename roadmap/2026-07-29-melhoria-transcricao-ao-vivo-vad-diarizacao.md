@@ -359,10 +359,40 @@ Conserta o defeito mais visível. Independente da Fase 1.
 
 5. [x] Recompilar e commitar.
 
-### Fase 3 — Modo ao vivo (entrega D4)
+### Fase 3 — Modo ao vivo (entrega D4) ⛔ NÃO INICIADA — bloqueada em duas coisas do Gabriel
 
 Maior esforço, e o único risco sério: **não pode degradar a gravação.** Gravar é
 a função primária; transcrever é secundária.
+
+⚠️ **Por que parar aqui e não começar a Fase 3 nesta sessão** (decidido em
+consulta ao `advisor`, 29/07): o passo 3.6 é um gate que **exige o Gabriel na
+máquina** — 20 min de gravação real, conferir duração do MP3 contra o relógio,
+L/R sincronizado, UI não travar. Escrever os passos 3.1-3.5 e 3.7 (~600 linhas
+de threading novo, compilado no exe que ele usa todo dia) e só then entregar um
+teste que só ele pode rodar inverte a ordem certa pra uma fase cujo risco
+declarado é "não pode degradar a gravação". Fases 1 e 2 são um ponto de parada
+coerente: executadas, validadas com dado real, compiladas, commitadas.
+
+**Duas coisas para resolver ANTES do passo 3.1** (achadas revisando o já
+executado, ainda não fazem parte do roadmap original):
+
+1. **O orçamento de device do Dec1 está desatualizado.** "iGPU ~20% de
+   ocupação" foi medido no pipeline **anterior** à Fase 1/2. O caminho atual já
+   mede mais lento que o legado (~52 s vs ~45 s no arquivo de 27/07, § 8 do
+   roadmap irmão) mais o realinhamento a cada 30 s da Fase 2. O modo ao vivo
+   tem que caber no custo por segundo **de hoje**, não no de antes. Medir com
+   `tools/bench_convivencia.py`, repetição pareada, antes do passo 3.1.
+2. **Concorrência entre `LiveTranscriber` (3.2) e a passada final (3.7).** Ao
+   parar com o modo ao vivo ligado, 3.7 dispara uma transcrição de arquivo
+   inteiro enquanto a fila do `LiveTranscriber` pode ainda estar drenando —
+   duas threads chamando `pipe.generate` no mesmo `WhisperPipeline`, e
+   `_generate_sem_loop` muta `cfg.do_sample`/`cfg.temperature` numa config
+   compartilhada. `self._lock` do `OVTranscriber` hoje só protege
+   `_size`/`_devpref`. **Decisão proposta (pendente de confirmação do
+   Gabriel):** esvaziar a fila do `LiveTranscriber` antes de iniciar a passada
+   final ("drain-then-start"), não tentar rodar as duas ao mesmo tempo — mais
+   simples e não custa nada no instante de parar (o usuário já espera a
+   passada final rodar depois).
 
 1. [ ] **Expor o par sincronizado.** Em `_pump`, após o `self._writer.feed(...)`
    bem-sucedido, chamar `self._on_pair(mic_com_ganho, sys_com_ganho)` com o mesmo

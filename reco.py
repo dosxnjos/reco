@@ -1744,7 +1744,12 @@ class OVTranscriber:
                                    progress_cb, ref=None):
         """Fallback cego de 30 s — usado só quando o VAD não acha nenhum segmento
         de fala (arquivo degenerado, ou canal só-silêncio). Nunca deixar um
-        arquivo sem transcrição por causa do VAD (roadmap § Fase 1.3)."""
+        arquivo sem transcrição por causa do VAD (roadmap § Fase 1.3).
+
+        ⚠️ Cancela eco (`ref`) mas NÃO aplica `dominancia_sistema` (Fase 2) —
+        só o caminho por VAD faz isso. É o lado conservador (sem VAD não há
+        grupo pra recortar), mas fica documentado pra não assumir dominância
+        incondicional sempre que `diarize+aec` estão ligados."""
         segs = []
         step = int(self.WIN * 16000)
         n = len(audio)
