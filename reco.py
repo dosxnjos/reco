@@ -2000,7 +2000,11 @@ class LiveTranscriber:
         # (initial_prompt) das últimas ~30 palavras, e o relógio do corte por espera.
         self._cauda = {"mic": np.zeros(0, np.float32), "sys": np.zeros(0, np.float32)}
         self._contexto = {"mic": None, "sys": None}
-        self._ultimo_envio = time.monotonic()
+        # Por canal, não um relógio só — um relógio global fazia o mic falando
+        # sem parar resetar o corte por espera do sys (e vice-versa), atrasando
+        # um canal quieto indefinidamente enquanto o outro segue ativo (achado
+        # nesta sessão medindo um atraso real de ~24s no canal do sistema).
+        self._ultimo_envio = {"mic": time.monotonic(), "sys": time.monotonic()}
         # Total de amostras (16 kHz) já empilhadas na cauda de cada canal desde
         # o início — não decrementa quando a cauda é aparada. É o que permite
         # calcular o fim absoluto (em amostras) de um grupo enviado, para medir
@@ -2018,7 +2022,7 @@ class LiveTranscriber:
         self._on_warn = on_warn
         self._on_group = on_group
         self._stop_ev.clear()
-        self._ultimo_envio = time.monotonic()
+        self._ultimo_envio = {"mic": time.monotonic(), "sys": time.monotonic()}
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
 
@@ -2104,19 +2108,26 @@ class LiveTranscriber:
             return                      # só o último grupo existe — ainda em andamento
         for g in grupos[:-1]:
             self._transcrever_grupo(canal, audio, g)
-            self._ultimo_envio = time.monotonic()
+            self._ultimo_envio[canal] = time.monotonic()
         # mantém só o que ainda não foi enviado (o último grupo + o que veio depois)
         corte = grupos[-2][-1][1]       # fim do penúltimo grupo == início do que sobra
         self._cauda[canal] = audio[corte:]
 
     def _checar_corte_por_espera(self):
         """Fala arrastada sem pausa >=0,8s nunca fecha um grupo sozinha — sem
-        isso o texto ficaria parado indefinidamente (roadmap 3.2)."""
-        if time.monotonic() - self._ultimo_envio < self.ESPERA_MAX_S:
-            return
+        isso o texto ficaria parado indefinidamente (roadmap 3.2).
+
+        ⚠️ Relógio POR CANAL, não um só global — um relógio compartilhado faz o
+        mic falando sem parar resetar o corte do sys (e vice-versa), deixando
+        um canal quieto parado indefinidamente enquanto o outro segue ativo
+        (medido nesta sessão: ~24s de atraso real no canal do sistema)."""
+        agora = time.monotonic()
         for canal in ("mic", "sys"):
+            if agora - self._ultimo_envio[canal] < self.ESPERA_MAX_S:
+                continue
             audio = self._cauda[canal]
             if audio.size == 0:
+                self._ultimo_envio[canal] = agora
                 continue
             # Grupo = a lista de segmentos do VAD, não o span inteiro (0, fim) —
             # incluir o silêncio entre segmentos é o mesmo bug medido e corrigido
@@ -2126,7 +2137,7 @@ class LiveTranscriber:
             grupo = segs if segs else [(0, audio.size)]
             self._transcrever_grupo(canal, audio, grupo)
             self._cauda[canal] = np.zeros(0, np.float32)
-        self._ultimo_envio = time.monotonic()
+            self._ultimo_envio[canal] = agora
 
     def _transcrever_grupo(self, canal: str, audio: "np.ndarray", grupo: list):
         window = np.concatenate([audio[s:t] for s, t in grupo])

@@ -418,14 +418,26 @@ executado, ainda não fazem parte do roadmap original):
    do "fim do trecho" — isso mede o avanço do próprio laço (deu 2,1s, **não
    era latência real**). Corrigido com `on_group` (novo parâmetro de
    `start()`, expõe o fim absoluto do grupo enviado) para medir fim-do-trecho
-   → texto de verdade: **mediana 5,2s** (min 4,6s, max 24,1s, n=10) — **acima**
-   do critério de ≤5s, por uma margem pequena. O `max` de 24,1s aconteceu no
-   canal do sistema quando os dois canais fecham grupos quase juntos (o worker
-   processa mic e sys em sequência, na mesma thread) — ainda bem dentro do teto
-   de segurança de `FILA_MAX_S=60s` (não perde áudio, só atrasa o rascunho).
-   Aceito como está: é rascunho (Dec2), a passada final não depende disso, e o
-   teto de fila já existe para o caso ruim. Revisitar só se o Gabriel achar o
-   atraso incômodo no uso real.
+   → texto de verdade: **mediana 5-7s** entre execuções (min ~5s, max ~20-25s,
+   n=10; a mediana variou 5,2→7,2s entre duas execuções idênticas — a máquina
+   tem ruído, ver § 8 do roadmap irmão) — **na fronteira ou pouco acima** do
+   critério de ≤5s.
+   ⚠️ **Investigado (e corrigido em parte) o `max` de ~20-25s:** a hipótese
+   inicial era acoplamento entre canais — um relógio de corte por espera
+   **global**, não por canal, deixava o mic falando sem parar resetar o corte
+   do sys (e vice-versa). Real e corrigido (`_ultimo_envio` virou dict por
+   canal). **Mas instrumentando `_transcrever_grupo` direto, o outlier persiste
+   mesmo corrigido** — a causa de verdade é o próprio Dec5 (segmento fechado):
+   um grupo só fecha quando o VAD acha ≥0,8s de silêncio real, atinge o teto de
+   28s (`max_s`) ou o corte por espera dispara **20s depois do envio anterior
+   daquele canal**. Numa fala contínua sem pausa suficiente por muitos
+   segundos, o atraso é inerente ao desenho — `ALVO_ACUMULO_S` é um **piso**,
+   não um teto (achado já registrado no roadmap irmão § 7). Ainda bem dentro do
+   teto de segurança de `FILA_MAX_S=60s` (não perde áudio, só atrasa o
+   rascunho). Aceito como está: é rascunho (Dec2), a passada final não depende
+   disso. Revisitar só se o Gabriel achar o atraso incômodo no uso real —
+   opção futura seria baixar `ESPERA_MAX_S` à custa de fragmentar mais a fala
+   corrida.
 
 3. [x] **Respeitar pausa e falha:** com a gravação pausada o `DualRecorder`
    descarta frames antes de `_pump` — `on_pair` simplesmente não é chamado

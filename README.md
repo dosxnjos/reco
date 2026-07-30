@@ -49,7 +49,8 @@ the bundled app is fully self-contained (no Python, no ffmpeg).
   text as you record, on the iGPU. It's a *draft* — closed-segment (VAD-based),
   not a sliding window, so lines never rewrite themselves once they appear.
   When you stop, a final pass (same engine as regular transcription — channel
-  diarization + echo cancellation + dominance) replaces the draft.
+  diarization + echo cancellation + dominance) replaces the draft. **New** —
+  try it on one of your own meetings before relying on it for a long recording.
 - 🎵 **MP4 → MP3** — pick a video (or a heavy audio file) in the Transcribe view and
   hit *Extract MP3*: it re-encodes to the same lightweight format Reco records in
   (16 kHz mono, 64 kbps), typically a fraction of the original size. The MP3 is
@@ -147,6 +148,7 @@ app empacotado é autossuficiente (sem Python, sem ffmpeg).
   (por VAD), não janela deslizante: a linha nunca se reescreve depois de
   aparecer. Ao parar, uma passada final (o mesmo motor da transcrição normal —
   diarização por canal + cancelamento de eco + dominância) substitui o rascunho.
+  **Novo** — teste numa reunião sua antes de confiar nele numa gravação longa.
 - 🎵 **MP4 → MP3** — escolha um vídeo (ou um áudio pesado) na tela de Transcrição e
   clique em *Extrair MP3*: ele é reconvertido para o mesmo formato leve em que o
   Reco grava (16 kHz mono, 64 kbps), normalmente uma fração do tamanho original.
