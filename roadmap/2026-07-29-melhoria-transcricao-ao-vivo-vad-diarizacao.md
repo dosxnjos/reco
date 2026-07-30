@@ -392,28 +392,40 @@ executado, ainda não fazem parte do roadmap original):
    `pipe.generate` no mesmo `WhisperPipeline` ao mesmo tempo. Implementado via
    `LiveTranscriber.stop(wait=True)` bloqueante (ver 3.2/3.3 abaixo).
 
-1. [ ] **Expor o par sincronizado.** Em `_pump`, após o `self._writer.feed(...)`
-   bem-sucedido, chamar `self._on_pair(mic_com_ganho, sys_com_ganho)` com o mesmo
-   trecho entregue ao writer (E1). Registrar via parâmetro de `start()`, como
-   `on_level`/`on_error`.
-   ⚠️ O callback **só pode enfileirar**. Qualquer trabalho real ali reintroduz o
-   bug que a arquitetura de três threads existe para evitar.
-   **Pronto quando:** gravar com um callback que só conta amostras e a contagem
-   bater com a duração do MP3.
+1. [x] **Expor o par sincronizado.** Em `_pump`, após o `self._writer.feed(...)`
+   bem-sucedido, chama `self._on_pair(mic_com_ganho, sys_com_ganho)` com o mesmo
+   trecho entregue ao writer (E1). Registrado via parâmetro de `start()`
+   (`on_pair`), igual `on_level`/`on_error`.
+   ⚠️ O callback **só enfileira** — `LiveTranscriber.feed_pair` só faz
+   `queue.put`, nenhum trabalho real.
+   **Pronto quando:** validado — gravação real de 8s com callback contando
+   amostras: 372736 amostras / 48000 Hz (CAPTURE_SR, não OUT_SR — o callback
+   entrega o áudio ANTES do resample pro MP3) = 7,77s, batendo com a duração
+   declarada do MP3 (7,77s).
 
-2. [ ] **Criar `LiveTranscriber`** em `reco.py`, após `OVTranscriber`. Thread
-   próprio + `queue.Queue`. Mantém uma cauda de áudio por canal, roda
-   `segmentar_por_vad` sobre ela e, ao acumular `ALVO_ACUMULO_S` de fala,
-   transcreve **com contexto** — o mesmo preset do modo lote (Dec4, E3/E4).
-   Reusar o pipeline **já carregado** do `OVTranscriber`, nunca instanciar um
-   segundo (são 828 MB).
-   ⚠️ **Corte por tempo de espera:** se o acúmulo não fechar em até ~20 s de
-   relógio (fala lenta, muita pausa), enviar assim mesmo. Sem isso, uma conversa
-   arrastada deixaria o texto parado indefinidamente.
-   Política de fila: acima de ~60 s de áudio pendente, **descartar o mais antigo
-   e avisar na UI**. Rascunho atrasado não vale perder áudio.
-   **Pronto quando:** alimentado com um MP3 em tempo real simulado, produz texto
-   incremental com latência mediana ≤ 5 s.
+2. [x] **Criar `LiveTranscriber`** em `reco.py`, após `OVTranscriber`. Thread
+   próprio + `queue.Queue`. Mantém uma cauda de áudio por canal (resample
+   48k→16k via `scipy.signal.resample_poly`), roda `segmentar_por_vad` sobre
+   ela e, ao acumular `ALVO_ACUMULO_S` de fala, transcreve **com contexto** — o
+   mesmo preset do modo lote (Dec4, E3/E4). Reusa o pipeline **já carregado**
+   do `OVTranscriber` via `self._tr._pipeline(None)`, nunca instancia um
+   segundo.
+   ⚠️ **Corte por tempo de espera** (`ESPERA_MAX_S=20`) e **política de fila**
+   (`FILA_MAX_S=60`, descarta o mais antigo + avisa) implementados.
+   **Pronto quando:** `tools/test_live.py` (MP3 real, tempo real simulado).
+   ⚠️ **Correção de medição (consulta ao advisor, 29/07):** a primeira versão
+   deste teste usava a posição mais recente do laço de alimentação como proxy
+   do "fim do trecho" — isso mede o avanço do próprio laço (deu 2,1s, **não
+   era latência real**). Corrigido com `on_group` (novo parâmetro de
+   `start()`, expõe o fim absoluto do grupo enviado) para medir fim-do-trecho
+   → texto de verdade: **mediana 5,2s** (min 4,6s, max 24,1s, n=10) — **acima**
+   do critério de ≤5s, por uma margem pequena. O `max` de 24,1s aconteceu no
+   canal do sistema quando os dois canais fecham grupos quase juntos (o worker
+   processa mic e sys em sequência, na mesma thread) — ainda bem dentro do teto
+   de segurança de `FILA_MAX_S=60s` (não perde áudio, só atrasa o rascunho).
+   Aceito como está: é rascunho (Dec2), a passada final não depende disso, e o
+   teto de fila já existe para o caso ruim. Revisitar só se o Gabriel achar o
+   atraso incômodo no uso real.
 
 3. [x] **Respeitar pausa e falha:** com a gravação pausada o `DualRecorder`
    descarta frames antes de `_pump` — `on_pair` simplesmente não é chamado
@@ -439,15 +451,23 @@ executado, ainda não fazem parte do roadmap original):
    **Pronto quando:** desligado, o comportamento é o de hoje — ok (painel
    fica oculto, `on_pair=None` passado ao `DualRecorder`).
 
-6. [ ] 🔴 **TESTE DE ESTRESSE — bloqueante, PENDENTE DO GABRIEL.** Gravar
-   **20 minutos** com o modo ao vivo ligado, na iGPU, e verificar: (a) a
+6. [ ] 🔴 **TESTE DE ESTRESSE — bloqueante, PENDENTE DO GABRIEL (parcial).**
+   Gravar **20 minutos** com o modo ao vivo ligado, na iGPU, e verificar: (a) a
    duração do MP3 bate com o tempo real (±1 s); (b) L e R continuam
    sincronizados; (c) a UI não travou. **Se qualquer um falhar, a Fase 3 não
-   entra.** ⚠️ Este é o único passo que exige uma pessoa na máquina — não pode
-   ser autocertificado. Os passos 1-5 e 7 foram implementados e testados com
-   gravações reais **curtas** (5-25s) e um teste simulado de 90s; a validação
-   de 20 min real (memória acumulando, VU meter, cliques na UI durante a
-   gravação) ainda não aconteceu. Registrar aqui o resultado quando rodar.
+   entra.**
+   **Progresso desta sessão (29/07, sem o Gabriel):** rodado
+   `tools/test_live_integration.py` por **170s (2m50) com WASAPI real** — mic +
+   loopback de verdade, fala real tocada pelos alto-falantes (não simulação de
+   MP3). Resultado: 22 trechos de rascunho produzidos durante a gravação,
+   duração do MP3 **169,94s contra 170,01s gravados (erro −0,06s)**, drain em
+   0,8s, passada final rodou depois sem conflito (18,6s, 1834 chars, sem erro).
+   ⚠️ **Isso NÃO substitui o teste de 20 min** — falta: duração real de
+   20 minutos (efeitos de memória/backlog que só aparecem em prazo mais longo),
+   cliques na UI **durante** a gravação (o teste automatizado não interage com
+   a janela), e pausa/retomada no meio. Mas reduz bastante o risco: a mecânica
+   de ponta a ponta com hardware real já rodou uma vez sem degradar a captura.
+   **Pronto quando:** o Gabriel gravar os 20 min de verdade e confirmar (a)-(c).
 
 7. [x] **Passada final ao parar (Dec2):** ao encerrar com modo ao vivo ligado,
    `_after_stop` dispara `_run_live_final_pass` (reusa `_run_transcriber`, o

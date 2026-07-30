@@ -115,9 +115,12 @@ Medições e alternativas descartadas:
   antes de** disparar a passada final (`_run_live_final_pass` → `_run_transcriber`,
   o mesmo caminho da transcrição manual) — nunca duas chamadas a `pipe.generate`
   no mesmo `WhisperPipeline` ao mesmo tempo. ⚠️ **O teste de estresse de 20 min
-  real (gravação real, memória, UI) ainda não rodou** — validado só em gravações
-  curtas (5-25s) e simulação de 90s; não tratar como "pronto pra uso diário" até
-  isso acontecer.
+  real continua pendente do Gabriel** (memória acumulando, cliques na UI e
+  pausa/retomada em prazo longo) — rodado até aqui só um teste automatizado de
+  170s (2m50) com WASAPI real (fala tocada pelos alto-falantes, não MP3
+  simulado): duração bateu (erro −0,06s), drain em 0,8s, passada final sem
+  conflito. Reduz o risco mas **não substitui** os 20 min; não tratar como
+  "pronto pra uso diário" até isso acontecer.
 - **Defesa anti-loop (`_degenerado` / `_generate_sem_loop`):** o Whisper trava em
   repetição (caso real: `"o que é"` 147× seguidas). ⚠️ **`no_repeat_ngram_size`
   NÃO resolve — o `WhisperPipeline` o ignora em silêncio**, e o GenAI não expõe

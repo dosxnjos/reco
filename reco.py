@@ -2001,11 +2001,22 @@ class LiveTranscriber:
         self._cauda = {"mic": np.zeros(0, np.float32), "sys": np.zeros(0, np.float32)}
         self._contexto = {"mic": None, "sys": None}
         self._ultimo_envio = time.monotonic()
+        # Total de amostras (16 kHz) já empilhadas na cauda de cada canal desde
+        # o início — não decrementa quando a cauda é aparada. É o que permite
+        # calcular o fim absoluto (em amostras) de um grupo enviado, para medir
+        # latência de verdade (fim do trecho -> texto), não o avanço do laço de
+        # alimentação (tools/test_live.py media a coisa errada até 29/07 — ver
+        # roadmap/2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md § 3.2).
+        self._total_amostras = {"mic": 0, "sys": 0}
+        self._on_group = None
 
-    def start(self, on_text=None, on_warn=None):
-        """on_text(canal, texto) por trecho transcrito; on_warn(msg) se descartar fila."""
+    def start(self, on_text=None, on_warn=None, on_group=None):
+        """on_text(canal, texto) por trecho transcrito; on_warn(msg) se descartar
+        fila; on_group(canal, fim_absoluto_amostras_16k) — opcional, só para
+        instrumentação/teste de latência real (ver tools/test_live.py)."""
         self._on_text = on_text
         self._on_warn = on_warn
+        self._on_group = on_group
         self._stop_ev.clear()
         self._ultimo_envio = time.monotonic()
         self._thread = threading.Thread(target=self._loop, daemon=True)
@@ -2051,7 +2062,12 @@ class LiveTranscriber:
                     self._processar_par(mic_48k, sys_48k)
                 self._checar_corte_por_espera()
         except Exception as e:
-            print(f"[live] worker morreu: {e}")   # nunca derruba a gravação
+            # nunca derruba a gravação — mas o build shipado usa runw.exe
+            # (janela, sem console), então print() sozinho é invisível pro
+            # usuário: sem isso o painel só fica vazio, sem explicação.
+            print(f"[live] worker morreu: {e}")
+            if self._on_warn:
+                self._on_warn(t("Transcrição ao vivo parou (a gravação continua)."))
 
     @staticmethod
     def _resample_16k(x: "np.ndarray") -> "np.ndarray":
@@ -2068,6 +2084,8 @@ class LiveTranscriber:
             return
         self._cauda["mic"] = np.concatenate([self._cauda["mic"], mic_16k])
         self._cauda["sys"] = np.concatenate([self._cauda["sys"], sys_16k])
+        self._total_amostras["mic"] += len(mic_16k)
+        self._total_amostras["sys"] += len(sys_16k)
         self._enviar_grupos_fechados("mic")
         self._enviar_grupos_fechados("sys")
 
@@ -2100,9 +2118,12 @@ class LiveTranscriber:
             audio = self._cauda[canal]
             if audio.size == 0:
                 continue
+            # Grupo = a lista de segmentos do VAD, não o span inteiro (0, fim) —
+            # incluir o silêncio entre segmentos é o mesmo bug medido e corrigido
+            # na Fase 1 (_transcribe_channel). Se o VAD não achar nada, manda o
+            # áudio inteiro mesmo (mesma regra de fallback do modo lote).
             segs = segmentar_por_vad(audio, 16000)
-            grupo = [(0, audio.size)] if not segs else \
-                [(segs[0][0], audio.size)]
+            grupo = segs if segs else [(0, audio.size)]
             self._transcrever_grupo(canal, audio, grupo)
             self._cauda[canal] = np.zeros(0, np.float32)
         self._ultimo_envio = time.monotonic()
@@ -2132,6 +2153,9 @@ class LiveTranscriber:
         if usar_contexto:
             palavras = ((self._contexto[canal] or "") + " " + texto).split()
             self._contexto[canal] = " ".join(palavras[-30:])
+        if self._on_group:   # instrumentação/teste de latência — ver __init__
+            fim_abs = self._total_amostras[canal] - len(audio) + grupo[-1][1]
+            self._on_group(canal, fim_abs)
         if self._on_text:
             spk = _spk_me() if canal == "mic" else _spk_them()
             self._on_text(spk, texto)

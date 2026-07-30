@@ -1,5 +1,12 @@
 """Alimenta o LiveTranscriber com um MP3 real em tempo real SIMULADO — mede
-latencia mediana entre o fim do trecho (no relogio do audio) e o texto sair.
+latencia real entre o FIM do trecho transcrito (via on_group, nao o avanco do
+laco de alimentacao) e o texto sair, e o tempo ate o PRIMEIRO texto aparecer.
+
+⚠️ Ate 29/07/2026 este script usava `t_audio_atual` (a posicao mais recente
+alimentada) como proxy do fim do trecho — mede o overhead do proprio laco de
+alimentacao, nao a latencia real (achado numa revisao/consulta ao advisor).
+Corrigido pra usar `on_group`, que devolve o fim absoluto (em amostras) do
+grupo que acabou de ser transcrito.
 
 O gravador de verdade entrega os pares a CAPTURE_SR (48000); os MP3s ja
 gravados sao 16000. Para simular sem gravar de novo, reamostra 16k -> 48k
@@ -15,7 +22,7 @@ import numpy as np
 from scipy.signal import resample_poly
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from reco import decode_16k, OVTranscriber, LiveTranscriber, load_config, CAPTURE_SR
+from reco import decode_16k, OVTranscriber, LiveTranscriber, load_config
 
 TICK = 0.2   # mesmo ENC_TICK do DualRecorder
 
@@ -36,29 +43,33 @@ def main():
     tr.set_device("GPU")
     live = LiveTranscriber(tr, lang="pt")
 
-    eventos = []   # (t_relogio_audio, t_wall_chegada)
     lock = threading.Lock()
+    fim_pendente = [None]     # setado por on_group, lido por on_text (mesma call, em ordem)
+    eventos = []              # (fim_abs_s, t_wall_chegada)
+    t0 = time.perf_counter()
+
+    def on_group(canal, fim_abs_amostras):
+        fim_pendente[0] = fim_abs_amostras / 16000.0
 
     def on_text(spk, texto):
         with lock:
-            eventos.append((t_audio_atual[0], time.perf_counter()))
-        print(f"  [{time.perf_counter()-t0:.1f}s wall] {spk}: {texto[:80]}", flush=True)
+            fim_s = fim_pendente[0]
+            eventos.append((fim_s, time.perf_counter()))
+        print(f"  [{time.perf_counter()-t0:.1f}s wall, fim do trecho={fim_s:.1f}s] "
+              f"{spk}: {texto[:70]}", flush=True)
 
     def on_warn(msg):
         print(f"  [warn] {msg}", flush=True)
 
-    live.start(on_text=on_text, on_warn=on_warn)
+    live.start(on_text=on_text, on_warn=on_warn, on_group=on_group)
 
     step16 = int(TICK * 16000)
-    t_audio_atual = [0.0]
-    t0 = time.perf_counter()
     for i in range(0, n, step16):
         m16 = mic16[i:i + step16]
         s16 = sys16[i:i + step16]
         m48 = resample_poly(m16, 3, 1).astype(np.float32)
         s48 = resample_poly(s16, 3, 1).astype(np.float32)
         live.feed_pair(m48, s48)
-        t_audio_atual[0] = (i + step16) / 16000.0
         time.sleep(TICK)   # ritmo real
 
     print("\n[fim do audio simulado] esperando o rascunho drenar...", flush=True)
@@ -67,13 +78,15 @@ def main():
     if not eventos:
         print("\nNENHUM texto produzido — FALHOU")
         return 1
-    lat = [wall - t0 - t_a for t_a, wall in eventos]
-    lat.sort()
+    primeiro_wall = eventos[0][1] - t0
+    lat = sorted(wall - t0 - fim_s for fim_s, wall in eventos)
     mediana = lat[len(lat)//2]
-    print(f"\n[latencia] mediana={mediana:.1f}s | min={lat[0]:.1f}s | max={lat[-1]:.1f}s "
-          f"| n={len(lat)} trechos")
+    print(f"\n[tempo até o 1º texto] {primeiro_wall:.1f}s (limitado pelo tamanho do "
+          f"1º segmento de fala do VAD — pode chegar a ~28s no pior caso, max_s)")
+    print(f"[latência fim-do-trecho -> texto] mediana={mediana:.1f}s | "
+          f"min={lat[0]:.1f}s | max={lat[-1]:.1f}s | n={len(lat)} trechos")
     ok = mediana <= 5.0
-    print(("PASSOU" if ok else "FALHOU") + ": criterio = latencia mediana <= 5s")
+    print(("PASSOU" if ok else "FALHOU") + ": critério = latência mediana <= 5s")
     return 0 if ok else 1
 
 
