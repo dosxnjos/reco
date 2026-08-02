@@ -152,6 +152,7 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 | `calibrar_dominancia.py <mp3...>` | calibra `k_db` de `dominancia_sistema` contra `so_sys`/`so_mic`/`ambos` (double-talk) — rodar de novo com mais gravações se mexer no limiar; **sempre conferir por diff de transcrição real depois**, métrica de bloco sozinha já mascarou perda de fala real |
 | `test_live.py <mp3> [seg]` | alimenta `LiveTranscriber` com um MP3 real em tempo real simulado (resample 16k→48k→16k), mede latência mediana do rascunho |
 | `test_live_integration.py [seg]` | grava de verdade com `DualRecorder`+`LiveTranscriber` ligados, confere duração do MP3, tempo de drain e a passada final rodando sem conflito depois |
+| `transcrever.py <arquivo...>` | transcreve **qualquer áudio/vídeo** para `<arquivo>.txt` pelo pipeline real (decode PyAV → VAD → anti-loop), sem UI — feito para **agentes** (Claude Code) lerem áudio que o Gabriel manda no chat. Pula `.txt` existente (`--forcar` refaz); `--diarizar`/`--aec` só para gravações estéreo do próprio Reco |
 
 ## Config e persistência
 
