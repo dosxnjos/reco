@@ -169,26 +169,33 @@ fixo (`temp/vizinho.py`) — é o perfil de um app de interface. E lembrar que e
 teste é puro CPU: ele **não** mede a iGPU disputando com renderização de tela e
 vídeo, que é o cenário "transcrever durante reunião com câmera".
 
-## `--diarizar` não prova autoria em gravação feita no alto-falante (03/08/2026)
+## `--diarizar` sem `--aec` não separa nada em gravação no alto-falante (03/08/2026)
 
 **Sintoma:** rodamos `transcrever.py --diarizar` numa gravação real para
 responder "quem falou esta frase — o Gabriel ou a interlocutora?". A saída veio
 com **as duas faixas repetindo o mesmo texto**, deslocadas por uma fração de
 segundo: cada frase aparece uma vez em `Interlocutor(es)` e de novo em `Eu`.
+Inútil para atribuir autoria.
 
 **Causa:** a gravação foi feita **sem fone**. O áudio do sistema saiu pelos
 alto-falantes e voltou pelo microfone, então o canal do mic contém a fala do
-outro lado. O `cancel_echo` entrega ~7 dB de ERLE (ver a armadilha do teto de
-deriva de clock acima) — o bastante para melhorar a transcrição, longe do
-necessário para **separar** os interlocutores.
+outro lado — e `--diarizar` **sozinho não cancela eco**, só separa canais.
 
-**O que a diarização ainda serve nesse caso:** os trechos em que os dois canais
-**divergem** continuam válidos e são justamente as trocas reais de turno —
-convite num canal, resposta curta no outro. Foi o que permitiu confirmar a
-autoria na prática. O que **não** vale é ler cada linha `Eu:` como fala do
-Gabriel.
+**A correção é usar as duas flags: `--diarizar --aec`.** Refeito assim, no mesmo
+arquivo, a separação ficou limpa: blocos longos da interlocutora de um lado,
+intervenções curtas do Gabriel do outro, e o `.txt` encolheu **38%** (69 KB →
+42,6 KB) — o que sumiu era a duplicata de eco.
 
-**Regra:** para atribuição de autoria, `--diarizar` só é prova se a gravação foi
-feita **com fone**. Sem fone, tratar como indício e confirmar pelo conteúdo
-(quem faz o convite, quem responde, quem trata o outro por "você"). E, quando o
-objetivo for justamente saber quem disse o quê, gravar de fone.
+⚠️ **Meça antes de confiar.** `tools/medir_eco.py <mp3>` dá acoplamento e ERLE
+reais **daquela gravação**. Neste arquivo: acoplamento caixa→mic **−20,5 dB** e
+ERLE mediano **+17,6 dB** (min 1,4 / max 23,8) — resíduo em torno de −38 dB,
+desprezível. O "~7 dB" citado no `CLAUDE.md` é o número de **uma** medição de
+29/07, não uma constante: o ERLE varia com volume, sala e microfone. Abaixo de
+~10 dB, a diarização volta a errar mesmo com `--aec`, e aí não há flag que
+salve — só gravar de fone.
+
+**Efeito colateral a conhecer:** onde o AEC zera o canal do mic (a interlocutora
+falando sozinha), sobra silêncio — e o Whisper **alucina** nele, tipicamente
+`"Obrigada."` repetido. Não é fala real perdida (é o oposto: o Gabriel
+realmente não falava ali), mas polui a faixa `Eu:`. Ao ler, descartar linhas
+`Eu:` curtas e genéricas que não respondem ao contexto.
