@@ -168,3 +168,27 @@ single-thread em **processo separado** que acorda periodicamente e faz trabalho
 fixo (`temp/vizinho.py`) — é o perfil de um app de interface. E lembrar que esse
 teste é puro CPU: ele **não** mede a iGPU disputando com renderização de tela e
 vídeo, que é o cenário "transcrever durante reunião com câmera".
+
+## `--diarizar` não prova autoria em gravação feita no alto-falante (03/08/2026)
+
+**Sintoma:** rodamos `transcrever.py --diarizar` numa gravação real para
+responder "quem falou esta frase — o Gabriel ou a interlocutora?". A saída veio
+com **as duas faixas repetindo o mesmo texto**, deslocadas por uma fração de
+segundo: cada frase aparece uma vez em `Interlocutor(es)` e de novo em `Eu`.
+
+**Causa:** a gravação foi feita **sem fone**. O áudio do sistema saiu pelos
+alto-falantes e voltou pelo microfone, então o canal do mic contém a fala do
+outro lado. O `cancel_echo` entrega ~7 dB de ERLE (ver a armadilha do teto de
+deriva de clock acima) — o bastante para melhorar a transcrição, longe do
+necessário para **separar** os interlocutores.
+
+**O que a diarização ainda serve nesse caso:** os trechos em que os dois canais
+**divergem** continuam válidos e são justamente as trocas reais de turno —
+convite num canal, resposta curta no outro. Foi o que permitiu confirmar a
+autoria na prática. O que **não** vale é ler cada linha `Eu:` como fala do
+Gabriel.
+
+**Regra:** para atribuição de autoria, `--diarizar` só é prova se a gravação foi
+feita **com fone**. Sem fone, tratar como indício e confirmar pelo conteúdo
+(quem faz o convite, quem responde, quem trata o outro por "você"). E, quando o
+objetivo for justamente saber quem disse o quê, gravar de fone.
