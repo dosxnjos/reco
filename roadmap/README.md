@@ -1,0 +1,32 @@
+# Índice de roadmaps — Reco
+
+<!-- gerado por cerebro/scripts/gerar_indice_roadmaps.py -->
+
+Status vem do padrão `[x]`/`[ ]` da seção de passos de cada plano:
+**fechado** = todos os passos marcados · **ativo** = algum em aberto ·
+**N/A** = documento sem seção de passos (ata, briefing, decisão).
+
+Regenerar ao criar ou fechar um roadmap:
+`python cerebro/scripts/gerar_indice_roadmaps.py <esta pasta> --escrever`.
+Este índice também é a porta de entrada de cada arquivo da pasta no grafo
+do vault — sem ele, roadmap vira nó solto no Obsidian.
+
+## Sem seção de passos (5)
+
+| Data | Arquivo | Resumo |
+| --- | --- | --- |
+| 2026-08-02 | [2026-08-02-melhoria-evolucao-mac-tela-meet.md](2026-08-02-melhoria-evolucao-mac-tela-meet.md) | Roadmap de melhoria — Reco: porte macOS, gravação de tela e Meet via extensão (2026-08-02) |
+| 2026-07-29 | [2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md](2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md) | Roadmap de melhoria — Reco: VAD, diarização e transcrição ao vivo (2026-07-29) |
+| 2026-07-29 | [2026-07-29-transcricao-precisa-rapida-e-aec.md](2026-07-29-transcricao-precisa-rapida-e-aec.md) | 2026-07-29 — Transcrição precisa e rápida + cancelamento de eco |
+| 2026-07-28 | [2026-07-28-duracao-mp3-e-salvamento-instantaneo.md](2026-07-28-duracao-mp3-e-salvamento-instantaneo.md) | Reco — duração de MP3 inflada + salvamento instantâneo (28/07/2026) |
+| 2026-07-15 | [2026-07-15-ganho-por-canal.md](2026-07-15-ganho-por-canal.md) | Ganho por canal (mic / sistema) com slider sobre o VU meter — 2026-07-15 |
+
+## Limitação conhecida
+
+Alguns docs marcam progresso com `### ✅ FEITO` / `### ❌ FALTA` em vez
+de checkbox `[x]`/`[ ]` — esses caem em **N/A** mesmo com progresso real
+(ex.: `2026-07-16-vendedores-e-cupom-visao-geral.md` do nomura-bi, ~80%
+feito na prosa, zero checkbox no arquivo). Para julgar backlog real (e
+não só navegar), abrir o arquivo antes de assumir que N/A = nada feito.
+
+<!-- 5 arquivos indexados -->

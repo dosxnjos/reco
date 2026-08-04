@@ -22,7 +22,8 @@ O executável distribuído é `dist\Reco\Reco.exe` (PyInstaller, via `reco.spec`
 Sem recompilar, a mudança fica só no fonte e não chega ao app que o Gabriel usa.
 
 - Build normal reaproveita `dist/`/`build/`; use `-Clean` para do zero.
-- O modelo Whisper fica em `models\whisper-small-int8-ov` (bundlado, offline);
+- O modelo Whisper fica em `models\whisper-small-int8-ov`
+  ([README do modelo](models/whisper-small-int8-ov/README.md), bundlado, offline);
   se já existir, o build não rebaixa nem rebaixa.
 - Warnings esperados e **inofensivos**: `openvino.torch`/`No module named 'torch'`
   (não usamos o frontend PyTorch). Não são erro de build.
