@@ -538,6 +538,8 @@ HAS_MLX = (sys.platform == "darwin"
 
 
 def _user_data_dir() -> Path:
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / APP_NAME
     base = os.environ.get("LOCALAPPDATA") or str(Path.home())
     return Path(base) / APP_NAME
 
@@ -545,6 +547,15 @@ def _user_data_dir() -> Path:
 def _bundled_models_dir() -> Path:
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
     return base / "models"
+
+
+def _abrir_arquivo(path) -> None:
+    """Abre arquivo/pasta/URL com o handler padrão do SO (Explorer, Finder,
+    navegador…). `os.startfile` é Windows-only; no darwin não existe."""
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", str(path)])
+    else:
+        os.startfile(str(path))
 
 
 # ── Audio decoding (PyAV → 16 kHz float32; no external ffmpeg binary) ───────────
@@ -2501,7 +2512,7 @@ class App(tk.Tk):
 
     def _open_url(self, url):
         try:
-            os.startfile(url)
+            _abrir_arquivo(url)
         except Exception:
             try:
                 import webbrowser
@@ -2882,10 +2893,12 @@ class App(tk.Tk):
             selectcolor=BG, highlightthickness=0, bd=0, font=SEG_XS)
         self._live_chk.pack(anchor="w")
 
-        # Keyboard shortcut — opt-in (NOT created automatically by setup)
-        self._sc_link = self._link(self._adv, "", self._toggle_shortcut)
-        self._sc_link.pack(anchor="w", pady=(8, 0))
-        self._update_shortcut_link()
+        # Keyboard shortcut — opt-in (NOT created automatically by setup).
+        # Windows-only: é um .lnk do Menu Iniciar com hotkey; sem sentido fora do nt.
+        if os.name == "nt":
+            self._sc_link = self._link(self._adv, "", self._toggle_shortcut)
+            self._sc_link.pack(anchor="w", pady=(8, 0))
+            self._update_shortcut_link()
 
         if not (HAS_SC and HAS_NP and HAS_AV):
             self._status(t("Captura indisponível — instale soundcard, numpy e av."))
@@ -3658,7 +3671,7 @@ class App(tk.Tk):
         folder = self._cv_sel.parent if self._cv_sel else self._out_dir
         try:
             folder.mkdir(parents=True, exist_ok=True)
-            os.startfile(str(folder))
+            _abrir_arquivo(folder)
         except Exception:
             pass
 
@@ -3730,14 +3743,14 @@ class App(tk.Tk):
         folder = self._tr_sel.parent if self._tr_sel else self._out_dir
         try:
             folder.mkdir(parents=True, exist_ok=True)
-            os.startfile(str(folder))
+            _abrir_arquivo(folder)
         except Exception:
             pass
 
     def _play_recording(self):
         if self._last_rec and self._last_rec.exists():
             try:
-                os.startfile(str(self._last_rec))   # default audio player
+                _abrir_arquivo(self._last_rec)   # default audio player
             except Exception as e:
                 self._status(tf("Erro: {e}", e=e))
         else:

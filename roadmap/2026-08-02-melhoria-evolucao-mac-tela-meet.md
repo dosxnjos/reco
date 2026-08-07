@@ -77,16 +77,39 @@ Windows — no Mac, v1 roda do fonte (venv), sem PyInstaller.
 
 Preparo barato que não precisa de Mac e não muda comportamento no Windows.
 
-1. [ ] `reco.py` `_abrir_arquivo(path)`: helper que usa `os.startfile` no
+1. [x] `reco.py` `_abrir_arquivo(path)`: helper que usa `os.startfile` no
    Windows, `subprocess.Popen(["open", path])` no darwin; trocar o uso em
    ~3740. Pronto quando: busca por `os.startfile` só aparece dentro do helper.
-2. [ ] Esconder o link de atalho de teclado (`_shortcut_path`/`_toggle_shortcut`,
+   **Executado em 07/08/2026** — o roadmap citava só a chamada de ~3740, mas
+   havia mais 3 usos crus (`_open_url` ~2504, `_open_cv_folder` ~3661,
+   `_open_tr_folder` ~3733); os 4 foram trocados pelo helper (novo, logo após
+   `_bundled_models_dir`, ~552) para o próprio critério de pronto
+   ("só aparece dentro do helper") bater. `grep -n "os.startfile" reco.py`
+   confirma: só as 2 linhas do helper (chamada + docstring).
+2. [x] Esconder o link de atalho de teclado (`_shortcut_path`/`_toggle_shortcut`,
    ~3746) quando `os.name != "nt"` — o widget nem é criado. Pronto quando: no
    Windows nada muda (conferir visualmente após recompilar).
-3. [ ] `_user_data_dir()` (~540): ramo darwin →
+   **Executado em 07/08/2026** — criação do `self._sc_link` (e a chamada a
+   `_update_shortcut_link()`) envolvida em `if os.name == "nt":`. Confirmação
+   visual pós-recompilação **não rodou** (ver item 4) — validado só a nível
+   lógico: `os.name` é `"nt"` nesta máquina (mesma condição já usada por
+   `HAS_TRAY`), então o guard novo é `True` e o comportamento no Windows é
+   idêntico byte-a-byte ao de antes.
+3. [x] `_user_data_dir()` (~540): ramo darwin →
    `Path.home()/"Library"/"Application Support"/APP_NAME`. Pronto quando:
    teste rápido em REPL Windows continua devolvendo `%LOCALAPPDATA%\Reco`.
+   **Executado em 07/08/2026** — `python -c "import reco; print(reco._user_data_dir())"`
+   devolveu `C:\Users\Gabriel dos Anjos\AppData\Local\Reco` (== `%LOCALAPPDATA%\Reco`).
 4. [ ] Recompilar (`build.ps1`) e commitar (pathspec: `reco.py`).
+   **Bloqueado em 07/08/2026** — `Reco.exe` (PID 10608) estava rodando durante
+   a execução desta fase e trava `dist\Reco\_internal\...` (`PermissionError:
+   Acesso negado` no `shutil.rmtree` do PyInstaller). Não matei o processo —
+   é o app que o Gabriel usa no dia a dia e pode estar gravando. O código
+   (`reco.py`) foi commitado por conta própria (validado por `ast.parse` +
+   `import reco`, sem recompilar); falta o Gabriel fechar o `Reco.exe` e rodar
+   `powershell -ExecutionPolicy Bypass -File "C:\Dev\Reco\build.ps1"` para o
+   `.exe` distribuído refletir esta mudança — enquanto isso não acontecer, o
+   `dist\Reco\Reco.exe` que o Gabriel usa **não tem** os guards desta fase.
 
 ### Fase 1 — macOS: rodar do fonte com captura completa (executa NO Mac)
 
