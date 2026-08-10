@@ -100,8 +100,10 @@ Preparo barato que não precisa de Mac e não muda comportamento no Windows.
    teste rápido em REPL Windows continua devolvendo `%LOCALAPPDATA%\Reco`.
    **Executado em 07/08/2026** — `python -c "import reco; print(reco._user_data_dir())"`
    devolveu `C:\Users\Gabriel dos Anjos\AppData\Local\Reco` (== `%LOCALAPPDATA%\Reco`).
-4. [ ] Recompilar (`build.ps1`) e commitar (pathspec: `reco.py`).
-   **Bloqueado em 07/08/2026** — `Reco.exe` (PID 10608) estava rodando durante
+4. [x] Recompilar (`build.ps1`) e commitar (pathspec: `reco.py`).
+   **Concluído em 10/08/2026** — Gabriel fechou o app e autorizou; build verde
+   (`dist\Reco\Reco.exe` de 10/08 12:03, pasta 835 MB), commits já pushados.
+   ~~Bloqueado em 07/08/2026~~ — `Reco.exe` (PID 10608) estava rodando durante
    a execução desta fase e trava `dist\Reco\_internal\...` (`PermissionError:
    Acesso negado` no `shutil.rmtree` do PyInstaller). Não matei o processo —
    é o app que o Gabriel usa no dia a dia e pode estar gravando. O código
