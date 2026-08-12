@@ -218,30 +218,30 @@ Rodar os comandos com o Python do venv do projeto (`C:\Dev\Reco`).
 
 ### Fase 3 — feedback e affordances
 
-1. [ ] **Cancelar da tela de gravação (F7):** durante transcrição iniciada
+1. [x] **Cancelar da tela de gravação (F7):** durante transcrição iniciada
    pelo fluxo de gravação, empacotar um botão "⬛ Parar" (reusar
    `_stop_transcription`) na linha de status da view rec; desempacotar no
    done. — **prova:** manual pós-build (Tk não se automatiza barato):
    ⚡ numa gravação curta → botão aparece → clicar → "Transcrição cancelada.".
-2. [ ] **Feedback de navegação bloqueada (F8):** `_show_view` bloqueado →
+2. [x] **Feedback de navegação bloqueada (F8):** `_show_view` bloqueado →
    status "Termine a gravação para trocar de tela." / variante p/
    transcrição (strings novas nas duas línguas). — **prova:** checker i18n
    verde; manual: clicar "Converter…" gravando mostra a mensagem.
-3. [ ] **Balão de bandeja (F9):** `Tray.balloon(titulo, msg)` com `NIF_INFO`
+3. [x] **Balão de bandeja (F9):** `Tray.balloon(titulo, msg)` com `NIF_INFO`
    (flag `0x10`, `szInfo`/`szInfoTitle` já existem na struct); chamar em
    `_on_stream_error` e `_after_stop` quando `self._hidden`. — **prova:**
    manual: gravar pela bandeja com janela oculta, parar pela bandeja → balão
    "Salvo: …".
-4. [ ] **Abrir o .txt em um clique (F10):** após transcrição concluída
+4. [x] **Abrir o .txt em um clique (F10):** após transcrição concluída
    (fluxos rec e tr), mostrar link "Abrir transcrição" que chama
    `_abrir_arquivo(txt)`. — **prova:** manual: transcrever → link abre o
    .txt no editor padrão.
-5. [ ] **Debounce do ganho (F15):** persistir no `<ButtonRelease-1>` do
+5. [x] **Debounce do ganho (F15):** persistir no `<ButtonRelease-1>` do
    `VuMeter` (ou `after(500)` cancelável); `set_gain` do recorder continua
    imediato. — **prova:** manual: arrastar 3 s → mtime de
    `~/.reco_config.json` muda 1 vez, não dezenas (conferir com
    `(Get-Item ~/.reco_config.json).LastWriteTime` antes/depois).
-6. [ ] **Timer (F16):** guardar o id do `after` de `_tick_timer`/`_blink_dot`
+6. [x] **Timer (F16):** guardar o id do `after` de `_tick_timer`/`_blink_dot`
    e cancelar antes de reagendar em `_resume_rec`; trocar `time.time()` por
    `time.monotonic()` em `_start_ts`/`_elapsed`/`_pause_rec`/`_resume_rec`.
    — **prova:** `grep -n "time.time()" reco.py` → 0 no caminho do timer;

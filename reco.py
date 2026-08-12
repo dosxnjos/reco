@@ -341,6 +341,12 @@ _TR_EN = {
     "Não foi possível excluir.": "Couldn't delete.",
     "Rascunho ao vivo desativado — transcrição em andamento.":
         "Live draft disabled — a transcription is already running.",
+    "Termine a gravação para trocar de tela.":
+        "Finish the recording to switch screens.",
+    "Termine a transcrição para trocar de tela.":
+        "Finish the transcription to switch screens.",
+    "Termine a conversão para trocar de tela.":
+        "Finish the conversion to switch screens.",
     "Transcrição ao vivo (rascunho)": "Live transcription (draft)",
     "Fechando rascunho ao vivo…": "Closing live draft…",
     "Salvo: {n}  —  refinando a transcrição…":
@@ -413,6 +419,7 @@ _TR_EN = {
         "Conversion unavailable — install av.",
     "Vídeo": "Video",
     "Abrir pasta": "Open folder",
+    "Abrir transcrição": "Open transcription",
     "Selecione um arquivo e clique em Transcrever.":
         "Select a file and click Transcribe.",
     "Selecione um arquivo válido.": "Select a valid file.",
@@ -2358,11 +2365,12 @@ class VuMeter(tk.Canvas):
     BAR_H    = 5            # level-bar thickness
     HANDLE_W = 7
 
-    def __init__(self, parent, on_gain=None, **kw):
+    def __init__(self, parent, on_gain=None, on_release=None, **kw):
         kw.setdefault("width", 90)
         super().__init__(parent, height=self.H, bg=BG, bd=0,
                          highlightthickness=0, cursor="sb_h_double_arrow", **kw)
-        self._on_gain = on_gain
+        self._on_gain    = on_gain
+        self._on_release = on_release
         self._peak    = 0.0
         self._gain    = 1.0
         self._track   = self.create_rectangle(0, 0, 0, 0, fill=BORDER, outline="")
@@ -2372,6 +2380,11 @@ class VuMeter(tk.Canvas):
         self.bind("<Configure>", lambda _: self._draw())
         self.bind("<Button-1>", self._drag)
         self.bind("<B1-Motion>", self._drag)
+        # Persistência do ganho só no solto do botão (F15) — o recorder segue
+        # recebendo o ganho em tempo real a cada evento de arrasto (_drag), só
+        # o save_config (fsync síncrono) é que esperava dezenas de vezes por
+        # arrasto e agora espera o gesto terminar.
+        self.bind("<ButtonRelease-1>", self._release)
 
     def update_level(self, rms):
         self._peak = max(self._peak * self.DECAY, min(rms * 3.0, 1.0))
@@ -2395,6 +2408,10 @@ class VuMeter(tk.Canvas):
         self._draw()
         if self._on_gain:
             self._on_gain(self._gain)
+
+    def _release(self, e):
+        if self._on_release:
+            self._on_release(self._gain)
 
     def _draw(self):
         w  = max(self.winfo_width(), 1)
@@ -2463,6 +2480,8 @@ class App(tk.Tk):
         self._start_ts     = 0.0
         self._accum        = 0.0      # captured seconds before the current segment
         self._final_dur    = "00:00:00"
+        self._timer_after_id = None   # ids do `after` pendente (F16, guard duplicação)
+        self._dot_after_id   = None
         self._adv_shown    = False
         self._tr_win       = None
         self._tr_sel       = None
@@ -2689,7 +2708,8 @@ class App(tk.Tk):
             col.pack(side="left", fill="x", expand=True,
                      padx=(0, 5) if attr == "_vu_mic" else (5, 0))
             tk.Label(col, text=t(lbl), bg=BG, fg=SUBTLE, font=SEG_XS).pack(anchor="w")
-            vu = VuMeter(col, on_gain=lambda g, s=src: self._on_gain(s, g))
+            vu = VuMeter(col, on_gain=lambda g, s=src: self._on_gain(s, g),
+                        on_release=lambda g, s=src: self._on_gain_release(s, g))
             vu.pack(fill="x")
             # gain multiplier readout, centered under the bar
             mult = tk.Label(col, text="", bg=BG, fg=MUTED, font=SEG_XS)
@@ -2710,6 +2730,8 @@ class App(tk.Tk):
                 self._recorder.set_gain(mic=g)
             else:
                 self._recorder.set_gain(sys=g)
+
+    def _on_gain_release(self, src, g):
         self._cfg["mic_gain" if src == "mic" else "sys_gain"] = round(g, 4)
         save_config(self._cfg)
 
@@ -2758,6 +2780,18 @@ class App(tk.Tk):
         tk.Label(body, textvariable=self._status_var, bg=BG, fg=SUBTLE,
                  font=SEG_XS, wraplength=300, justify="left").pack(
                      anchor="w", pady=(6, 0))
+
+        # Botão de cancelar para a transcrição disparada pelo ⚡ da própria tela
+        # de gravação (F7) — sem isso, uma transcrição longa iniciada por aqui
+        # não tinha como ser interrompida pela UI (o ⬛ Parar só existe na view
+        # "tr"). Escondido por padrão; _rec_show_stop_tr o mostra/esconde.
+        self._rec_stop_tr = self._btn(body, t("⬛  Parar"),
+                                       self._stop_transcription, danger=True)
+
+        # Link de acesso direto ao .txt pronto (F10) — o produto do app é a
+        # transcrição; antes só dava pra abrir indo pra view "tr" > "Abrir pasta".
+        self._rec_open_txt = self._link(body, t("Abrir transcrição"),
+                                        lambda: None, fg=ACCENT)
 
         # Painel de texto ao vivo (Fase 3) — só aparece durante uma gravação com
         # "live" ligado. Rola conforme chega; nenhum peso de fonte acima de 600
@@ -3216,12 +3250,13 @@ class App(tk.Tk):
             return
 
         self._state    = RECORDING
-        self._start_ts = time.time()
+        self._start_ts = time.monotonic()
         self._accum    = 0.0
         self._set_rec_state(RECORDING)
         self._vu_mic.reset()
         self._vu_sys.reset()
         self._set_combos_enabled(False)
+        self._show_open_txt(self._rec_open_txt, None)  # limpa link do .txt anterior
 
         # Modo ao vivo (Fase 3, Dec2): rascunho durante a gravação, substituído
         # pela passada final ao parar. A escolha trava no início — mudar o
@@ -3280,12 +3315,16 @@ class App(tk.Tk):
         if self._state != RECORDING:
             return
         if src == "save":                       # couldn't open the MP3 for writing
-            self._abort_to_idle(tf("Erro ao salvar: {m}", m=msg[:80]))
+            erro = tf("Erro ao salvar: {m}", m=msg[:80])
+            self._abort_to_idle(erro)
+            self._balloon_if_hidden(erro)
             return
         which = t("microfone") if src == "mic" else t("áudio do sistema")
         if self._recorder and self._recorder.all_failed():
-            self._abort_to_idle(tf("Nenhuma fonte pôde ser capturada ({which}): {m}",
-                                   which=which, m=msg[:60]))
+            erro = tf("Nenhuma fonte pôde ser capturada ({which}): {m}",
+                      which=which, m=msg[:60])
+            self._abort_to_idle(erro)
+            self._balloon_if_hidden(erro)
         else:
             self._status(tf("Falha ao capturar {which} (a outra fonte continua).",
                             which=which))
@@ -3307,7 +3346,7 @@ class App(tk.Tk):
 
     def _stop_rec(self):
         if self._state == RECORDING:            # bank the running segment first
-            self._accum += time.time() - self._start_ts
+            self._accum += time.monotonic() - self._start_ts
         self._state = BUSY
         self._set_rec_state(BUSY)
         self._status(t("Salvando…"))
@@ -3366,6 +3405,13 @@ class App(tk.Tk):
         else:
             self._live_show(False)
             self._status(tf("Salvo: {n}  —  Escolha o que fazer:", n=path.name))
+        self._balloon_if_hidden(tf("Salvo: {n}", n=path.name))
+
+    def _balloon_if_hidden(self, msg: str):
+        """Erro/conclusão com a janela na bandeja (F9): status numa janela
+        `withdraw()` é invisível — o balão é o único jeito de o usuário saber."""
+        if self._hidden and self._tray:
+            self._tray.balloon("Reco", msg[:255])
 
     def _run_live_final_pass(self, path: Path):
         def done(text, err):
@@ -3384,8 +3430,10 @@ class App(tk.Tk):
                     self._live_append("", linha)
             if txt:
                 self._status(tf("Transcrição final pronta: {n}", n=txt.name))
+                self._show_open_txt(self._rec_open_txt, txt)
             else:
                 self._status(t("Transcrição final pronta (falha ao salvar o .txt)."))
+        self._show_open_txt(self._rec_open_txt, None)
         self._run_transcriber(path, self._status, done)
 
     def _conclude_save(self):
@@ -3425,7 +3473,7 @@ class App(tk.Tk):
     # ── timer / VU ──────────────────────────────────────────────────────────────
     def _elapsed(self) -> int:
         """Seconds of audio actually captured — paused time doesn't count."""
-        run = (time.time() - self._start_ts) if self._state == RECORDING else 0.0
+        run = (time.monotonic() - self._start_ts) if self._state == RECORDING else 0.0
         return int(self._accum + run)
 
     def _fmt_dur(self, secs: int) -> str:
@@ -3434,13 +3482,22 @@ class App(tk.Tk):
         return f"{h:02d}:{m:02d}:{s:02d}"
 
     def _tick_timer(self):
+        # Cancela o `after` pendente antes de reagendar (F16) — sem isso,
+        # pausar/retomar antes do tick disparar duplicava o loop (o cosmético
+        # "pisca-pisca acelera").
+        if self._timer_after_id is not None:
+            self.after_cancel(self._timer_after_id)
+            self._timer_after_id = None
         if self._state != RECORDING:
             return
         self._timer_var.set(self._fmt_dur(self._elapsed()))
         self._sync_tray()             # tray tooltip counts up while hidden
-        self.after(1000, self._tick_timer)
+        self._timer_after_id = self.after(1000, self._tick_timer)
 
     def _blink_dot(self):
+        if self._dot_after_id is not None:
+            self.after_cancel(self._dot_after_id)
+            self._dot_after_id = None
         if self._state == PAUSED:
             self._dot.config(fg=AMBER)        # steady amber = paused
             return
@@ -3448,13 +3505,13 @@ class App(tk.Tk):
             return
         fg = self._dot.cget("fg")
         self._dot.config(fg=BG if fg == RED_C else RED_C)
-        self.after(600, self._blink_dot)
+        self._dot_after_id = self.after(600, self._blink_dot)
 
     # ── pause / resume ──────────────────────────────────────────────────────────
     def _pause_rec(self):
         if self._state != RECORDING or not self._recorder:
             return
-        self._accum += time.time() - self._start_ts   # freeze the clock
+        self._accum += time.monotonic() - self._start_ts   # freeze the clock
         self._recorder.pause()
         self._state = PAUSED
         self._set_rec_state(PAUSED)
@@ -3467,7 +3524,7 @@ class App(tk.Tk):
     def _resume_rec(self):
         if self._state != PAUSED or not self._recorder:
             return
-        self._start_ts = time.time()
+        self._start_ts = time.monotonic()
         self._recorder.resume()
         self._state = RECORDING
         self._set_rec_state(RECORDING)
@@ -3537,6 +3594,7 @@ class App(tk.Tk):
             return False
 
         def done(text, err):
+            self._rec_show_stop_tr(False)
             if err == CANCELLED:
                 self._status(t("Transcrição cancelada."))
                 return
@@ -3555,8 +3613,13 @@ class App(tk.Tk):
                 self._status(tf("Transcrição salva: {n}. Áudio excluído.", n=txt.name))
             else:
                 self._status(tf("Transcrição salva: {n}", n=txt.name))
+            self._show_open_txt(self._rec_open_txt, txt)
 
-        return self._run_transcriber(path, self._status, done)
+        self._show_open_txt(self._rec_open_txt, None)
+        if self._run_transcriber(path, self._status, done):
+            self._rec_show_stop_tr(True)
+            return True
+        return False
 
     # ── inline transcribe section (expands the window; no separate window) ───────
     def _build_transcribe_section(self, body):
@@ -3592,15 +3655,24 @@ class App(tk.Tk):
                  font=SEG_XS, wraplength=300, justify="left").pack(
                      anchor="w", pady=(8, 0))
 
+        # Link de acesso direto ao .txt pronto (F10) — mesmo padrão da view rec.
+        self._tr_open_txt = self._link(sec, t("Abrir transcrição"),
+                                       lambda: None, fg=ACCENT)
+
     def _toggle_view(self, view: str):
         # Record / transcribe / convert are exclusive views — one replaces the
         # other in place. Clicking the link of the current view goes back to Record.
         self._show_view("rec" if self._view == view else view)
 
     def _show_view(self, view: str):
-        if self._state in (RECORDING, PAUSED, BUSY) or self._transcribing:
+        if self._state in (RECORDING, PAUSED, BUSY):
+            self._status(t("Termine a gravação para trocar de tela."))
+            return
+        if self._transcribing:
+            self._status(t("Termine a transcrição para trocar de tela."))
             return
         if getattr(self, "_extracting", False):
+            self._status(t("Termine a conversão para trocar de tela."))
             return
         if view == "tr" and not self._tr_sel and self._last_rec and self._last_rec.exists():
             self._tr_sel = self._last_rec
@@ -3629,6 +3701,21 @@ class App(tk.Tk):
         else:
             self._tr_stop.pack_forget()
             self._tr_btn.config(state="normal")
+
+    def _rec_show_stop_tr(self, on):
+        if on:
+            self._rec_stop_tr.pack(anchor="w", pady=(6, 0))
+        else:
+            self._rec_stop_tr.pack_forget()
+
+    def _show_open_txt(self, link, txt_path):
+        """Mostra o link "Abrir transcrição" (F10) apontando pro .txt pronto;
+        `txt_path=None` esconde (nova transcrição iniciada, erro etc.)."""
+        link.pack_forget()
+        if txt_path is None:
+            return
+        link.bind("<Button-1>", lambda e, p=txt_path: _abrir_arquivo(p))
+        link.pack(anchor="w", pady=(4, 0))
 
     def _tr_browse(self):
         media = " ".join(f"*{e}" for e in sorted(AUDIO_EXTS | VIDEO_EXTS))
@@ -3761,7 +3848,9 @@ class App(tk.Tk):
             txt = self._autosave_txt(path, text)
             self._tr_set_status(tf("Salvo: {n}", n=txt.name) if txt
                                 else t("Transcrito, mas falha ao salvar o .txt."))
+            self._show_open_txt(self._tr_open_txt, txt)
 
+        self._show_open_txt(self._tr_open_txt, None)
         if self._run_transcriber(path, self._tr_set_status, done):
             self._tr_show_stop(True)
 

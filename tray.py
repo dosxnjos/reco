@@ -34,7 +34,8 @@ WM_RBUTTONUP    = 0x0205
 WM_TRAY         = 0x8000 + 1          # WM_APP + 1 (our callback message)
 
 NIM_ADD, NIM_MODIFY, NIM_DELETE = 0, 1, 2
-NIF_MESSAGE, NIF_ICON, NIF_TIP  = 0x01, 0x02, 0x04
+NIF_MESSAGE, NIF_ICON, NIF_TIP, NIF_INFO = 0x01, 0x02, 0x04, 0x10
+NIIF_INFO = 0x01
 IMAGE_ICON      = 1
 LR_LOADFROMFILE = 0x0010
 MF_STRING       = 0x0000
@@ -239,6 +240,15 @@ class Tray:
         if text != self._tip:
             self._tip = text
             self._notify(NIM_MODIFY)
+
+    def balloon(self, title: str, msg: str):
+        """Notificação (balão) da bandeja — para erro/conclusão com a janela
+        oculta (F9): o tooltip não avisa nada por si só, precisa ser lido."""
+        nid = self._nid(NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_INFO)
+        nid.szInfoTitle = title[:63]
+        nid.szInfo = msg[:255]
+        nid.dwInfoFlags = NIIF_INFO
+        shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(nid))
 
     def icon_rect(self):
         """Screen rect of the icon in *logical* pixels, or None.
