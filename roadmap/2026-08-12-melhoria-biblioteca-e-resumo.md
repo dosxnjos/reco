@@ -63,13 +63,14 @@ estilos `D.Treeview*` removidos na Fase 5 voltam, agora com consumidor real.
 1. [x] README (EN+PT): bullets da biblioteca e do resumo (deixando claro:
    resumo é opcional e usa o `claude` local do usuário); `CLAUDE.md` §
    novo curto. — **prova:** `grep -in "resumo\|library" README.md`.
-2. [ ] `build.ps1` (exe fechado), commits, índice de roadmaps regenerado,
+2. [x] `build.ps1` (exe fechado), commits, índice de roadmaps regenerado,
    diário + hub. — **prova:** build verde; `git log`.
-   **Parcial em 12/08:** commits, índice (com o gerador do cérebro corrigido
-   para reconhecer `1. [x]`), diário e hub feitos; **recompilação pendente** —
-   `Reco.exe` (PID 13684) estava aberto e processo em uso não se mata
-   (precedente de 07/08). Rodar `build.ps1` quando o Gabriel fechar o app;
-   até lá o exe distribuído NÃO tem a biblioteca nem o resumo.
+   **Fechado em 12/08, em dois tempos:** commits, índice (gerador do cérebro
+   corrigido para reconhecer `1. [x]`), diário e hub saíram primeiro;
+   a recompilação ficou bloqueada por `Reco.exe` aberto (PID 13684 —
+   processo em uso não se mata, precedente de 07/08) e rodou assim que o
+   Gabriel fechou o app: build verde (835,2 MB), `--selftest` do exe
+   congelado OK (`frozen=True`, backend openvino, AUTO→GPU).
 
 > Executado em 12/08/2026, mesma sessão: smoke test com Tk real listou 30
 > gravações e a busca filtrou; `check_i18n` verde (ganhou o padrão
