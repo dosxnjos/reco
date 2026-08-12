@@ -150,6 +150,10 @@ class Tray:
         # Explorer restarts (crash / update) drop every tray icon; it broadcasts
         # TaskbarCreated so apps can re-add theirs.
         self._wm_taskbar_created = user32.RegisterWindowMessageW("TaskbarCreated")
+        # Instância única (F6): a 2ª instância manda essa mensagem pro
+        # HWND_BROADCAST e sai — a 1ª trata como um clique no ícone (mostra/
+        # ativa a janela) em vez de abrir uma 2ª bandeja disputando dispositivo.
+        self._wm_show = user32.RegisterWindowMessageW("Reco.Show")
 
         self._uid = 1
         if not self._notify(NIM_ADD):
@@ -183,6 +187,8 @@ class Tray:
                     self._show_menu()
             elif msg == self._wm_taskbar_created and self.alive:
                 self._notify(NIM_ADD)
+            elif msg == self._wm_show and self._on_click:
+                self._on_click()
             elif msg == WM_DESTROY:
                 self.remove()
         except Exception:

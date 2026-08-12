@@ -371,6 +371,8 @@ _TR_EN = {
     "Transcrevendo… {p}%": "Transcribing… {p}%",
     "Baixando modelo '{size}' (primeira vez)…":
         "Downloading model '{size}' (first time)…",
+    "Sem internet — usando o modelo '{size}' embutido.":
+        "No internet — using the bundled '{size}' model.",
     "Preparando modelo no {dev}…": "Preparing model on {dev}…",
     "Carregando áudio…": "Loading audio…",
     "Atualizando modelo…": "Updating model…",
@@ -1090,6 +1092,10 @@ def _find_model_dir(size: str | None = None) -> Path | None:
         for d in valid:
             if f"whisper-{size}-" in d.name:
                 return d
+        return None    # pedido explícito sem match — NÃO cai silenciosamente
+                       # no primeiro modelo válido (F5): quem pediu turbo não
+                       # pode acabar preso no small bundlado sem saber (era o
+                       # bug: máquina nova nunca baixava o modelo pedido).
     return valid[0] if valid else None
 
 
@@ -1104,7 +1110,13 @@ def _write_revision(d: Path, repo: str):
 
 
 def ensure_ov_model(size: str, progress=None) -> Path:
-    """Local dir with the OV IR model; bundled, updated, or downloaded on demand."""
+    """Local dir with the OV IR model; bundled, updated, or downloaded on demand.
+
+    F5: `_find_model_dir(size)` só acha um match exato — se o pedido for
+    'large-v3-turbo' e só houver 'small' no disco, baixa de verdade em vez de
+    usar o 'small' em silêncio. Se o download falhar (offline), cai pro melhor
+    modelo válido existente, mas com status explícito — o usuário sabe que não
+    é o modelo pedido, em vez de achar que é."""
     d = _find_model_dir(size)
     if d is not None:
         return d
@@ -1114,9 +1126,18 @@ def ensure_ov_model(size: str, progress=None) -> Path:
     repo = ov_model_repo(size)
     dest = _user_data_dir() / "models" / f"whisper-{size}-int8-ov"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    snapshot_download(repo, local_dir=str(dest))
-    _write_revision(dest, repo)
-    return dest
+    try:
+        snapshot_download(repo, local_dir=str(dest))
+        _write_revision(dest, repo)
+        return dest
+    except Exception:
+        fallback = _find_model_dir(None)
+        if fallback is None:
+            raise
+        if progress:
+            progress(tf("Sem internet — usando o modelo '{size}' embutido.",
+                        size=fallback.name.replace("whisper-", "").replace("-int8-ov", "")))
+        return fallback
 
 
 def _dir_writable(d: Path) -> bool:
@@ -4200,5 +4221,22 @@ if __name__ == "__main__":
                pkgs=" ".join(missing), app=APP_TITLE))
         _root.destroy()
         sys.exit(1)
+
+    # Instância única (F6): o atalho Ctrl+Shift+R é um .lnk que LANÇA o exe —
+    # apertar com o Reco já aberto abria uma 2ª instância (bandeja duplicada,
+    # disputando os mesmos dispositivos de áudio). --selftest/--transcribe já
+    # saíram (sys.exit) antes de chegar aqui, então nunca criam o mutex.
+    if os.name == "nt":
+        ERROR_ALREADY_EXISTS = 183
+        HWND_BROADCAST = 0xFFFF
+        _mutex = ctypes.windll.kernel32.CreateMutexW(
+            None, False, "Local\\Reco.SingleInstance")
+        # `ctypes.windll.*` não usa `use_last_error=True` — GetLastError() direto
+        # é o jeito certo de ler o erro de verdade logo após a chamada anterior.
+        if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+            wm_show = ctypes.windll.user32.RegisterWindowMessageW("Reco.Show")
+            ctypes.windll.user32.PostMessageW(HWND_BROADCAST, wm_show, 0, 0)
+            sys.exit(0)
+
     App().mainloop()
     os._exit(0)     # see App._quit: native OpenVINO/WASAPI threads can hang exit

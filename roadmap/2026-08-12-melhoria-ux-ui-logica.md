@@ -249,7 +249,7 @@ Rodar os comandos com o Python do venv do projeto (`C:\Dev\Reco`).
 
 ### Fase 4 — comportamento: modelo e instância única
 
-1. [ ] **Modelo exato, fallback explícito (F5):** `_find_model_dir(size)`
+1. [x] **Modelo exato, fallback explícito (F5):** `_find_model_dir(size)`
    passa a devolver `None` quando `size` foi pedido e não há match (remover o
    fallback `valid[0]` do caminho com `size`). `ensure_ov_model` então baixa
    (fluxo e strings de progresso já existem); se o download falhar (offline),
@@ -261,11 +261,11 @@ Rodar os comandos com o Python do venv do projeto (`C:\Dev\Reco`).
    `_bundled_models_dir` e afirma: pedido `small` → acha; pedido
    `large-v3-turbo` → `None`. Roda no CI de bolso: `python
    tools/test_model_dir.py` → `OK`.
-2. [ ] **README junto (F5/F17):** ajustar a promessa "fully offline": o
+2. [x] **README junto (F5/F17):** ajustar a promessa "fully offline": o
    bundle traz `small` (fallback offline); o default `large-v3-turbo` baixa
    ~0,8 GB na primeira transcrição. — **prova:** `grep -in "offline"
    README.md` reflete o novo texto nas duas línguas.
-3. [ ] **Instância única (F6):** no `__main__` (antes de `App()`),
+3. [x] **Instância única (F6):** no `__main__` (antes de `App()`),
    `CreateMutexW(None, False, "Local\\Reco.SingleInstance")`; se
    `GetLastError()==183` (ERROR_ALREADY_EXISTS), fazer
    `PostMessageW(HWND_BROADCAST, RegisterWindowMessageW("Reco.Show"), 0, 0)`

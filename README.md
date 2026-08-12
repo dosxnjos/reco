@@ -80,8 +80,11 @@ Transcription backend: `openvino` + `openvino-genai` + `openvino-tokenizers`
 ./build.ps1 -Clean      # -> dist/Reco/Reco.exe  (folder, ~810 MB)
 ```
 Onedir build: ship the whole **`dist/Reco/`** folder and run `Reco.exe` inside it.
-It's **plug-n-play** — no Python, no ffmpeg, the OpenVINO runtime and the Whisper
-model are bundled, so it works **fully offline**. The VC++ runtime is included too.
+It's **plug-n-play** — no Python, no ffmpeg, the OpenVINO runtime is bundled and
+the VC++ runtime is included too. The **`small`** Whisper model ships in the
+bundle as an offline fallback; the **default model is `large-v3-turbo`**, which
+downloads (~0.8 GB) the first time you transcribe — no internet, no download,
+and it uses `small` instead.
 
 ### How it works
 - Capture uses `soundcard` (WASAPI): each physical device is listed once, mics and
@@ -177,9 +180,11 @@ Backend de transcrição: `openvino` + `openvino-genai` + `openvino-tokenizers`
 ./build.ps1 -Clean      # -> dist/Reco/Reco.exe  (pasta, ~810 MB)
 ```
 Build onedir: distribua a pasta **`dist/Reco/`** inteira e rode o `Reco.exe` de
-dentro dela. É **plug-n-play** — sem Python, sem ffmpeg; o runtime do OpenVINO e o
-modelo Whisper vão embutidos, então funciona **100% offline**. O runtime do VC++
-também está incluso.
+dentro dela. É **plug-n-play** — sem Python, sem ffmpeg; o runtime do OpenVINO
+vai embutido, e o runtime do VC++ também está incluso. O modelo Whisper
+**`small`** vai no bundle como fallback offline; o **modelo padrão é o
+`large-v3-turbo`**, que baixa (~0,8 GB) na primeira transcrição — sem internet,
+sem download, e usa o `small` no lugar.
 
 ### Como funciona
 - A captura usa `soundcard` (WASAPI): cada dispositivo físico aparece uma vez, mics
