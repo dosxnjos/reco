@@ -93,7 +93,8 @@ Medições e alternativas descartadas:
   o VU meter reflete o nível já ganhado e o multiplicador aparece
   embaixo da barra (`fmt_gain`, ex. "1,0x"). Persistido em `~/.reco_config.json`
   (`mic_gain`/`sys_gain`). Helpers `gain_to_frac`/`frac_to_gain`/`fmt_gain` e
-  constantes `GAIN_MIN/UNITY/MAX/STEP`. Ver `docs/CONSOLIDADO-2026-07-15.md`.
+  constantes `GAIN_MIN/UNITY/MAX/STEP`. Decisão e medições:
+  [`roadmap/2026-07-15-ganho-por-canal.md`](roadmap/2026-07-15-ganho-por-canal.md).
 - **Transcrição:** `OVTranscriber`, in-process. Modelo padrão **`large-v3-turbo`**
   e device `AUTO` → **iGPU** (`resolve_device`, ordem `GPU → NPU → CPU`). As duas
   coisas foram **medidas em 29/07/2026**, não escolhidas por intuição — antes eram
@@ -129,6 +130,21 @@ Medições e alternativas descartadas:
   por compressão zlib (> 2,4) e n-grama repetido (> 3×), refaz com temperatura
   0,2/0,4/0,6 e **descarta a janela** se tudo degenerar. Não substituir por
   parâmetro de config achando que existe um.
+- **Modelo pedido sem match não cai em silêncio no bundlado (12/08/2026):**
+  `_find_model_dir(size)` devolve `None` (não mais o primeiro modelo válido)
+  quando o `size` pedido não existe no disco — `ensure_ov_model` baixa de
+  verdade nesse caso; só usa o modelo bundlado (`small`) como fallback se o
+  download falhar (offline), com status explícito. Antes, máquina nova
+  transcrevia para sempre com `small` achando que usava `large-v3-turbo`.
+- **Exclusão de gravação vai pra Lixeira (12/08/2026):** `_excluir_gravacao()`
+  usa `SHFileOperationW` com `FOF_ALLOWUNDO` (ctypes, sem dependência nova);
+  fallback `unlink()` fora do Windows ou se o shell recusar.
+- **Instância única (12/08/2026):** mutex `Local\Reco.SingleInstance`
+  (`CreateMutexW`) no `__main__`; uma 2ª instância detecta
+  `ERROR_ALREADY_EXISTS`, manda a mensagem registrada `Reco.Show` pro
+  `HWND_BROADCAST` e sai — `tray._wnd_proc` trata isso como um clique no
+  ícone (mostra/ativa a janela da 1ª). `--selftest`/`--transcribe` saem antes
+  desse ponto e nunca criam o mutex.
 - **Cancelamento de eco (`cancel_echo`):** mínimos quadrados em blocos de 2 s com
   6 taps + pós-supressão residual. Entrega **~7 dB** de ERLE no áudio real (a
   versão anterior entregava ~3, apesar de "37 dB validados" — em eco sintético).

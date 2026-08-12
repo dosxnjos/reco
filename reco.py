@@ -97,9 +97,6 @@ SEG_LG = ("Segoe UI Semibold", 13)
 def default_output_dir() -> Path:
     return Path.home() / "Documents" / "Reco"
 
-# Default save location (overridable in Options). Resolved from config at runtime.
-OUTPUT_DIR = default_output_dir()
-
 # ── Config persistence ─────────────────────────────────────────────────────────
 CONFIG_PATH = Path.home() / ".reco_config.json"
 
@@ -1419,7 +1416,7 @@ class DualRecorder:
 
     @staticmethod
     def _new_writer(out_sr, out_channels, bitrate, out_dir) -> "MP3Writer":
-        folder = Path(out_dir) if out_dir else OUTPUT_DIR
+        folder = Path(out_dir) if out_dir else default_output_dir()
         folder.mkdir(parents=True, exist_ok=True)
         # 'reco' marks this as a dual-channel (mic+system) recording (see RECO_TAG).
         prefix = "gravacao_reco" if LANG == "pt" else "recording_reco"
@@ -2504,7 +2501,6 @@ class App(tk.Tk):
         self._timer_after_id = None   # ids do `after` pendente (F16, guard duplicação)
         self._dot_after_id   = None
         self._adv_shown    = False
-        self._tr_win       = None
         self._tr_sel       = None
         self._cv_sel       = None
         self._extracting   = False
@@ -2643,20 +2639,6 @@ class App(tk.Tk):
         s.configure("D.TCombobox",  font=SEG_SM)
         s.configure("Sm.TCombobox", font=SEG_SM)
         s.configure("XS.TCombobox", font=SEG_XS)
-        s.configure("D.Treeview",
-            background=CARD, foreground=TEXT, fieldbackground=CARD,
-            borderwidth=0, relief="flat", rowheight=26, font=SEG_SM)
-        s.configure("D.Treeview.Heading",
-            background=BG, foreground=MUTED, relief="flat",
-            font=SEG_XS, borderwidth=0, padding=(6, 4))
-        s.map("D.Treeview",
-            background=[("selected", CARD_A)],
-            foreground=[("selected", TEXT)])
-        s.map("D.Treeview.Heading",
-            background=[("active", CARD)], relief=[("active", "flat")])
-        s.configure("D.Vertical.TScrollbar",
-            background=CARD_H, troughcolor=CARD, arrowcolor=SUBTLE,
-            borderwidth=0, gripcount=0)
 
     # ── widget factories ───────────────────────────────────────────────────────
     def _btn(self, parent, text, cmd, primary=False, danger=False, **kw):
@@ -2679,7 +2661,13 @@ class App(tk.Tk):
                if str(b.cget("state")) != "disabled" else None)
         return b
 
-    def _link(self, parent, text, cmd, fg=SUBTLE, font=SEG_XS):
+    def _link(self, parent, text, cmd, fg=None, font=None):
+        # fg/font resolvidos no CORPO, não no default-arg (F13): um default-arg
+        # avalia SUBTLE uma vez no import, com o tema escuro inicial — depois
+        # de trocar pro tema claro, todo link sem fg explícito ficava preso na
+        # cor do tema escuro.
+        fg = fg or SUBTLE
+        font = font or SEG_XS
         lb = tk.Label(parent, text=text, bg=BG, fg=fg, cursor="hand2", font=font)
         lb.bind("<Button-1>", lambda e: cmd())
         return lb
@@ -3061,14 +3049,7 @@ class App(tk.Tk):
         self._rebuild_ui()
 
     def _rebuild_ui(self):
-        # Rebuild the whole UI (used on language/theme change). Aux windows were
-        # built with the old language/theme, so close them.
-        try:
-            if self._tr_win is not None and self._tr_win.winfo_exists():
-                self._tr_win.destroy()
-        except Exception:
-            pass
-        self._tr_win = None
+        # Rebuild the whole UI (used on language/theme change).
         for c in self.winfo_children():
             c.destroy()
         self._adv_shown = False

@@ -277,25 +277,25 @@ Rodar os comandos com o Python do venv do projeto (`C:\Dev\Reco`).
 
 ### Fase 5 — limpeza (via-negativa) e docs
 
-1. [ ] **Código morto (F14):** remover `_tr_win` (3 pontos), estilos
+1. [x] **Código morto (F14):** remover `_tr_win` (3 pontos), estilos
    `D.Treeview*`/`D.Vertical.TScrollbar` se o grep confirmar zero uso,
    global `OUTPUT_DIR` (fallback de `_new_writer` vira
    `default_output_dir()`). — **prova:** `grep -n "_tr_win\|D.Treeview\|
    OUTPUT_DIR" reco.py` → 0; `python -c "import reco"`; build verde.
-2. [ ] **`_link` com cor viva (F13):** assinatura `fg=None, font=None` e
+2. [x] **`_link` com cor viva (F13):** assinatura `fg=None, font=None` e
    resolver `fg = fg or SUBTLE` / `font = font or SEG_XS` no corpo. —
    **prova:** manual: tema claro → "⚙ Opções" usa o cinza do tema claro
    (`#5C5C66`), conferível de olho contra os links vizinhos.
-3. [ ] **Ponteiros de doc (F17):** no `CLAUDE.md` do projeto, trocar a
+3. [x] **Ponteiros de doc (F17):** no `CLAUDE.md` do projeto, trocar a
    referência a `docs/CONSOLIDADO-2026-07-15.md` pelo destino vivo (a seção
    de ganho do próprio CLAUDE.md se basta; senão apontar o roadmap
    `2026-07-15-ganho-por-canal.md`) e registrar as decisões novas (lixeira,
    instância única, fallback de modelo). — **prova:**
    `pwsh C:\Dev\cerebro\scripts\check-links.ps1` não acusa link novo quebrado.
-4. [ ] **Screenshot (F17):** rodar o app recompilado e recapturar
+4. [x] **Screenshot (F17):** rodar o app recompilado e recapturar
    `docs/screenshot.png` (janela principal, tema default). — **prova:**
    manual; `git log -1 --stat docs/screenshot.png` mostra a troca.
-5. [ ] **Fechamento:** regenerar o índice (`python
+5. [x] **Fechamento:** regenerar o índice (`python
    C:\Dev\cerebro\scripts\gerar_indice_roadmaps.py C:\Dev\Reco\roadmap
    --escrever`), marcar `[x]` aqui, consolidar no diário do dia. —
    **prova:** `roadmap/README.md` lista este arquivo como fechado.
