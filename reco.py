@@ -4119,8 +4119,14 @@ class App(tk.Tk):
         def run():
             try:
                 texto = txt.read_text(encoding="utf-8", errors="ignore")
+                # --model sonnet, cravado: sem a flag, o `claude -p` herda o
+                # default da máquina — aqui era Fable 5 (contexto 1M) em effort
+                # xhigh, o tier mais caro que existe, para um resumo de reunião.
+                # Sonnet é o meio-termo certo pra sumarização; quem preferir
+                # haiku (mais barato) ou o default da máquina, troca AQUI.
                 r = subprocess.run(
-                    [cli, "-p", PROMPT_RESUMO["pt" if LANG == "pt" else "en"]],
+                    [cli, "-p", PROMPT_RESUMO["pt" if LANG == "pt" else "en"],
+                     "--model", "sonnet"],
                     input=texto, capture_output=True, text=True,
                     encoding="utf-8", errors="replace", timeout=900,
                     **_no_window_kwargs())

@@ -178,11 +178,15 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
   ▶ ⚡ 📄 ✦ ✕ (✕ = Lixeira; o `.txt`/`.resumo.md` ficam — o transcript
   sobrevive ao áudio). **O filesystem é o banco** (mp3 + .txt + .resumo.md
   lado a lado) — sem SQLite, de propósito.
-- **✦ Resumo IA**: roda `claude -p` (CLI do Claude Code do usuário, via
-  `shutil.which`) com a transcrição no stdin e salva `<gravação>.resumo.md`;
-  se já existe, abre (refazer = excluir o .md). Sem CLI → status claro; o app
-  segue 100% funcional sem ele. Prompt em `PROMPT_RESUMO`; opt-in por clique,
-  nunca automático (consome a assinatura do usuário).
+- **✦ Resumo IA**: roda `claude -p --model sonnet` (CLI do Claude Code do
+  usuário, via `shutil.which`) com a transcrição no stdin e salva
+  `<gravação>.resumo.md`; se já existe, abre (refazer = excluir o .md). Sem
+  CLI → status claro; o app segue 100% funcional sem ele. Prompt em
+  `PROMPT_RESUMO`; opt-in por clique, nunca automático (consome a assinatura
+  do usuário). ⚠️ **O `--model sonnet` é cravado de propósito**: sem a flag, o
+  `-p` herda o default da máquina — que aqui era Fable 5 (1M) em effort
+  xhigh, o tier mais caro possível, para um resumo de reunião. Trocar o
+  modelo = editar a flag em `_lib_resumo`, nunca removê-la.
 - Origem, análise de mercado (Meetily/Char/anarlog/OGAD) e os NÃO-fazer
   (tela no Windows, LLM embarcado, SQLite, notepad):
   [roadmap/2026-08-12-melhoria-biblioteca-e-resumo.md](roadmap/2026-08-12-melhoria-biblioteca-e-resumo.md).
