@@ -24,6 +24,7 @@ import json
 import os
 import ctypes
 import subprocess
+import shutil
 from fractions import Fraction
 from pathlib import Path
 
@@ -419,6 +420,26 @@ _TR_EN = {
     "Vídeo": "Video",
     "Abrir pasta": "Open folder",
     "Abrir transcrição": "Open transcription",
+    # recordings library (view "Gravações…")
+    "Gravações…": "Recordings…",
+    "GRAVAÇÕES": "RECORDINGS",
+    "Buscar:": "Search:",
+    "Arquivo": "File",
+    "Data": "Date",
+    "Duração": "Length",
+    "↺ Atualizar": "↺ Refresh",
+    "Lendo gravações…": "Reading recordings…",
+    "Nenhuma gravação encontrada.": "No recordings found.",
+    "Selecione uma gravação.": "Select a recording.",
+    "Enviada para a Lixeira: {n}": "Sent to the Recycle Bin: {n}",
+    # AI summary (library ✦ action, via the user's Claude Code CLI)
+    "✦  Resumo IA": "✦  AI summary",
+    "Gerando resumo com o Claude…": "Generating the summary with Claude…",
+    "Resumo salvo: {n}": "Summary saved: {n}",
+    "Falha ao gerar o resumo: {e}": "Summary failed: {e}",
+    "Resumo indisponível — instale o Claude Code (comando 'claude').":
+        "Summary unavailable — install Claude Code (the 'claude' command).",
+    "Já há um resumo em andamento.": "A summary is already running.",
     "Selecione um arquivo e clique em Transcrever.":
         "Select a file and click Transcribe.",
     "Selecione um arquivo válido.": "Select a valid file.",
@@ -1215,6 +1236,28 @@ PROMPTS = {
     "pt": ("Reunião de trabalho em português brasileiro com alguns termos "
            "técnicos em inglês. Nomes de marcas e siglas em inglês são comuns."),
     "en": ("Work meeting in English with some product names and acronyms."),
+}
+
+# Prompt do resumo IA (ação ✦ da biblioteca). Roda via `claude -p` — o CLI do
+# Claude Code que o usuário já tem — com a transcrição no stdin: sem chave de
+# API no app, sem rede própria, e tudo segue funcional sem o CLI (decisão de
+# 02/08/2026, hub do projeto: camada de IA pessoal via claude -p, nunca LLM
+# embarcado no bundle). A saída vira <gravação>.resumo.md ao lado do áudio.
+PROMPT_RESUMO = {
+    "pt": ("Você recebe no stdin a transcrição de uma reunião. As falas podem "
+           "vir rotuladas por 'Eu' (quem gravou) e 'Interlocutor(es)' (o outro "
+           "lado). Escreva em português, em markdown puro, exatamente estas "
+           "seções: '## Resumo' (3-6 frases), '## Decisões' (bullets; 'nenhuma "
+           "registrada' se não houver) e '## Pendências e próximos passos' "
+           "(bullets, com o dono quando o texto disser). Seja fiel ao texto; "
+           "não invente nomes nem fatos. Responda só com o markdown."),
+    "en": ("You receive a meeting transcript on stdin. Lines may be labeled "
+           "'Me' (the recorder) and 'Speaker(s)' (the other side). Write in "
+           "English, plain markdown, exactly these sections: '## Summary' "
+           "(3-6 sentences), '## Decisions' (bullets; 'none recorded' if "
+           "empty) and '## Action items' (bullets, with owners when stated). "
+           "Stay faithful to the text; invent no names or facts. Reply with "
+           "the markdown only."),
 }
 
 # Speaker labels for channel-based diarization (mic = you; system loopback = who-
@@ -2504,7 +2547,17 @@ class App(tk.Tk):
         self._tr_sel       = None
         self._cv_sel       = None
         self._extracting   = False
-        self._view         = "rec"    # "rec" | "tr" | "cv" (exclusive views)
+        self._view         = "rec"    # "rec" | "tr" | "cv" | "lib" (exclusive views)
+        # Biblioteca de gravações: caches sobrevivem ao _rebuild_ui (são dados,
+        # não widgets). Duração por (path, mtime) evita reabrir o MP3 no PyAV a
+        # cada visita; o texto dos .txt alimenta a busca por conteúdo.
+        self._lib_all      = []
+        self._lib_rows     = {}
+        self._lib_scanning = False
+        self._lib_search_after = None
+        self._dur_cache    = {}
+        self._txt_cache    = {}
+        self._resumindo    = False
         self._pop          = None     # floating hover popup (STOPPED actions)
         self._pop_after    = None
         self._pop_anchor   = None
@@ -2639,6 +2692,24 @@ class App(tk.Tk):
         s.configure("D.TCombobox",  font=SEG_SM)
         s.configure("Sm.TCombobox", font=SEG_SM)
         s.configure("XS.TCombobox", font=SEG_XS)
+        # Reintroduzidos em 12/08 para a biblioteca de gravações — tinham sido
+        # removidos como mortos na Fase 5 do roadmap de UX do mesmo dia; agora
+        # têm consumidor real (Treeview da biblioteca + scrollbars dela e do
+        # painel ao vivo).
+        s.configure("D.Treeview",
+            background=CARD, foreground=TEXT, fieldbackground=CARD,
+            borderwidth=0, relief="flat", rowheight=26, font=SEG_SM)
+        s.configure("D.Treeview.Heading",
+            background=BG, foreground=MUTED, relief="flat",
+            font=SEG_XS, borderwidth=0, padding=(6, 4))
+        s.map("D.Treeview",
+            background=[("selected", CARD_A)],
+            foreground=[("selected", TEXT)])
+        s.map("D.Treeview.Heading",
+            background=[("active", CARD)], relief=[("active", "flat")])
+        s.configure("D.Vertical.TScrollbar",
+            background=CARD_H, troughcolor=CARD, arrowcolor=SUBTLE,
+            borderwidth=0, gripcount=0)
 
     # ── widget factories ───────────────────────────────────────────────────────
     def _btn(self, parent, text, cmd, primary=False, danger=False, **kw):
@@ -2705,6 +2776,7 @@ class App(tk.Tk):
         self._build_advanced(body)
         self._build_transcribe_section(body)
         self._build_convert_section(body)
+        self._build_library_section(body)
 
     def _build_meters(self, body):
         vu_row = tk.Frame(body, bg=BG)
@@ -2812,7 +2884,8 @@ class App(tk.Tk):
             highlightthickness=1, highlightbackground=BORDER, padx=8, pady=6,
             state="disabled")
         self._live_text.tag_configure("spk", foreground=ACCENT, font=SEG_SB)
-        sb = ttk.Scrollbar(self._live_frame, command=self._live_text.yview)
+        sb = ttk.Scrollbar(self._live_frame, command=self._live_text.yview,
+                           style="D.Vertical.TScrollbar")
         self._live_text.configure(yscrollcommand=sb.set)
         self._live_text.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
@@ -2856,6 +2929,10 @@ class App(tk.Tk):
                                    lambda: self._toggle_view("cv"),
                                    fg=ACCENT, font=SEG_SM)
         self._cv_link.pack(side="right", padx=(0, 14))
+        self._lib_link = self._link(row, t("Gravações…"),
+                                    lambda: self._toggle_view("lib"),
+                                    fg=ACCENT, font=SEG_SM)
+        self._lib_link.pack(side="right", padx=(0, 14))
 
     def _build_advanced(self, body):
         self._adv = tk.Frame(body, bg=BG)
@@ -3680,16 +3757,21 @@ class App(tk.Tk):
             self._tr_sel = self._last_rec
             self._tr_path_var.set(str(self._tr_sel))
 
-        for sec in (self._rec_section, self._tr_section, self._cv_section):
+        for sec in (self._rec_section, self._tr_section, self._cv_section,
+                    self._lib_section):
             sec.pack_forget()
         self._view = view
         {"rec": self._rec_section,
          "tr":  self._tr_section,
-         "cv":  self._cv_section}[view].pack(fill="x", before=self._links_row)
+         "cv":  self._cv_section,
+         "lib": self._lib_section}[view].pack(fill="x", before=self._links_row)
 
         back = t("← Gravar")
         self._tr_link.config(text=back if view == "tr" else t("Transcrever…"))
         self._cv_link.config(text=back if view == "cv" else t("Converter…"))
+        self._lib_link.config(text=back if view == "lib" else t("Gravações…"))
+        if view == "lib":
+            self._lib_scan()          # a pasta pode ter mudado desde a última visita
         self.update_idletasks()
         self.geometry("")
 
@@ -3732,6 +3814,339 @@ class App(tk.Tk):
         self._tr_sel = Path(p)
         self._tr_path_var.set(str(self._tr_sel))
         self._tr_set_status(t("Selecione um arquivo e clique em Transcrever."))
+
+    # ── recordings library (view "Gravações…") ──────────────────────────────────
+    # Mesa mínima que Meetily/anarlog provaram: biblioteca das gravações passadas
+    # com busca por nome E por conteúdo do transcript, e as ações de sempre por
+    # ícone. O filesystem é o banco (mp3 + .txt + .resumo.md lado a lado) —
+    # greppável e portátil, sem SQLite de propósito.
+    def _build_library_section(self, body):
+        sec = tk.Frame(body, bg=BG)
+        self._lib_section = sec
+        tk.Label(sec, text=t("GRAVAÇÕES"), bg=BG, fg=SUBTLE,
+                 font=SEG_XS).pack(anchor="w", pady=(0, 6))
+
+        nav = tk.Frame(sec, bg=BG)
+        nav.pack(fill="x")
+        tk.Label(nav, text=t("Buscar:"), bg=BG, fg=SUBTLE,
+                 font=SEG_XS).pack(side="left", padx=(0, 4))
+        self._lib_query = tk.StringVar()
+        ent = tk.Entry(nav, textvariable=self._lib_query, bg=CARD, fg=TEXT,
+                       insertbackground=TEXT, relief="flat",
+                       highlightthickness=1, highlightbackground=BORDER,
+                       highlightcolor=ACCENT, font=SEG_SM)
+        ent.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self._lib_query.trace_add("write", lambda *_: self._lib_refilter_soon())
+        self._link(nav, t("↺ Atualizar"), self._lib_scan).pack(side="right")
+
+        wrap = tk.Frame(sec, bg=BG)
+        wrap.pack(fill="both", expand=True, pady=(6, 0))
+        tree = ttk.Treeview(wrap, columns=("nome", "data", "dur", "txt"),
+                            show="headings", style="D.Treeview", height=8,
+                            selectmode="browse")
+        for cid, lbl, w, anchor in (
+                ("nome", t("Arquivo"), 150, "w"),
+                ("data", t("Data"), 76, "w"),
+                ("dur", t("Duração"), 56, "e"),
+                ("txt", "📄", 26, "center")):
+            tree.heading(cid, text=lbl, anchor=anchor)
+            tree.column(cid, width=w, anchor=anchor, stretch=(cid == "nome"))
+        sb = ttk.Scrollbar(wrap, command=tree.yview,
+                           style="D.Vertical.TScrollbar")
+        tree.configure(yscrollcommand=sb.set)
+        tree.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        tree.bind("<<TreeviewSelect>>", lambda e: self._lib_sync_actions())
+        tree.bind("<Double-1>", lambda e: self._lib_play())
+        self._lib_tree = tree
+
+        arow = tk.Frame(sec, bg=BG)
+        arow.pack(fill="x", pady=(8, 0))
+        self._lib_play_btn = self._lib_action(arow, "▶", self._lib_play,
+                                              "▶  Reproduzir")
+        self._lib_tr_btn = self._lib_action(arow, "⚡", self._lib_transcribe,
+                                            "⚡  Transcrever", primary=True)
+        self._lib_txt_btn = self._lib_action(arow, "📄", self._lib_open_txt,
+                                             "Abrir transcrição")
+        self._lib_sum_btn = self._lib_action(arow, "✦", self._lib_resumo,
+                                             "✦  Resumo IA")
+        self._lib_del_btn = self._lib_action(arow, "✕", self._lib_delete,
+                                             "✕  Excluir", danger=True)
+        self._lib_stop = self._btn(arow, t("⬛  Parar"),
+                                   self._stop_transcription, danger=True)
+        # _lib_stop só é empacotado enquanto uma transcrição desta view roda
+        self._link(arow, t("Abrir pasta"), self._lib_open_folder,
+                   font=SEG_SM).pack(side="right")
+
+        self._lib_status_var = tk.StringVar(value=t("Selecione uma gravação."))
+        tk.Label(sec, textvariable=self._lib_status_var, bg=BG, fg=SUBTLE,
+                 font=SEG_XS, wraplength=300, justify="left").pack(
+                     anchor="w", pady=(8, 0))
+        self._lib_sync_actions()
+
+    def _lib_action(self, parent, glyph, cmd, tip_key, **kw):
+        """Botão-ícone da biblioteca: age no clique, caption no hover (mesmo
+        padrão dos ícones do estado STOPPED — a janela nunca cresce)."""
+        b = self._btn(parent, glyph, cmd, **kw)
+        b.pack(side="left", padx=(0, 8))
+        b.bind("<Enter>", lambda e: self._show_tip(b, tip_key), add="+")
+        b.bind("<Leave>", lambda e: self._hide_pop(), add="+")
+        return b
+
+    def _lib_set_status(self, msg):
+        self._lib_status_var.set(msg)
+
+    def _lib_sel(self) -> Path | None:
+        sel = self._lib_tree.selection()
+        info = self._lib_rows.get(sel[0]) if sel else None
+        return info["path"] if info else None
+
+    def _lib_sync_actions(self):
+        p = self._lib_sel()
+        txt = p.with_suffix(".txt") if p else None
+        has_txt = bool(txt and txt.exists())
+        for b, on in ((self._lib_play_btn, p is not None),
+                      (self._lib_tr_btn, p is not None and not self._transcribing),
+                      (self._lib_txt_btn, has_txt),
+                      (self._lib_sum_btn, has_txt and not self._resumindo),
+                      (self._lib_del_btn, p is not None)):
+            b.config(state="normal" if on else "disabled")
+
+    # ── scan (thread) ──────────────────────────────────────────────────────────
+    def _lib_scan(self):
+        if self._lib_scanning:
+            return
+        self._lib_scanning = True
+        self._lib_set_status(t("Lendo gravações…"))
+        threading.Thread(target=self._lib_scan_thread, args=(self._out_dir,),
+                         daemon=True).start()
+
+    def _lib_scan_thread(self, folder: Path):
+        rows = []
+        try:
+            files = sorted((p for p in folder.iterdir()
+                            if p.suffix.lower() in AUDIO_EXTS),
+                           key=lambda p: p.stat().st_mtime, reverse=True)
+        except OSError:
+            files = []
+        for p in files:
+            try:
+                st = p.stat()
+            except OSError:
+                continue                       # sumiu entre o listdir e o stat
+            rows.append({
+                "path": p, "mtime": st.st_mtime,
+                "data": datetime.datetime.fromtimestamp(st.st_mtime)
+                        .strftime("%d/%m %H:%M"),
+                "dur": self._lib_duration(p, st.st_mtime),
+                "txt": p.with_suffix(".txt").exists(),
+            })
+        self._post(lambda: self._lib_populate(rows))
+
+    def _lib_duration(self, p: Path, mtime: float) -> str:
+        """Duração declarada pelo container (instantânea com header Xing).
+        Cache por (path, mtime): reabrir dezenas de MP3 a cada visita da view
+        seria o único custo perceptível da biblioteca."""
+        key = (str(p), mtime)
+        dur = self._dur_cache.get(key)
+        if dur is None:
+            try:
+                import av
+                with av.open(str(p)) as cont:
+                    dur = (float(cont.duration) / av.time_base
+                           if cont.duration else 0.0)
+            except Exception:
+                dur = -1.0
+            self._dur_cache[key] = dur
+        return "—" if dur < 0 else self._fmt_dur(int(dur))
+
+    def _lib_populate(self, rows):
+        self._lib_scanning = False
+        self._lib_all = rows
+        self._lib_refilter()
+
+    # ── busca (debounced; nome + conteúdo do .txt) ─────────────────────────────
+    def _lib_refilter_soon(self):
+        if self._lib_search_after:
+            try:
+                self.after_cancel(self._lib_search_after)
+            except Exception:
+                pass
+        self._lib_search_after = self.after(250, self._lib_refilter)
+
+    def _lib_txt_content(self, p: Path, mtime: float) -> str:
+        key = (str(p), mtime)
+        s = self._txt_cache.get(key)
+        if s is None:
+            try:
+                s = p.with_suffix(".txt").read_text(
+                    encoding="utf-8", errors="ignore").casefold()
+            except OSError:
+                s = ""
+            self._txt_cache[key] = s
+        return s
+
+    def _lib_refilter(self):
+        self._lib_search_after = None
+        q = (self._lib_query.get() or "").strip().casefold()
+        tree = self._lib_tree
+        tree.delete(*tree.get_children())
+        self._lib_rows = {}
+        for r in self._lib_all:
+            if q:
+                hit = q in r["path"].name.casefold()
+                # Conteúdo também — é o que acha "aquela reunião em que falamos
+                # de X" sem lembrar a data (a busca do Meetily faz o mesmo).
+                if not hit and r["txt"]:
+                    hit = q in self._lib_txt_content(r["path"], r["mtime"])
+                if not hit:
+                    continue
+            iid = tree.insert("", "end", values=(
+                r["path"].name, r["data"], r["dur"], "✓" if r["txt"] else ""))
+            self._lib_rows[iid] = r
+        self._lib_set_status(t("Selecione uma gravação.") if self._lib_rows
+                             else t("Nenhuma gravação encontrada."))
+        self._lib_sync_actions()
+
+    # ── ações ──────────────────────────────────────────────────────────────────
+    def _lib_play(self):
+        p = self._lib_sel()
+        if p and p.exists():
+            try:
+                _abrir_arquivo(p)
+            except Exception as e:
+                self._lib_set_status(tf("Erro: {e}", e=e))
+
+    def _lib_open_txt(self):
+        p = self._lib_sel()
+        txt = p.with_suffix(".txt") if p else None
+        if txt and txt.exists():
+            try:
+                _abrir_arquivo(txt)
+            except Exception as e:
+                self._lib_set_status(tf("Erro: {e}", e=e))
+
+    def _lib_open_folder(self):
+        try:
+            self._out_dir.mkdir(parents=True, exist_ok=True)
+            _abrir_arquivo(self._out_dir)
+        except Exception:
+            pass
+
+    def _lib_transcribe(self):
+        p = self._lib_sel()
+        if not p:
+            return
+
+        def done(text, err):
+            self._lib_stop.pack_forget()
+            if err == CANCELLED:
+                self._lib_set_status(t("Transcrição cancelada."))
+            elif err:
+                self._lib_set_status(tf("Erro: {e}", e=err))
+            else:
+                txt = self._autosave_txt(p, text)
+                if txt:
+                    self._lib_set_status(tf("Transcrição salva: {n}", n=txt.name))
+                    self._lib_mark_txt(p)
+                else:
+                    self._lib_set_status(t("Transcrito, mas falha ao salvar o .txt."))
+            self._lib_sync_actions()
+
+        if self._run_transcriber(p, self._lib_set_status, done):
+            self._lib_stop.pack(side="left")
+            self._lib_sync_actions()
+
+    def _lib_mark_txt(self, p: Path):
+        """Atualiza a coluna 📄 da linha de `p` sem re-escanear a pasta."""
+        for iid, r in self._lib_rows.items():
+            if r["path"] == p:
+                r["txt"] = True
+                vals = list(self._lib_tree.item(iid, "values"))
+                vals[3] = "✓"
+                self._lib_tree.item(iid, values=vals)
+                break
+
+    def _lib_delete(self):
+        # Só o áudio vai pra Lixeira — o .txt/.resumo.md ficam: o transcript
+        # sobrevive ao MP3 (é ele o produto; Meetily/anarlog fazem igual).
+        p = self._lib_sel()
+        if not p:
+            return
+        try:
+            if not _excluir_gravacao(p):
+                self._lib_set_status(tf("Não foi possível excluir: {e}", e=p.name))
+                return
+        except Exception as e:
+            self._lib_set_status(tf("Não foi possível excluir: {e}", e=e))
+            return
+        if self._last_rec == p:
+            self._last_rec = None
+        sel = self._lib_tree.selection()
+        if sel:
+            self._lib_rows.pop(sel[0], None)
+            self._lib_tree.delete(sel[0])
+        self._lib_all = [r for r in self._lib_all if r["path"] != p]
+        self._lib_set_status(tf("Enviada para a Lixeira: {n}", n=p.name))
+        self._lib_sync_actions()
+
+    # ── resumo IA (✦, opt-in por clique — nunca automático: consome o Claude
+    # do usuário). Se o .resumo.md já existe, abre; para refazer, exclua-o. ────
+    def _lib_resumo(self):
+        p = self._lib_sel()
+        txt = p.with_suffix(".txt") if p else None
+        if not txt or not txt.exists():
+            return
+        resumo = p.with_suffix(".resumo.md")
+        if resumo.exists():
+            try:
+                _abrir_arquivo(resumo)
+            except Exception as e:
+                self._lib_set_status(tf("Erro: {e}", e=e))
+            return
+        if self._resumindo:
+            self._lib_set_status(t("Já há um resumo em andamento."))
+            return
+        cli = shutil.which("claude")
+        if not cli:
+            self._lib_set_status(
+                t("Resumo indisponível — instale o Claude Code (comando 'claude')."))
+            return
+        self._resumindo = True
+        self._lib_sync_actions()
+        self._lib_set_status(t("Gerando resumo com o Claude…"))
+
+        def run():
+            try:
+                texto = txt.read_text(encoding="utf-8", errors="ignore")
+                r = subprocess.run(
+                    [cli, "-p", PROMPT_RESUMO["pt" if LANG == "pt" else "en"]],
+                    input=texto, capture_output=True, text=True,
+                    encoding="utf-8", errors="replace", timeout=900,
+                    **_no_window_kwargs())
+                out = (r.stdout or "").strip()
+                if r.returncode != 0 or not out:
+                    raise RuntimeError((r.stderr or "").strip()[:80]
+                                       or f"código {r.returncode}")
+                resumo.write_text(out + "\n", encoding="utf-8")
+            except Exception as e:
+                self._post(lambda m=str(e)[:110]: self._lib_resumo_done(None, m))
+                return
+            self._post(lambda: self._lib_resumo_done(resumo, None))
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def _lib_resumo_done(self, resumo, err):
+        self._resumindo = False
+        self._lib_sync_actions()
+        if err:
+            self._lib_set_status(tf("Falha ao gerar o resumo: {e}", e=err))
+            return
+        self._lib_set_status(tf("Resumo salvo: {n}", n=resumo.name))
+        try:
+            _abrir_arquivo(resumo)
+        except Exception:
+            pass
 
     # ── convert section (MP4/… → MP3; also shrinks a heavy audio file) ──────────
     def _build_convert_section(self, body):

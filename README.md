@@ -55,6 +55,14 @@ the bundled app is fully self-contained (no Python, no ffmpeg).
   hit *Extract MP3*: it re-encodes to the same lightweight format Reco records in
   (16 kHz mono, 64 kbps), typically a fraction of the original size. The MP3 is
   saved next to the source and stays selected, ready to transcribe.
+- 🗂️ **Recordings library** — the *Recordings…* view lists everything in your
+  recordings folder (date, length, transcript status) and searches by file
+  name **and transcript content**. Play, transcribe, open the .txt or delete
+  (to the Recycle Bin) from one place.
+- ✦ **AI summary (optional)** — with [Claude Code](https://claude.com/claude-code)
+  installed, one click turns a transcribed recording into `<name>.resumo.md`
+  (summary, decisions, action items) using your local `claude` CLI. No API
+  key, no cloud added to the app — and everything else works without it.
 - 🌐 **Bilingual UI** (PT/EN), auto-detected, switchable in Options.
 - 🎨 **Custom theme** — pick background and accent colors in Options; text contrast
   adjusts automatically. Frameless window with its own title bar.
@@ -156,6 +164,14 @@ app empacotado é autossuficiente (sem Python, sem ffmpeg).
   clique em *Extrair MP3*: ele é reconvertido para o mesmo formato leve em que o
   Reco grava (16 kHz mono, 64 kbps), normalmente uma fração do tamanho original.
   O MP3 é salvo ao lado do arquivo de origem e já fica selecionado para transcrever.
+- 🗂️ **Biblioteca de gravações** — a tela *Gravações…* lista tudo o que está na
+  pasta de gravações (data, duração, estado da transcrição) e busca por nome
+  do arquivo **e pelo conteúdo da transcrição**. Reproduzir, transcrever,
+  abrir o .txt ou excluir (para a Lixeira) num lugar só.
+- ✦ **Resumo por IA (opcional)** — com o [Claude Code](https://claude.com/claude-code)
+  instalado, um clique transforma uma gravação transcrita em
+  `<nome>.resumo.md` (resumo, decisões, pendências) usando o seu `claude`
+  local. Sem chave de API, sem nuvem no app — e todo o resto funciona sem ele.
 - 🌐 **Interface bilíngue** (PT/EN), detectada automaticamente, troca em Opções.
 - 🎨 **Tema personalizável** — escolha as cores de fundo e de destaque em Opções; o
   contraste do texto se ajusta sozinho. Janela sem moldura, com barra própria.

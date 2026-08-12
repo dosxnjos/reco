@@ -99,6 +99,12 @@ def strings_usadas(caminho: Path) -> set:
             s = _lit(no.args[1])
             if s is not None:
                 achadas.add(s)
+        elif nome == "_lib_action" and len(no.args) >= 4:
+            # botão-ícone da biblioteca: o caption de hover é o 4º argumento e
+            # vira _show_tip(b, tip_key) lá dentro — mesmo caso do _show_tip.
+            s = _lit(no.args[3])
+            if s is not None:
+                achadas.add(s)
     return achadas
 
 

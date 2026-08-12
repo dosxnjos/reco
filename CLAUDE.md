@@ -171,6 +171,22 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 | `test_live_integration.py [seg]` | grava de verdade com `DualRecorder`+`LiveTranscriber` ligados, confere duração do MP3, tempo de drain e a passada final rodando sem conflito depois |
 | `transcrever.py <arquivo...>` | transcreve **qualquer áudio/vídeo** para `<arquivo>.txt` pelo pipeline real (decode PyAV → VAD → anti-loop), sem UI — feito para **agentes** (Claude Code) lerem áudio que o Gabriel manda no chat. Pula `.txt` existente (`--forcar` refaz); `--diarizar`/`--aec` só para gravações estéreo do próprio Reco |
 
+## Biblioteca de gravações e resumo IA (12/08/2026)
+
+- A view **"Gravações…"** lista a pasta de saída (duração via PyAV, cache por
+  `(path, mtime)`), com busca por nome E por conteúdo dos `.txt` e ações
+  ▶ ⚡ 📄 ✦ ✕ (✕ = Lixeira; o `.txt`/`.resumo.md` ficam — o transcript
+  sobrevive ao áudio). **O filesystem é o banco** (mp3 + .txt + .resumo.md
+  lado a lado) — sem SQLite, de propósito.
+- **✦ Resumo IA**: roda `claude -p` (CLI do Claude Code do usuário, via
+  `shutil.which`) com a transcrição no stdin e salva `<gravação>.resumo.md`;
+  se já existe, abre (refazer = excluir o .md). Sem CLI → status claro; o app
+  segue 100% funcional sem ele. Prompt em `PROMPT_RESUMO`; opt-in por clique,
+  nunca automático (consome a assinatura do usuário).
+- Origem, análise de mercado (Meetily/Char/anarlog/OGAD) e os NÃO-fazer
+  (tela no Windows, LLM embarcado, SQLite, notepad):
+  [roadmap/2026-08-12-melhoria-biblioteca-e-resumo.md](roadmap/2026-08-12-melhoria-biblioteca-e-resumo.md).
+
 ## Config e persistência
 
 `~/.reco_config.json` via `load_config`/`save_config` (escrita atômica). Defaults
