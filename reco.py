@@ -9,8 +9,8 @@ Audio capture uses the `soundcard` library (WASAPI):
 
 Recordings are encoded to MP3 (PyAV/libmp3lame, streamed while recording so
 stopping is instant) — ~6-12x smaller than WAV, plenty for
-speech/meetings and transcription. Transcription runs locally with
-faster-whisper. UI is bilingual (PT/EN), auto-detected from the system.
+speech/meetings and transcription. Transcription runs locally via OpenVINO
+GenAI (Whisper). UI is bilingual (PT/EN), auto-detected from the system.
 """
 
 import sys
@@ -267,7 +267,6 @@ LANG = "pt"
 
 _TR_EN = {
     # header / meters
-    "mic + sistema  ·  MP3 + transcrição": "mic + system  ·  MP3 + transcription",
     "MIC": "MIC",
     "SISTEMA": "SYSTEM",
     # buttons
@@ -279,8 +278,6 @@ _TR_EN = {
     "⚡  Transcrever + excluir": "⚡  Transcribe + delete",
     "▶  Reproduzir": "▶  Play",
     "⚡  Salvar + Transcrever": "⚡  Save + Transcribe",
-    "🔤  Transcrever": "🔤  Transcribe",
-    "Salvar + Transcrever": "Save + Transcribe",
     "Tema:": "Theme:",
     "Fundo": "Background",
     "Destaque": "Accent",
@@ -292,7 +289,6 @@ _TR_EN = {
     "⚙ Ocultar opções": "⚙ Hide options",
     "Transcrever…": "Transcribe…",
     "← Gravar": "← Record",
-    "Ocultar transcrição": "Hide transcription",
     # advanced labels
     "Entrada:": "Input:",
     "Saída:": "Output:",
@@ -300,15 +296,7 @@ _TR_EN = {
     "Alterar…": "Change…",
     "Pasta de gravações": "Recordings folder",
     "↺ Atualizar dispositivos": "↺ Refresh devices",
-    "Canais:": "Channels:",
-    "Taxa:": "Rate:",
-    "MP3:": "MP3:",
-    "Modelo:": "Model:",
     "Processar em:": "Run on:",
-    "☐ Diarização (uma fala por canal)": "☐ Diarization (one speaker per channel)",
-    "☑ Diarização (uma fala por canal)": "☑ Diarization (one speaker per channel)",
-    "☐ Cancelar eco do PC no microfone": "☐ Cancel PC echo in the microphone",
-    "☑ Cancelar eco do PC no microfone": "☑ Cancel PC echo in the microphone",
     "Idioma:": "Language:",
     "⌨ Criar atalho (Ctrl+Shift+R)": "⌨ Create shortcut (Ctrl+Shift+R)",
     "⌨ Remover atalho": "⌨ Remove shortcut",
@@ -317,18 +305,10 @@ _TR_EN = {
     "Atalho removido.": "Shortcut removed.",
     "Não foi possível criar o atalho: {e}":
         "Couldn't create the shortcut: {e}",
-    "tiny · small · medium · large-v3-turbo (padrão)":
-        "tiny · small · medium · large-v3-turbo (default)",
     "Preparando '{size}' no {dev} pela primeira vez — isso leva alguns minutos "
     "e só acontece uma vez.":
         "Preparing '{size}' on {dev} for the first time — this takes a few "
         "minutes and happens only once.",
-    "Mono": "Mono",
-    "Estéreo": "Stereo",
-    "16.000 Hz": "16,000 Hz",
-    "22.050 Hz": "22,050 Hz",
-    "44.100 Hz": "44,100 Hz",
-    "48.000 Hz": "48,000 Hz",
     # status — devices
     "Pronto para gravar.": "Ready to record.",
     "Buscando dispositivos…": "Searching for devices…",
@@ -361,6 +341,19 @@ _TR_EN = {
     "Não foi possível excluir.": "Couldn't delete.",
     "Rascunho ao vivo desativado — transcrição em andamento.":
         "Live draft disabled — a transcription is already running.",
+    "Transcrição ao vivo (rascunho)": "Live transcription (draft)",
+    "Fechando rascunho ao vivo…": "Closing live draft…",
+    "Salvo: {n}  —  refinando a transcrição…":
+        "Saved: {n}  —  refining the transcription…",
+    "Rascunho mantido — passada final falhou: {e}":
+        "Draft kept — final pass failed: {e}",
+    "Transcrição final pronta: {n}": "Final transcription ready: {n}",
+    "Transcrição final pronta (falha ao salvar o .txt).":
+        "Final transcription ready (failed to save the .txt).",
+    "Transcrição ao vivo atrasada — descartando áudio antigo do rascunho.":
+        "Live transcription running behind — discarding old draft audio.",
+    "Transcrição ao vivo parou (a gravação continua).":
+        "Live transcription stopped (the recording continues).",
     # status — transcription
     "Nada para transcrever.": "Nothing to transcribe.",
     "Nada para reproduzir.": "Nothing to play.",
@@ -369,7 +362,6 @@ _TR_EN = {
     "Transcrição indisponível — instale openvino-genai.":
         "Transcription unavailable — install openvino-genai.",
     "Transcrevendo {n}…": "Transcribing {n}…",
-    "Transcrevendo…": "Transcribing…",
     "Transcrevendo… {p}%": "Transcribing… {p}%",
     "Baixando modelo '{size}' (primeira vez)…":
         "Downloading model '{size}' (first time)…",
@@ -378,25 +370,18 @@ _TR_EN = {
     "Atualizando modelo…": "Updating model…",
     "Modelo atualizado.": "Model updated.",
     "⬆ Nova versão {tag}": "⬆ New version {tag}",
-    "a transcrição falhou (código {c})": "transcription failed (code {c})",
     "Erro na transcrição: {e}": "Transcription error: {e}",
     "Transcrito, mas falha ao salvar o .txt.":
         "Transcribed, but failed to save the .txt.",
     "Transcrição salva: {n}. Áudio excluído.":
         "Transcription saved: {n}. Audio deleted.",
     "Transcrição salva: {n}": "Transcription saved: {n}",
-    "Python não encontrado — instale o Python {v} (python.org).":
-        "Python not found — install Python {v} (python.org).",
     # transcribe section
     "TRANSCRIÇÃO": "TRANSCRIPTION",
     "＋ Escolher arquivo…": "＋ Choose a file…",
     "⬛  Parar": "⬛  Stop",
     "Transcrição cancelada.": "Transcription cancelled.",
     "Salvo: {n}": "Saved: {n}",
-    "Transcrever arquivo": "Transcribe file",
-    "ESCOLHA O ÁUDIO (MP3, WAV…)": "CHOOSE AUDIO (MP3, WAV…)",
-    "Arquivo": "File", "Data": "Date", "Duração": "Length", "Tamanho": "Size",
-    "＋ Escolher outro arquivo…": "＋ Choose another file…",
     # tray
     "Abrir": "Open",
     "Sair": "Quit",
@@ -427,39 +412,13 @@ _TR_EN = {
     "Conversão indisponível — instale av.":
         "Conversion unavailable — install av.",
     "Vídeo": "Video",
-    "↺ Atualizar": "↺ Refresh",
-    "⚡ Transcrever e salvar .txt": "⚡ Transcribe and save .txt",
     "Abrir pasta": "Open folder",
     "Selecione um arquivo e clique em Transcrever.":
         "Select a file and click Transcribe.",
-    "Nenhum áudio encontrado": "No audio found",
     "Selecione um arquivo válido.": "Select a valid file.",
-    "Salvo: {n}  (na pasta {d})": "Saved: {n}  (in the {d} folder)",
     "Erro: {e}": "Error: {e}",
     "Selecionar áudio": "Select audio",
     "Áudio": "Audio", "Todos": "All files",
-    # installer
-    "Instalar transcrição": "Install transcription",
-    "Componentes de transcrição": "Transcription components",
-    "O faster-whisper e suas dependências serão baixados e instalados\n"
-    "numa pasta do seu usuário (~0,5 GB, alguns minutos).":
-        "faster-whisper and its dependencies will be downloaded and installed\n"
-        "into your user folder (~0.5 GB, a few minutes).",
-    "Pronto para instalar.": "Ready to install.",
-    "Instalar agora": "Install now",
-    "Iniciando instalação…": "Starting installation…",
-    "Baixando {pkg}…": "Downloading {pkg}…",
-    "Baixando {pkg}… {mb} MB": "Downloading {pkg}… {mb} MB",
-    "Instalando pacotes…": "Installing packages…",
-    "Concluído!": "Done!",
-    "Pronto! Componentes instalados. Pode transcrever agora.":
-        "Done! Components installed. You can transcribe now.",
-    "Falha na instalação (código {c}). Verifique a conexão e tente de novo.":
-        "Installation failed (code {c}). Check your connection and try again.",
-    "Python não encontrado no sistema. Instale o Python {v} (python.org) "
-    "e tente de novo — ou rode pelo código-fonte.":
-        "Python not found on the system. Install Python {v} (python.org) "
-        "and try again — or run from source.",
     # dependency messagebox
     "Dependências ausentes": "Missing dependencies",
     "Para gravar áudio, instale as dependências:\n\n  pip install {pkgs}\n\n"
@@ -2944,7 +2903,7 @@ class App(tk.Tk):
         lvrow.pack(fill="x", pady=(8, 0))
         self._live_var = tk.BooleanVar(value=bool(self._cfg.get("live")))
         self._live_chk = tk.Checkbutton(
-            lvrow, text=t("Transcrição ao vivo (rascunho, iGPU)"),
+            lvrow, text=t("Transcrição ao vivo (rascunho)"),
             variable=self._live_var, command=self._on_live_toggle,
             bg=BG, fg=SUBTLE, activebackground=BG, activeforeground=TEXT,
             selectcolor=BG, highlightthickness=0, bd=0, font=SEG_XS)

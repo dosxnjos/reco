@@ -167,13 +167,13 @@ Rodar os comandos com o Python do venv do projeto (`C:\Dev\Reco`).
 
 ### Fase 1 — lógica: bugs e riscos reais
 
-1. [ ] **Menu ⚡ (F1):** em `reco.py:~2722`, trocar o item
+1. [x] **Menu ⚡ (F1):** em `reco.py:~2722`, trocar o item
    `("🔤  Transcrever", self._conclude_and_transcribe)` por
    `("⚡  Transcrever + excluir", self._conclude_transcribe_and_delete)`
    (string já existe em `_TR_EN:279`). — **prova:**
    `grep -n "_conclude_transcribe_and_delete" reco.py` → 2 linhas (def +
    call); visual pós-build: menu do ⚡ com 3 ações distintas.
-2. [ ] **Lixeira (F2):** helper `_excluir_gravacao(path) -> bool` que no
+2. [x] **Lixeira (F2):** helper `_excluir_gravacao(path) -> bool` que no
    Windows usa `SHFileOperationW` com `FOF_ALLOWUNDO|FOF_NOCONFIRMATION|
    FOF_SILENT` (ctypes, struct `SHFILEOPSTRUCTW`, double-null no path;
    sem dependência nova) e fora do nt faz `unlink`. Usar em
@@ -182,13 +182,13 @@ Rodar os comandos com o Python do venv do projeto (`C:\Dev\Reco`).
    `Documents\Reco`, chama `reco._excluir_gravacao` e confere que o arquivo
    saiu da pasta; manual: item aparece na Lixeira (shell API não é
    automatizável barato).
-3. [ ] **Guard live × lote (F3):** em `_start_rec`, condicionar
+3. [x] **Guard live × lote (F3):** em `_start_rec`, condicionar
    `self._live_was_on` também a `not self._transcribing`; quando suprimir,
    `self._status(t("Rascunho ao vivo desativado — transcrição em andamento."))`
    (string nova nas DUAS línguas). — **prova:**
    `grep -n "_transcribing" reco.py` mostra o guard dentro de `_start_rec`;
    `python -c "import reco"` limpo.
-4. [ ] **Stop do live descarta o backlog (F4):** `LiveTranscriber.stop`
+4. [x] **Stop do live descarta o backlog (F4):** `LiveTranscriber.stop`
    ganha `discard: bool = False`; com `True`, seta um evento que faz `_loop`
    esvaziar a fila sem transcrever (só o `generate` em curso termina) — o
    `join` passa a ser limitado por UM grupo, não por 60 s de backlog. O app
@@ -199,19 +199,19 @@ Rodar os comandos com o Python do venv do projeto (`C:\Dev\Reco`).
 
 ### Fase 2 — i18n e textos
 
-1. [ ] **`tools/check_i18n.py` (F11):** extrai por AST todo literal dentro de
+1. [x] **`tools/check_i18n.py` (F11):** extrai por AST todo literal dentro de
    `t("…")`/`tf("…")` em `reco.py` e `tray.py`, compara com `_TR_EN` e
    imprime `FALTANTES` (usadas sem tradução) e `MORTAS` (na tabela sem uso).
    Exit code 1 se houver faltante. — **prova:** primeira execução lista
    exatamente as 8 strings do F11 como faltantes.
-2. [ ] **Cobrir as faltantes (F11):** adicionar as traduções EN à `_TR_EN`.
+2. [x] **Cobrir as faltantes (F11):** adicionar as traduções EN à `_TR_EN`.
    — **prova:** `python tools/check_i18n.py` → 0 faltantes.
-3. [ ] **Remover as mortas (F12):** apagar da `_TR_EN` o que o checker listar
+3. [x] **Remover as mortas (F12):** apagar da `_TR_EN` o que o checker listar
    como morto (instalador, tabela de arquivos, rótulos de formato…),
    conferindo cada uma no grep do checker antes. — **prova:** checker → 0
    mortas (as deliberadamente mantidas, se houver, documentadas no próprio
    script como allowlist).
-4. [ ] **Textos que mentem (F12):** docstring do módulo (faster-whisper →
+4. [x] **Textos que mentem (F12):** docstring do módulo (faster-whisper →
    OpenVINO GenAI/MLX); rótulo do checkbox live → `"Transcrição ao vivo
    (rascunho)"` sem hardcode de device (ajustar as duas línguas). —
    **prova:** `grep -n "faster-whisper" reco.py` → 0; checker verde.
