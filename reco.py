@@ -358,6 +358,9 @@ _TR_EN = {
     "Gravação salva: {n}": "Recording saved: {n}",
     "Gravação descartada.": "Recording discarded.",
     "Não foi possível excluir: {e}": "Couldn't delete: {e}",
+    "Não foi possível excluir.": "Couldn't delete.",
+    "Rascunho ao vivo desativado — transcrição em andamento.":
+        "Live draft disabled — a transcription is already running.",
     # status — transcription
     "Nada para transcrever.": "Nothing to transcribe.",
     "Nada para reproduzir.": "Nothing to play.",
@@ -556,6 +559,41 @@ def _abrir_arquivo(path) -> None:
         subprocess.Popen(["open", str(path)])
     else:
         os.startfile(str(path))
+
+
+def _excluir_gravacao(path) -> bool:
+    """Exclui um arquivo mandando-o para a Lixeira (Windows); fora do nt, ou se
+    o shell recusar, faz unlink direto. Retorna True se o arquivo saiu do disco."""
+    path = Path(path)
+    if os.name == "nt":
+        class SHFILEOPSTRUCTW(ctypes.Structure):
+            _fields_ = [
+                ("hwnd", ctypes.c_void_p),
+                ("wFunc", ctypes.c_uint),
+                ("pFrom", ctypes.c_wchar_p),
+                ("pTo", ctypes.c_wchar_p),
+                ("fFlags", ctypes.c_ushort),
+                ("fAnyOperationsAborted", ctypes.c_int),
+                ("hNameMappings", ctypes.c_void_p),
+                ("lpszProgressTitle", ctypes.c_wchar_p),
+            ]
+        FO_DELETE = 0x0003
+        FOF_ALLOWUNDO = 0x0040
+        FOF_NOCONFIRMATION = 0x0010
+        FOF_SILENT = 0x0004
+        op = SHFILEOPSTRUCTW()
+        op.wFunc = FO_DELETE
+        op.pFrom = str(path) + "\0\0"   # double-null terminated
+        op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT
+        rc = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+        if rc == 0 and not op.fAnyOperationsAborted:
+            return not path.exists()
+        # shell recusou (ex.: caminho de rede sem suporte a Lixeira) — fallback.
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+    return not path.exists()
 
 
 # ── Audio decoding (PyAV → 16 kHz float32; no external ffmpeg binary) ───────────
@@ -2005,6 +2043,7 @@ class LiveTranscriber:
         self._pend_amostras = 0         # amostras (48 kHz) na fila, p/ política de descarte
         self._thread = None
         self._stop_ev = threading.Event()
+        self._discard_ev = threading.Event()
         self._on_text = None
         self._on_warn = None
         # Estado por canal: cauda de áudio a 16 kHz ainda não enviada, contexto
@@ -2033,6 +2072,7 @@ class LiveTranscriber:
         self._on_warn = on_warn
         self._on_group = on_group
         self._stop_ev.clear()
+        self._discard_ev.clear()
         self._ultimo_envio = {"mic": time.monotonic(), "sys": time.monotonic()}
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
@@ -2056,17 +2096,34 @@ class LiveTranscriber:
             self._on_warn(t("Transcrição ao vivo atrasada — descartando áudio antigo do rascunho."))
         self._q.put((mic_48k, sys_48k))
 
-    def stop(self, wait: bool = True, timeout: float = 15.0):
+    def stop(self, wait: bool = True, timeout: float = 15.0, discard: bool = False):
         """Sinaliza parada. `wait=True` (default) bloqueia até a fila esvaziar —
         é o que permite a passada final (Fase 3.7) nunca rodar `pipe.generate`
-        ao mesmo tempo que este worker (drain-then-start)."""
+        ao mesmo tempo que este worker (drain-then-start).
+
+        `discard=True` esvazia a fila pendente sem transcrevê-la (só o grupo já
+        em `_processar_par` termina) — a passada final substitui o backlog
+        inteiro, então drená-lo pro rascunho é trabalho jogado fora, e esperar
+        até FILA_MAX_S=60s por isso é o que fazia o `join` estourar o timeout
+        de 15s e a passada final começar com o worker ainda gerando (F4)."""
         self._stop_ev.set()
+        if discard:
+            self._discard_ev.set()
         if wait and self._thread is not None:
             self._thread.join(timeout=timeout)
 
     def _loop(self):
         try:
             while not self._stop_ev.is_set() or not self._q.empty():
+                if self._discard_ev.is_set():
+                    with self._lock:
+                        self._pend_amostras = 0
+                    while True:
+                        try:
+                            self._q.get_nowait()
+                        except queue.Empty:
+                            break
+                    break
                 try:
                     mic_48k, sys_48k = self._q.get(timeout=1.0)
                     with self._lock:
@@ -2722,7 +2779,7 @@ class App(tk.Tk):
         self._ic_save.bind("<Enter>", lambda e: self._show_menu(self._ic_save, [
             ("⚡  Salvar + Transcrever", self._conclude_and_transcribe),
             ("✓  Salvar", self._conclude_save),
-            ("🔤  Transcrever", self._conclude_and_transcribe)]), add="+")
+            ("⚡  Transcrever + excluir", self._conclude_transcribe_and_delete)]), add="+")
         self._ic_save.bind("<Leave>", lambda e: self._schedule_hide_pop(), add="+")
         # ✕ / ▶ : the icon acts on click; hover shows a non-clickable caption
         self._ic_del.bind("<Enter>", lambda e: self._show_tip(self._ic_del,
@@ -3210,7 +3267,13 @@ class App(tk.Tk):
         # Modo ao vivo (Fase 3, Dec2): rascunho durante a gravação, substituído
         # pela passada final ao parar. A escolha trava no início — mudar o
         # checkbox no meio da gravação não afeta a sessão em andamento.
-        self._live_was_on = bool(self._cfg.get("live")) and self._transcriber is not None
+        # `not self._transcribing` (F3): se uma transcrição de lote já estiver
+        # rodando no MESMO WhisperPipeline, ligar o rascunho ao vivo geraria
+        # duas chamadas concorrentes a pipe.generate — exatamente o que o
+        # drain-then-start do stop existe para impedir.
+        live_suprimido = bool(self._cfg.get("live")) and self._transcribing
+        self._live_was_on = (bool(self._cfg.get("live")) and self._transcriber is not None
+                              and not self._transcribing)
         on_pair = None
         if self._live_was_on:
             self._live = LiveTranscriber(self._transcriber, lang=self._whisper_lang())
@@ -3244,7 +3307,10 @@ class App(tk.Tk):
 
         self._tick_timer()
         self._blink_dot()
-        self._status(t("Gravando…  (mic + sistema)"))
+        if live_suprimido:
+            self._status(t("Rascunho ao vivo desativado — transcrição em andamento."))
+        else:
+            self._status(t("Gravando…  (mic + sistema)"))
 
     def _set_combos_enabled(self, enabled):
         st = "readonly" if enabled else "disabled"
@@ -3298,7 +3364,7 @@ class App(tk.Tk):
                 # já que o recorder parou de alimentar on_pair).
                 if self._live:
                     self._post(lambda: self._status(t("Fechando rascunho ao vivo…")))
-                    self._live.stop(wait=True, timeout=15.0)
+                    self._live.stop(wait=True, timeout=15.0, discard=True)
                 self._post(lambda: self._after_stop(path))
             except NoAudioCaptured:
                 if self._live:
@@ -3381,7 +3447,8 @@ class App(tk.Tk):
     def _conclude_delete(self):
         if self._last_rec and self._last_rec.exists():
             try:
-                self._last_rec.unlink()
+                if not _excluir_gravacao(self._last_rec):
+                    self._status(t("Não foi possível excluir.")); return
             except Exception as e:
                 self._status(tf("Não foi possível excluir: {e}", e=e)); return
         self._last_rec = None
@@ -3523,7 +3590,7 @@ class App(tk.Tk):
                 return
             if delete_after:
                 try:
-                    path.unlink()
+                    _excluir_gravacao(path)
                 except Exception:
                     pass
                 self._status(tf("Transcrição salva: {n}. Áudio excluído.", n=txt.name))
