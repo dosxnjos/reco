@@ -37,13 +37,19 @@ texto de botão/link.
 
 1. **Fonte (dev-time, não vai pro `.exe`):** baixar os `.svg` do Lucide
    (`raw.githubusercontent.com/lucide-icons/lucide/main/icons/<nome>.svg`,
-   licença ISC — permite embutir) pros ~13 conceitos usados hoje, salvos em
-   `assets/icons/lucide_src/*.svg` (fonte de verdade, versionada).
+   licença ISC — permite embutir) pros 11 conceitos com ícone Lucide, salvos
+   em `assets/icons_src/*.svg` (fonte de verdade, versionada; pasta separada
+   da `assets/icons/` de saída DE PROPÓSITO — só a de saída entra no bundle).
+   ⚠️ O Lucide renomeou a família `*-circle` para `circle-*`: o nome vigente
+   é `circle-arrow-up` (`arrow-up-circle` dá **404**). Os 11 nomes da tabela
+   abaixo foram testados contra o raw em 12/08/2026 — todos HTTP 200.
+   ⬤/⬛ não vêm do Lucide (ver exceção abaixo): são 2 SVGs de uma linha
+   embutidos como string no próprio `gerar_icones.py`.
 2. **Máscara (dev-time, script novo `tools/gerar_icones.py`):** cada SVG vira
-   um **PNG branco-sobre-transparente** (a máscara alfa) em dois tamanhos —
-   16px (ícones inline: ⚙ ↺ ⌨ ⬆) e 20px (botões de ação: ▶ ❚❚ ⚡ ✕ ✓ 🎵) — via
-   `cairosvg` (confirmado instalável e funcional nesta máquina). As máscaras
-   PNG vão em `assets/icons/*.png` e **essas sim** entram no bundle
+   um **PNG branco-sobre-transparente** (a máscara alfa) — 20px pros 8
+   conceitos de ação (⬤ ⬛ ❚❚ ▶ ⚡ ✕ ✓ 🎵) e 16px pros 5 inline (⚙ ↺ ⌨ ⬆ ＋)
+   — via `cairosvg` (confirmado instalável e funcional nesta máquina). As
+   máscaras PNG vão em `assets/icons/*.png` e **essas sim** entram no bundle
    (`reco.spec` `datas`, mesmo padrão do `logo/logo_symbol_1x1.ico`).
    `cairosvg` fica só como dependência de **dev** (script em `tools/`, não
    importado por `reco.py`) — não precisa lidar com a fama de PyInstaller +
@@ -57,36 +63,49 @@ texto de botão/link.
    simplesmente pede a cor nova — o cache velho fica órfão e não atrapalha
    (chaves diferentes).
 
-**Exceção deliberada — ⬤ Gravar e ⬛ Parar continuam desenhados na mão**, não
-viram ícone Lucide. Motivo: Lucide é 100% *stroke* (contorno), sem variante
-preenchida — usar o contorno pros dois símbolos mais universais de
-gravação/parada (círculo e quadrado **sólidos**) quebraria a convenção que
-todo app de gravação usa. Um retângulo/oval `tk.Canvas` preenchido, tingido
-com a cor do tema, já é nítido e não precisa de ícone nenhum — mantém o que
-já funciona bem hoje.
+**Exceção deliberada — ⬤ Gravar e ⬛ Parar não usam ícone Lucide.** Motivo:
+Lucide é 100% *stroke* (contorno), sem variante preenchida — usar o contorno
+pros dois símbolos mais universais de gravação/parada (círculo e quadrado
+**sólidos**) quebraria a convenção que todo app de gravação usa.
+**Correção de premissa (auditoria de 12/08):** hoje eles NÃO são canvas — são
+glifos de texto em `_btn` (`reco.py:2825-2827`; o único `tk.Canvas` do
+arquivo é o `VuMeter`, `reco.py:2423`). Mantê-los como texto preservaria a
+inconsistência que motivou este plano justamente nos dois botões mais
+visíveis do app. Solução: o próprio `gerar_icones.py` rasteriza dois SVGs de
+uma linha escritos à mão (`<circle cx="12" cy="12" r="8" fill="white"/>` e
+`<rect x="5" y="5" width="14" height="14" rx="2" fill="white"/>`, viewBox
+24×24), embutidos como string no script — mesmíssimo pipeline de máscara +
+tintura dos demais, zero caso especial no runtime.
 
 ## Mapa de substituição (13 conceitos)
 
 | hoje (emoji) | conceito | ícone Lucide | tamanho |
 | --- | --- | --- | --- |
-| ⬤ | gravar | *(mantém — canvas desenhado)* | — |
-| ⬛ | parar | *(mantém — canvas desenhado)* | — |
+| ⬤ | gravar | `record` (SVG próprio, círculo `fill`) | 20 |
+| ⬛ | parar | `stop` (SVG próprio, quadrado `fill`) | 20 |
 | ❚❚ | pausar | `pause` | 20 |
 | ▶ | reproduzir/continuar | `play` | 20 |
 | ⚡ | transcrever | `zap` | 20 |
 | ✕ | excluir | `trash-2` (ver Decisões) | 20 |
-| ✓ | salvar / marca de "tem .txt" | `check` | 20 / 16 |
+| ✓ | salvar | `check` | 20 |
 | ⚙ | opções | `settings` | 16 |
 | ↺ | atualizar (dispositivos/biblioteca) | `refresh-cw` | 16 |
 | ⌨ | atalho de teclado | `keyboard` | 16 |
-| ⬆ | nova versão disponível | `arrow-up-circle` | 16 |
+| ⬆ | nova versão disponível | `circle-arrow-up` | 16 |
 | ＋ | escolher arquivo | `plus` | 16 |
 | 🎵 | converter para MP3 | `music` | 20 |
 
-Pontos de uso confirmados por grep em `reco.py` (inclui a view "Biblioteca"
-da outra sessão, `_lib_action`, que também usa ▶/⚡/✕/↺): view gravar
-(`_build_recording`), view transcrever, view converter, view biblioteca,
-links de opções/atalho/atualização, menu do ⚡, tooltip de hover.
+⚠️ **Fora do escopo: o "✓" de célula da biblioteca** (`reco.py:4005` e
+`reco.py:4066`, coluna "tem .txt" do Treeview). `ttk.Treeview` só aceita
+imagem na coluna `#0` — célula de coluna comum é texto e ponto. Esse ✓ fica
+como está e **não conta** como pendência no grep do passo 4.
+
+Pontos de uso confirmados por grep em `reco.py` — **~30 ocorrências vivas**
+cobrindo os 13 conceitos (inclui a view "Biblioteca" da outra sessão,
+`_lib_action`, que também usa ▶/⚡/✕/↺): view gravar (`_build_recording`),
+view transcrever, view converter, view biblioteca, links de opções/atalho/
+atualização, menu do ⚡, tooltip de hover, e os rótulos dinâmicos de
+`_btn_label` (`reco.py:4373-4382`).
 
 ## Decisões e trade-offs
 
@@ -103,10 +122,14 @@ links de opções/atalho/atualização, menu do ⚡, tooltip de hover.
   pequeno/grande num monitor específico, é ajuste de valor, não de
   arquitetura — YAGNI até incomodar.
 - **Pillow vira dependência real do app** (estava só transitivo). Baixo
-  risco: é uma das libs mais testadas com PyInstaller que existe; ainda assim
-  entra explícito em `requirements.txt` e o build precisa confirmar que o
-  `reco.spec` não precisa de hook extra (checar `collect_data_files`/
-  `hiddenimports` pro Pillow, capaz de já vir de outro pacote).
+  risco: é uma das libs mais testadas com PyInstaller que existe. ⚠️ **MAS o
+  `reco.spec` hoje EXCLUI o PIL de propósito** (`excludes=[..., 'PIL', ...]`,
+  linha ~57 — herança de quando era lib transitiva indesejada). Sem tirar
+  `'PIL'` dos excludes, o exe empacota **sem Pillow** e, por causa do
+  fallback silencioso deste plano, o sintoma é o pior possível: ícones
+  perfeitos no dev, emoji antigo no `Reco.exe`, zero erro. Além disso,
+  `PIL.ImageTk` precisa de `PIL._tkinter_finder` como hiddenimport —
+  armadilha clássica de PyInstaller + ImageTk.
 - **`cairosvg` nunca entra no `.exe`** — só gera os PNGs uma vez, no
   desenvolvimento. Se o Gabriel trocar de máquina de dev, `pip install
   cairosvg` de novo resolve; não é dependência de quem só usa o app.
@@ -114,37 +137,52 @@ links de opções/atalho/atualização, menu do ⚡, tooltip de hover.
 ## Passos
 
 1. [ ] **Baixar os SVGs Lucide** (`play`, `pause`, `zap`, `trash-2`, `check`,
-   `settings`, `refresh-cw`, `keyboard`, `arrow-up-circle`, `plus`, `music`)
-   em `assets/icons/lucide_src/*.svg` via `curl` (raw.githubusercontent.com,
-   já confirmado acessível nesta sessão). — **prova:** `ls
-   assets/icons/lucide_src/*.svg | wc -l` → 11.
-2. [ ] **`tools/gerar_icones.py`:** script que roda `cairosvg` sobre cada SVG
-   em `assets/icons/lucide_src/`, produz máscara branca-sobre-transparente em
-   16px e 20px (os ícones de 16 só pros 5 conceitos inline; os de 20 pros 6
-   de ação — ver tabela) em `assets/icons/*.png`. — **prova:**
-   `python tools/gerar_icones.py && ls assets/icons/*.png | wc -l` → 17
-   (11 conceitos, 6 só em 20px + 5 só em 16px = confirmar contagem exata ao
-   escrever o script).
+   `settings`, `refresh-cw`, `keyboard`, `circle-arrow-up` ⚠️ (nome novo —
+   `arrow-up-circle` dá 404), `plus`, `music`) em `assets/icons_src/*.svg`
+   via `curl` (raw.githubusercontent.com; os 11 nomes testados com HTTP 200
+   em 12/08/2026). — **prova:** `ls assets/icons_src/*.svg | wc -l` → 11.
+2. [ ] **`tools/gerar_icones.py`:** roda `cairosvg` sobre os 11 SVGs de
+   `assets/icons_src/` **+ os 2 SVGs próprios embutidos no script**
+   (`record`/`stop`, círculo e quadrado com `fill` — ver exceção acima),
+   produzindo máscara branca-sobre-transparente em `assets/icons/*.png`:
+   20px pros 8 conceitos de ação (`record`, `stop`, `pause`, `play`, `zap`,
+   `trash-2`, `check`, `music`) e 16px pros 5 inline (`settings`,
+   `refresh-cw`, `keyboard`, `circle-arrow-up`, `plus`). — **prova:**
+   `python tools/gerar_icones.py && ls assets/icons/*.png | wc -l` → **13**
+   (8 + 5; nenhum conceito sai em dois tamanhos — o ✓ de 16px caiu do escopo
+   junto com a célula do Treeview).
 3. [ ] **`_icon(nome, cor, tamanho)` em `reco.py`:** abre a máscara com
    Pillow, recolore, cacheia em dict, devolve `ImageTk.PhotoImage` (guardar
    referência viva — armadilha clássica do Tk, `PhotoImage` sem referência
-   forte vira lixo e o botão fica em branco). Fallback pro texto/emoji atual
-   se o arquivo da máscara não existir. — **prova:** `python -c "import
+   forte vira lixo e o botão fica em branco). Fallback: se a máscara não
+   existir (ou o `import PIL` falhar), `_icon` devolve `None` e o **caller**
+   mantém o `text=` com o glifo antigo — o branch fica no ponto de uso, não
+   escondido dentro de `_icon`. — **prova:** `python -c "import
    reco; im = reco.App.__new__(reco.App); print(type(im))"` não é suficiente
    (precisa de Tk root); prova real é rodar o app e ver os ícones — manual
    (ver risco abaixo).
-4. [ ] **Trocar os 13 pontos de uso** (tabela acima) de `text="⚡"` /
-   `t("⚡  Transcrever")` pra `image=self._icon(...)` (+ `compound="left"`
-   nos que têm ícone-mais-texto, ex. "⬛ Parar"). Manter ⬤/⬛ como estão
-   (canvas). — **prova:** `grep -n "⚡\|✕\|✓\|⚙\|↺\|⌨\|⬆\|＋\|🎵\|❚❚\|▶" reco.py`
-   só deve sobrar nos `_TR_EN`/comentários/docstrings que documentam a
-   troca, não em `text=`/`t(...)` de botão vivo — conferir manualmente cada
+4. [ ] **Trocar os pontos de uso dos 13 conceitos** (~30 ocorrências vivas,
+   ver mapa) de `text="⚡"` / `t("⚡  Transcrever")` pra
+   `image=self._icon(...)` (+ `compound="left"` nos que têm ícone-mais-texto,
+   ex. "⬛  Parar"). ⚠️ Tirar o emoji da string **muda a CHAVE de tradução**
+   ("⚡  Transcrever" → "Transcrever"): atualizar o `_TR_EN` inteiro em
+   paralelo (`reco.py:271-430`) e os rótulos dinâmicos de `_btn_label`
+   (`reco.py:4373-4382`). O ✓ de célula do Treeview fica como texto (fora do
+   escopo, ver mapa). — **prova (dupla):** (a) `python tools/check_i18n.py`
+   verde; (b) `grep -n "⚡\|✕\|✓\|⚙\|↺\|⌨\|⬆\|＋\|🎵\|❚❚\|▶\|⬤\|⬛" reco.py`
+   só deve sobrar no ✓ do Treeview e em comentários/docstrings que documentam
+   a troca, não em `text=`/`t(...)` de botão vivo — conferir manualmente cada
    ocorrência restante.
-5. [ ] **`reco.spec`:** adicionar `assets/icons/*.png` aos `datas`, mesmo
-   padrão de `logo/logo_symbol_1x1.ico`. `requirements.txt` ganha `Pillow`
+5. [ ] **`reco.spec`:** (a) ⚠️ **REMOVER `'PIL'` da lista `excludes`**
+   (linha ~57 — sem isso o exe sai sem Pillow e todos os ícones caem no
+   fallback em silêncio); (b) adicionar `PIL.Image`, `PIL.ImageTk` e
+   `PIL._tkinter_finder` aos `hiddenimports`; (c) adicionar
+   `('assets/icons', 'assets/icons')` aos `datas` (só a pasta de saída — a
+   `assets/icons_src/` NÃO entra). `requirements.txt` ganha `Pillow`
    explícito. — **prova:** `powershell -ExecutionPolicy Bypass -File
-   build.ps1` verde, `dist/Reco/_internal/assets/icons/` (ou equivalente,
-   conferir onde o PyInstaller coloca) com os PNGs presentes.
+   build.ps1` verde, `dist/Reco/_internal/assets/icons/` com os 13 PNGs, e
+   **abrir o `dist\Reco\Reco.exe` e ver os ícones vetoriais** (não o emoji do
+   fallback) — é o único jeito de pegar Pillow faltando dentro do bundle.
 6. [ ] **Checar tema custom:** trocar cor de destaque em Opções (manual) e
    confirmar que os ícones tingidos acompanham (não ficam com a cor antiga
    presa). — manual, mesma razão do F13: é exatamente o bug que esse plano
@@ -160,9 +198,16 @@ links de opções/atalho/atualização, menu do ⚡, tooltip de hover.
 
 - **Nada disso é automatizável de ponta a ponta.** Assim como o roadmap
   anterior desta sessão, qualidade visual de ícone só se confirma olhando —
-  os passos 3, 4 e 6 têm prova manual declarada, não por preguiça, mas
-  porque Tk não compensa automatizar (mesma régua do roadmap de UX/UI já
-  fechado).
+  os passos 3, 4, 5 e 6 têm componente de prova manual declarado, não por
+  preguiça, mas porque Tk não compensa automatizar (mesma régua do roadmap
+  de UX/UI já fechado). A exceção nova: o passo 4 ganhou uma prova
+  automatizável de verdade (`tools/check_i18n.py`), porque a troca mexe nas
+  chaves de tradução.
+- **O fallback silencioso pode mascarar Pillow ausente NO EXE** — no dev
+  tudo funciona e no bundlado tudo volta pro emoji sem nenhum erro (o
+  `reco.spec` exclui `'PIL'` hoje). É por isso que tirar o PIL dos
+  `excludes` é item explícito do passo 5, e a prova dele exige abrir o
+  `Reco.exe` e OLHAR os ícones, não só listar os PNGs no `_internal/`.
 - **`cairosvg` pode exigir Cairo instalado no Windows** dependendo de como o
   pip resolveu a wheel nesta máquina (testado e funcionou aqui, mas se a
   execução for noutra máquina de dev, confirmar `pip install cairosvg`
