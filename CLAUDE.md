@@ -175,12 +175,14 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 
 - A view **"Gravações…"** lista a pasta de saída (duração via PyAV, cache por
   `(path, mtime)`), com busca por nome E por conteúdo dos `.txt` e ações
-  reproduzir/transcrever/📄/✦/excluir (excluir = Lixeira; o `.txt`/`.resumo.md`
-  ficam — o transcript sobrevive ao áudio). Desde 13/08/2026 reproduzir/
-  transcrever/excluir são ícones **Lucide** vetoriais (`_icon()`,
-  [roadmap/2026-08-12-icones-lucide.md](roadmap/2026-08-12-icones-lucide.md));
-  📄/✦ seguem emoji — fora do escopo dessa troca. **O filesystem é o banco**
-  (mp3 + .txt + .resumo.md lado a lado) — sem SQLite, de propósito.
+  reproduzir/transcrever/abrir transcrição/resumo IA/excluir (excluir =
+  Lixeira; o `.txt`/`.resumo.md` ficam — o transcript sobrevive ao áudio).
+  Desde 13/08/2026 as 5 são ícones **Lucide** vetoriais (`_icon()`,
+  [roadmap/2026-08-12-icones-lucide.md](roadmap/2026-08-12-icones-lucide.md)).
+  O ✓ da coluna "tem .txt" do `Treeview` continua texto — limitação do
+  widget (`ttk.Treeview` só aceita imagem na coluna `#0`; célula de coluna
+  comum é texto), não escolha de escopo. **O filesystem é o banco** (mp3 +
+  .txt + .resumo.md lado a lado) — sem SQLite, de propósito.
 - **✦ Resumo IA**: roda `claude -p --model sonnet` (CLI do Claude Code do
   usuário, via `shutil.which`) com a transcrição no stdin e salva
   `<gravação>.resumo.md`; se já existe, abre (refazer = excluir o .md). Sem
@@ -196,9 +198,11 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 
 ## Ícones Lucide (13/08/2026)
 
-13 dos botões que eram emoji de texto (mistura `Segoe UI Symbol`/`Segoe UI
+15 dos botões que eram emoji de texto (mistura `Segoe UI Symbol`/`Segoe UI
 Emoji` inconsistente entre si) agora são ícones **Lucide** vetoriais, tingidos
-com a cor do tema em runtime. Três camadas — decisão e trade-offs completos em
+com a cor do tema em runtime — os 13 do roadmap original mais `abrir_transcricao`
+(📄, `file-text`) e `resumo_ia` (✦, `sparkles`), fechados no mesmo dia numa
+segunda passada. Três camadas — decisão e trade-offs completos em
 [roadmap/2026-08-12-icones-lucide.md](roadmap/2026-08-12-icones-lucide.md):
 
 1. `assets/icons_src/*.svg` — fonte Lucide baixada (dev-time, versionada, NÃO
@@ -227,9 +231,13 @@ palavra visíveis ao mesmo tempo (ex. "Gravar", "Transcrever") precisa passar
 `compound="left"` explicitamente na chamada — sem isso o ícone esconde o
 texto por padrão.
 
-Ícone-só sem correspondente Lucide (📄 abrir transcrição, ✦ resumo IA) e o "✓"
-de célula do Treeview da biblioteca continuam emoji/texto — fora do escopo
-dessa troca.
+O "✓" de célula da coluna "tem .txt" do Treeview da biblioteca continua
+texto — não é escolha de escopo, é limitação do widget: `ttk.Treeview` só
+aceita `image=` na coluna `#0` (a árvore em si), célula de coluna comum é
+texto e ponto. O cabeçalho dessa mesma coluna ("📄") também ficou como
+glifo — `Treeview.heading()` aceita `image=`, mas trocar só o cabeçalho
+sem poder trocar as células abaixo dele criava uma mistura pior que a
+consistente hoje.
 
 ## Config e persistência
 

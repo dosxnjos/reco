@@ -431,7 +431,7 @@ _TR_EN = {
     "Selecione uma gravação.": "Select a recording.",
     "Enviada para a Lixeira: {n}": "Sent to the Recycle Bin: {n}",
     # AI summary (library ✦ action, via the user's Claude Code CLI)
-    "✦  Resumo IA": "✦  AI summary",
+    "Resumo IA": "AI summary",
     "Gerando resumo com o Claude…": "Generating the summary with Claude…",
     "Resumo salvo: {n}": "Summary saved: {n}",
     "Falha ao gerar o resumo: {e}": "Summary failed: {e}",
@@ -3940,9 +3940,10 @@ class App(tk.Tk):
                                             "Transcrever", icon="transcrever",
                                             primary=True)
         self._lib_txt_btn = self._lib_action(arow, "📄", self._lib_open_txt,
-                                             "Abrir transcrição")
+                                             "Abrir transcrição",
+                                             icon="abrir_transcricao")
         self._lib_sum_btn = self._lib_action(arow, "✦", self._lib_resumo,
-                                             "✦  Resumo IA")
+                                             "Resumo IA", icon="resumo_ia")
         self._lib_del_btn = self._lib_action(arow, "✕", self._lib_delete,
                                              "Excluir", icon="excluir", danger=True)
         self._lib_stop = self._btn(arow, t("Parar"),
@@ -3961,8 +3962,8 @@ class App(tk.Tk):
     def _lib_action(self, parent, glyph, cmd, tip_key, icon=None, **kw):
         """Botão-ícone da biblioteca: age no clique, caption no hover (mesmo
         padrão dos ícones do estado STOPPED — a janela nunca cresce). `icon`
-        (nome Lucide) tem prioridade sobre `glyph` (emoji, fallback pros
-        conceitos fora do escopo do roadmap de ícones — 📄/✦)."""
+        (nome Lucide) tem prioridade sobre `glyph` — o emoji vira só o
+        fallback se a máscara/Pillow faltar (mesmo mecanismo de `_btn`)."""
         b = self._btn(parent, glyph, cmd, icon=icon, **kw)
         b.pack(side="left", padx=(0, 8))
         b.bind("<Enter>", lambda e: self._show_tip(b, tip_key, icon=icon), add="+")

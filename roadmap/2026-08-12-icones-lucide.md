@@ -249,3 +249,25 @@ atualização, menu do ⚡, tooltip de hover, e os rótulos dinâmicos de
   verdade que `_excluir_gravacao()` já usa desde 12/08), é só baixar
   `https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/trash-2.svg`
   por cima de `assets/icons_src/excluir.svg` e rerodar o passo 2.
+
+## Extensão (13/08/2026, mesmo dia — pedido do Gabriel em conversa)
+
+Depois do fechamento acima, o Gabriel pediu pra rever os 2 conceitos que a
+Fase original documentou como "fora do escopo" (📄 abrir transcrição, ✦
+resumo IA, ambos botões de `_lib_action`) e deixar tudo redondo em Lucide.
+Mesmo pipeline das 13 primeiras — sem passo novo de arquitetura:
+
+- `file-text` → `abrir_transcricao` (20px, mesma linha que
+  reproduzir/transcrever/excluir na biblioteca).
+- `sparkles` → `resumo_ia` (20px, idem).
+- `assets/icons/` foi de 13 para **15** PNGs; `_TR_EN` perdeu a última chave
+  com emoji (`"✦  Resumo IA"` → `"Resumo IA"`).
+- **Ficou de fora, e não é mais "escopo" — é limitação do widget:** o ✓ da
+  célula "tem .txt" do `Treeview` (`ttk.Treeview` só aceita `image=` na
+  coluna `#0`) e o cabeçalho "📄" dessa mesma coluna (`heading()` até aceita
+  `image=`, mas trocar só o cabeçalho sem poder trocar as células abaixo
+  criava uma mistura pior que a atual — decisão consciente de não fazer).
+
+Build revalidado (`build.ps1` verde, 15 PNGs no bundle), `check_i18n.py`
+verde, App real com os 2 ícones novos carregados em `_icon_cache` sem
+exceção. Doc atualizada em `CLAUDE.md` § "Ícones Lucide".

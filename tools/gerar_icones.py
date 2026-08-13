@@ -29,6 +29,8 @@ ACAO_20PX = {
     "excluir": ("excluir", 20),
     "salvar": ("check", 20),
     "converter_mp3": ("music", 20),
+    "abrir_transcricao": ("file-text", 20),
+    "resumo_ia": ("sparkles", 20),
 }
 INLINE_16PX = {
     "opcoes": ("settings", 16),
