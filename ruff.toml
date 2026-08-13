@@ -1,0 +1,14 @@
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+# E501: linha longa é comum em prints/strings de status. S110: except/pass é
+#   degradação graciosa intencional em vários pontos de captura de áudio (device
+#   pode falhar e o app não pode travar). I001/E401/E701/E702/E741/F541: estilo já
+#   presente nos scripts de `tools/` (imports numa linha, ternário compacto),
+#   não corrigido em massa para não tocar em arquivo com trabalho em andamento de
+#   outra sessão (13/08/2026). S101: assert usado nos próprios scripts de teste de
+#   `tools/`, é esperado. E402: reconfiguração de stdout/stderr para UTF-8 antes do
+#   import (console Windows), ordem intencional. S603/S607/S606: subprocess com
+#   lista de args fixa (build.ps1, ferramentas locais), sem input de usuário.
+#   UP031: printf-style em log, cosmético. E731: lambda-assignment usado de
+#   propósito em scripts curtos. S310: urllib com URL fixa.
+ignore = ["E501", "S110", "I001", "E401", "E701", "E702", "E741", "F541", "S101", "E402", "S603", "S607", "S606", "UP031", "E731", "S310"]

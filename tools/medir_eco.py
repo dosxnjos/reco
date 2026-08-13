@@ -14,7 +14,6 @@ SR = 16000
 
 def decode(path):
     with av.open(str(path)) as cont:
-        st = cont.streams.audio[0]
         rs = av.audio.resampler.AudioResampler(format="fltp", layout="stereo", rate=SR)
         buf = []
         for frame in cont.decode(audio=0):

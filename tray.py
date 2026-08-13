@@ -16,7 +16,6 @@ without a second message loop.
 
 import ctypes
 from ctypes import wintypes
-from pathlib import Path
 
 user32   = ctypes.WinDLL("user32",   use_last_error=True)
 shell32  = ctypes.WinDLL("shell32",  use_last_error=True)

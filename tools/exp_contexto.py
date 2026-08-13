@@ -16,7 +16,7 @@ C) MARGEM DE AUDIO — incluir ~1 s de audio ANTES do segmento ajuda o modelo a
 Referencia de qualidade = janelas de 30 s (o que o app faz hoje, com todo o
 contexto disponivel). WER contra ela mede divergencia, nao erro absoluto.
 """
-import re, sys, time, unicodedata, zlib
+import re, sys, time, unicodedata
 from pathlib import Path
 import numpy as np
 import av
