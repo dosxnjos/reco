@@ -268,14 +268,14 @@ _TR_EN = {
     "MIC": "MIC",
     "SISTEMA": "SYSTEM",
     # buttons
-    "⬤  Gravar": "⬤  Record",
-    "⬛  Parar": "⬛  Stop",
-    "✓  Salvar": "✓  Save",
-    "⚡  Transcrever": "⚡  Transcribe",
-    "✕  Excluir": "✕  Delete",
-    "⚡  Transcrever + excluir": "⚡  Transcribe + delete",
-    "▶  Reproduzir": "▶  Play",
-    "⚡  Salvar + Transcrever": "⚡  Save + Transcribe",
+    "Gravar": "Record",
+    "Parar": "Stop",
+    "Salvar": "Save",
+    "Transcrever": "Transcribe",
+    "Excluir": "Delete",
+    "Transcrever + excluir": "Transcribe + delete",
+    "Reproduzir": "Play",
+    "Salvar + Transcrever": "Save + Transcribe",
     "Tema:": "Theme:",
     "Fundo": "Background",
     "Destaque": "Accent",
@@ -283,8 +283,8 @@ _TR_EN = {
     "Cor de fundo": "Background color",
     "Cor de destaque": "Accent color",
     # links
-    "⚙ Opções": "⚙ Options",
-    "⚙ Ocultar opções": "⚙ Hide options",
+    "Opções": "Options",
+    "Ocultar opções": "Hide options",
     "Transcrever…": "Transcribe…",
     "← Gravar": "← Record",
     # advanced labels
@@ -293,11 +293,11 @@ _TR_EN = {
     "Pasta:": "Folder:",
     "Alterar…": "Change…",
     "Pasta de gravações": "Recordings folder",
-    "↺ Atualizar dispositivos": "↺ Refresh devices",
+    "Atualizar dispositivos": "Refresh devices",
     "Processar em:": "Run on:",
     "Idioma:": "Language:",
-    "⌨ Criar atalho (Ctrl+Shift+R)": "⌨ Create shortcut (Ctrl+Shift+R)",
-    "⌨ Remover atalho": "⌨ Remove shortcut",
+    "Criar atalho (Ctrl+Shift+R)": "Create shortcut (Ctrl+Shift+R)",
+    "Remover atalho": "Remove shortcut",
     "Atalho criado — abra pelo Menu Iniciar ou com Ctrl+Shift+R.":
         "Shortcut created — open from the Start Menu or with Ctrl+Shift+R.",
     "Atalho removido.": "Shortcut removed.",
@@ -375,7 +375,7 @@ _TR_EN = {
     "Carregando áudio…": "Loading audio…",
     "Atualizando modelo…": "Updating model…",
     "Modelo atualizado.": "Model updated.",
-    "⬆ Nova versão {tag}": "⬆ New version {tag}",
+    "Nova versão {tag}": "New version {tag}",
     "Erro na transcrição: {e}": "Transcription error: {e}",
     "Transcrito, mas falha ao salvar o .txt.":
         "Transcribed, but failed to save the .txt.",
@@ -384,8 +384,7 @@ _TR_EN = {
     "Transcrição salva: {n}": "Transcription saved: {n}",
     # transcribe section
     "TRANSCRIÇÃO": "TRANSCRIPTION",
-    "＋ Escolher arquivo…": "＋ Choose a file…",
-    "⬛  Parar": "⬛  Stop",
+    "Escolher arquivo…": "Choose a file…",
     "Transcrição cancelada.": "Transcription cancelled.",
     "Salvo: {n}": "Saved: {n}",
     # tray
@@ -397,16 +396,15 @@ _TR_EN = {
     "Salvando antes de sair…": "Saving before exit…",
     "Reco — pausado {d}": "Reco — paused {d}",
     # pause / resume
-    "❚❚": "❚❚",
-    "❚❚  Pausar": "❚❚  Pause",
-    "▶  Continuar": "▶  Resume",
+    "Pausar": "Pause",
+    "Continuar": "Resume",
     "Pausado — {d} gravado.": "Paused — {d} recorded.",
     # convert section (video/heavy audio → light MP3)
     "Converter…": "Convert…",
     "CONVERSÃO": "CONVERSION",
-    "＋ Escolher vídeo ou áudio…": "＋ Choose video or audio…",
+    "Escolher vídeo ou áudio…": "Choose video or audio…",
     "Selecionar vídeo ou áudio": "Select video or audio",
-    "🎵  Converter para MP3": "🎵  Convert to MP3",
+    "Converter para MP3": "Convert to MP3",
     "MP3 leve: {sr} kHz mono, {br} kbps.":
         "Light MP3: {sr} kHz mono, {br} kbps.",
     "Origem: {a}": "Source: {a}",
@@ -427,7 +425,7 @@ _TR_EN = {
     "Arquivo": "File",
     "Data": "Date",
     "Duração": "Length",
-    "↺ Atualizar": "↺ Refresh",
+    "Atualizar": "Refresh",
     "Lendo gravações…": "Reading recordings…",
     "Nenhuma gravação encontrada.": "No recordings found.",
     "Selecione uma gravação.": "Select a recording.",
@@ -496,6 +494,12 @@ try:
     HAS_TRAY = (os.name == "nt")
 except Exception:
     _tray = None; HAS_TRAY = False
+
+try:
+    from PIL import Image, ImageTk
+    HAS_PIL = True
+except Exception:
+    Image = ImageTk = None; HAS_PIL = False
 
 
 # ── Transcription backend: OpenVINO GenAI (in-process, NPU / iGPU / CPU) ───────
@@ -2568,6 +2572,7 @@ class App(tk.Tk):
         self._pinned       = True     # hover-shown windows auto-hide; clicked ones don't
         self._hidden       = False
         self._hover_after  = None
+        self._icon_cache   = {}   # (nome, cor, tamanho) -> ImageTk.PhotoImage
 
         self._apply_style()
         self._build()
@@ -2609,8 +2614,9 @@ class App(tk.Tk):
         self._update_shown = True
         try:
             lk = self._link(self._links_row,
-                            tf("⬆ Nova versão {tag}", tag=tag),
-                            lambda: self._open_url(url), fg=ACCENT, font=SEG_XS)
+                            tf("Nova versão {tag}", tag=tag),
+                            lambda: self._open_url(url), fg=ACCENT, font=SEG_XS,
+                            icon="nova_versao")
             lk.pack(side="left", padx=(12, 0))
         except Exception:
             pass
@@ -2712,19 +2718,52 @@ class App(tk.Tk):
             borderwidth=0, gripcount=0)
 
     # ── widget factories ───────────────────────────────────────────────────────
-    def _btn(self, parent, text, cmd, primary=False, danger=False, **kw):
+    def _icon(self, nome, cor, tamanho):
+        """Máscara PNG (assets/icons/<nome>.png) tingida com `cor` em runtime —
+        troca de tema pede a cor nova, sem retingir a antiga (o cache velho
+        fica órfão e não atrapalha, roadmap/2026-08-12-icones-lucide.md).
+        None se a máscara/Pillow faltar — o CALLER decide o fallback (nunca
+        escondido aqui), nunca derruba o app."""
+        if not HAS_PIL or not nome:
+            return None
+        chave = (nome, cor, tamanho)
+        img = self._icon_cache.get(chave)
+        if img is not None:
+            return img
+        try:
+            caminho = _asset("assets", "icons", f"{nome}.png")
+            mascara = Image.open(caminho).convert("RGBA")
+            colorida = Image.new("RGBA", mascara.size, cor)
+            colorida.putalpha(mascara.getchannel("A"))
+            img = ImageTk.PhotoImage(colorida)
+        except Exception:
+            return None
+        self._icon_cache[chave] = img
+        return img
+
+    def _btn(self, parent, text, cmd, primary=False, danger=False,
+              icon=None, icon_size=20, **kw):
         if danger:
             bg, abg, fg = RED_C, _mix(RED_C, "#000000", 0.18), "#FFFFFF"
         elif primary:
             bg, abg, fg = ACCENT, _mix(ACCENT, "#000000", 0.14), ACCENT_FG
         else:
             bg, abg, fg = CARD, CARD_H, TEXT
+        img = self._icon(icon, fg, icon_size) if icon else None
+        if img is not None:
+            kw.setdefault("image", img)
+            # "none" por padrão: ícone-só substitui o `text` (fallback se a
+            # máscara faltar) — quem quer ícone+texto lado a lado passa
+            # compound="left" explicitamente na chamada.
+            kw.setdefault("compound", "none")
         b = tk.Button(
             parent, text=text, command=cmd,
             bg=bg, fg=fg, activebackground=abg, activeforeground=fg,
             relief="flat", bd=0, cursor="hand2",
             font=SEG_SB if (primary or danger) else SEG,
             padx=12, pady=7, **kw)
+        if img is not None:
+            b.image = img   # referência viva — sem isso o GC apaga o ícone
         b._bg, b._abg = bg, abg
         b.bind("<Enter>", lambda e, b=b: b.config(bg=b._abg)
                if str(b.cget("state")) != "disabled" else None)
@@ -2732,16 +2771,31 @@ class App(tk.Tk):
                if str(b.cget("state")) != "disabled" else None)
         return b
 
-    def _link(self, parent, text, cmd, fg=None, font=None):
+    def _link(self, parent, text, cmd, fg=None, font=None, icon=None, icon_size=16):
         # fg/font resolvidos no CORPO, não no default-arg (F13): um default-arg
         # avalia SUBTLE uma vez no import, com o tema escuro inicial — depois
         # de trocar pro tema claro, todo link sem fg explícito ficava preso na
         # cor do tema escuro.
         fg = fg or SUBTLE
         font = font or SEG_XS
-        lb = tk.Label(parent, text=text, bg=BG, fg=fg, cursor="hand2", font=font)
+        img = self._icon(icon, fg, icon_size) if icon else None
+        kw = {}
+        if img is not None:
+            kw["image"] = img
+            kw["compound"] = "left" if text else "none"
+        lb = tk.Label(parent, text=text, bg=BG, fg=fg, cursor="hand2", font=font, **kw)
+        if img is not None:
+            lb.image = img   # referência viva — sem isso o GC apaga o ícone
         lb.bind("<Button-1>", lambda e: cmd())
         return lb
+
+    def _link_recolor(self, lb, text, fg, icon=None, icon_size=16):
+        """Reconfigura texto+cor (e o ícone, retingido na cor nova) de um link
+        já criado — usado onde o texto muda dinamicamente (Opções/atalho)."""
+        img = self._icon(icon, fg, icon_size) if icon else None
+        lb.config(text=text, fg=fg, image=img or "",
+                  compound=("left" if (img is not None and text) else "none"))
+        lb.image = img
 
     # ── build ────────────────────────────────────────────────────────────────
     def _build(self):
@@ -2822,33 +2876,39 @@ class App(tk.Tk):
         self._btn_row2 = tk.Frame(body, bg=BG)
         self._btn_row2.pack(fill="x", pady=(4, 0))
 
-        self._btn_gravar   = self._btn(self._btn_row, t("⬤  Gravar"),
-                                        self._start_rec, primary=True)
-        self._btn_parar    = self._btn(self._btn_row, t("⬛  Parar"),
-                                        self._stop_rec, danger=True)
-        self._btn_pausar   = self._btn(self._btn_row, t("❚❚"), self._pause_rec)
-        self._btn_seguir   = self._btn(self._btn_row, t("▶  Continuar"),
-                                        self._resume_rec, primary=True)
+        self._btn_gravar   = self._btn(self._btn_row, t("Gravar"),
+                                        self._start_rec, primary=True, icon="gravar",
+                                        compound="left")
+        self._btn_parar    = self._btn(self._btn_row, t("Parar"),
+                                        self._stop_rec, danger=True, icon="parar",
+                                        compound="left")
+        self._btn_pausar   = self._btn(self._btn_row, "❚❚", self._pause_rec,
+                                        icon="pausar")
+        self._btn_seguir   = self._btn(self._btn_row, t("Continuar"),
+                                        self._resume_rec, primary=True,
+                                        icon="reproduzir", compound="left")
 
         # STOPPED state: compact icons. The icon itself performs the action;
         # hovering reveals a floating menu/caption over the interface (the window
         # never grows).
         self._ic_save = self._btn(self._btn_row, "⚡", self._conclude_and_transcribe,
-                                  primary=True)
-        self._ic_del  = self._btn(self._btn_row, "✕", self._conclude_delete, danger=True)
-        self._ic_play = self._btn(self._btn_row, "▶", self._play_recording)
+                                  primary=True, icon="transcrever")
+        self._ic_del  = self._btn(self._btn_row, "✕", self._conclude_delete,
+                                  danger=True, icon="excluir")
+        self._ic_play = self._btn(self._btn_row, "▶", self._play_recording,
+                                  icon="reproduzir")
         # ⚡ : clickable menu (debounced hide so the mouse can move into it)
         self._ic_save.bind("<Enter>", lambda e: self._show_menu(self._ic_save, [
-            ("⚡  Salvar + Transcrever", self._conclude_and_transcribe),
-            ("✓  Salvar", self._conclude_save),
-            ("⚡  Transcrever + excluir", self._conclude_transcribe_and_delete)]), add="+")
+            ("Salvar + Transcrever", self._conclude_and_transcribe, "transcrever"),
+            ("Salvar", self._conclude_save, "salvar"),
+            ("Transcrever + excluir", self._conclude_transcribe_and_delete, "transcrever")]), add="+")
         self._ic_save.bind("<Leave>", lambda e: self._schedule_hide_pop(), add="+")
         # ✕ / ▶ : the icon acts on click; hover shows a non-clickable caption
         self._ic_del.bind("<Enter>", lambda e: self._show_tip(self._ic_del,
-                                                              "✕  Excluir"), add="+")
+                                                              "Excluir", icon="excluir"), add="+")
         self._ic_del.bind("<Leave>", lambda e: self._hide_pop(), add="+")
         self._ic_play.bind("<Enter>", lambda e: self._show_tip(self._ic_play,
-                                                               "▶  Reproduzir"), add="+")
+                                                               "Reproduzir", icon="reproduzir"), add="+")
         self._ic_play.bind("<Leave>", lambda e: self._hide_pop(), add="+")
 
         self._timer_var = tk.StringVar(value="00:00:00")
@@ -2866,8 +2926,9 @@ class App(tk.Tk):
         # de gravação (F7) — sem isso, uma transcrição longa iniciada por aqui
         # não tinha como ser interrompida pela UI (o ⬛ Parar só existe na view
         # "tr"). Escondido por padrão; _rec_show_stop_tr o mostra/esconde.
-        self._rec_stop_tr = self._btn(body, t("⬛  Parar"),
-                                       self._stop_transcription, danger=True)
+        self._rec_stop_tr = self._btn(body, t("Parar"),
+                                       self._stop_transcription, danger=True,
+                                       icon="parar", compound="left")
 
         # Link de acesso direto ao .txt pronto (F10) — o produto do app é a
         # transcrição; antes só dava pra abrir indo pra view "tr" > "Abrir pasta".
@@ -2918,7 +2979,8 @@ class App(tk.Tk):
         row = tk.Frame(body, bg=BG)
         row.pack(fill="x", pady=(10, 0))
         self._links_row = row
-        self._adv_link = self._link(row, t("⚙ Opções"), self._toggle_advanced)
+        self._adv_link = self._link(row, t("Opções"), self._toggle_advanced,
+                                     icon="opcoes")
         self._adv_link.pack(side="left")
         # Packed right-to-left: Transcrever first, so Converter lands to its left.
         self._tr_link = self._link(row, t("Transcrever…"),
@@ -2956,8 +3018,8 @@ class App(tk.Tk):
             var.trace_add("write",
                 lambda *_, v=var, k=cfg_key: self._on_device_change(v, k))
 
-        self._link(self._adv, t("↺ Atualizar dispositivos"),
-                   self._scan_devices).pack(anchor="w", pady=(2, 6))
+        self._link(self._adv, t("Atualizar dispositivos"),
+                   self._scan_devices, icon="atualizar").pack(anchor="w", pady=(2, 6))
 
         # Auto-save folder (defaults to Documents\Reco; changeable)
         frow = tk.Frame(self._adv, bg=BG)
@@ -3043,10 +3105,10 @@ class App(tk.Tk):
         self._adv_shown = not self._adv_shown
         if self._adv_shown:
             self._adv.pack(fill="x")
-            self._adv_link.config(text=t("⚙ Ocultar opções"), fg=ACCENT)
+            self._link_recolor(self._adv_link, t("Ocultar opções"), ACCENT, icon="opcoes")
         else:
             self._adv.pack_forget()
-            self._adv_link.config(text=t("⚙ Opções"), fg=SUBTLE)
+            self._link_recolor(self._adv_link, t("Opções"), SUBTLE, icon="opcoes")
         self.update_idletasks()
         self.geometry("")
 
@@ -3216,9 +3278,12 @@ class App(tk.Tk):
         pop = self._make_pop(anchor)
         inner = tk.Frame(pop, bg=CARD)
         inner.pack(padx=1, pady=1)
-        for label_key, cmd in items:
+        for label_key, cmd, *icon in items:
+            img = self._icon(icon[0], TEXT, 16) if icon else None
             row = tk.Label(inner, text=t(label_key), bg=CARD, fg=TEXT, font=SEG_SM,
-                           anchor="w", cursor="hand2", padx=12, pady=7)
+                           anchor="w", cursor="hand2", padx=12, pady=7,
+                           image=img, compound="left" if img is not None else "none")
+            row.image = img
             row.pack(fill="x")
             row.bind("<Enter>", lambda e, r=row: r.config(bg=CARD_H))
             row.bind("<Leave>", lambda e, r=row: r.config(bg=CARD))
@@ -3227,14 +3292,18 @@ class App(tk.Tk):
         pop.bind("<Leave>", lambda e: self._schedule_hide_pop())
         self._place_pop(pop, anchor)
 
-    def _show_tip(self, anchor, text_key):
+    def _show_tip(self, anchor, text_key, icon=None):
         # non-clickable caption (for the ✕ / ▶ icons, which act on click)
         self._cancel_hide_pop()
         if self._pop is not None and self._pop_anchor is anchor:
             return
         pop = self._make_pop(anchor)
-        tk.Label(pop, text=t(text_key), bg=CARD, fg=TEXT, font=SEG_SM,
-                 padx=10, pady=5).pack(padx=1, pady=1)
+        img = self._icon(icon, TEXT, 16) if icon else None
+        lb = tk.Label(pop, text=t(text_key), bg=CARD, fg=TEXT, font=SEG_SM,
+                      padx=10, pady=5, image=img,
+                      compound="left" if img is not None else "none")
+        lb.image = img
+        lb.pack(padx=1, pady=1)
         self._place_pop(pop, anchor)
 
     def _pop_action(self, cmd):
@@ -3709,8 +3778,8 @@ class App(tk.Tk):
 
         nav = tk.Frame(sec, bg=BG)
         nav.pack(fill="x")
-        self._link(nav, t("＋ Escolher arquivo…"), self._tr_browse,
-                   fg=ACCENT, font=SEG_SM).pack(side="left")
+        self._link(nav, t("Escolher arquivo…"), self._tr_browse,
+                   fg=ACCENT, font=SEG_SM, icon="escolher_arquivo").pack(side="left")
         self._link(nav, t("Abrir pasta"), self._open_tr_folder,
                    font=SEG_SM).pack(side="right")
 
@@ -3721,11 +3790,13 @@ class App(tk.Tk):
 
         arow = tk.Frame(sec, bg=BG)
         arow.pack(fill="x", pady=(8, 0))
-        self._tr_btn = self._btn(arow, t("⚡  Transcrever"),
-                                 self._tr_transcribe, primary=True)
+        self._tr_btn = self._btn(arow, t("Transcrever"),
+                                 self._tr_transcribe, primary=True, icon="transcrever",
+                                 compound="left")
         self._tr_btn.pack(side="left", padx=(0, 8))
-        self._tr_stop = self._btn(arow, t("⬛  Parar"),
-                                  self._stop_transcription, danger=True)
+        self._tr_stop = self._btn(arow, t("Parar"),
+                                  self._stop_transcription, danger=True, icon="parar",
+                                  compound="left")
         # _tr_stop is packed only while transcribing
 
         self._tr_status_var = tk.StringVar(
@@ -3837,7 +3908,8 @@ class App(tk.Tk):
                        highlightcolor=ACCENT, font=SEG_SM)
         ent.pack(side="left", fill="x", expand=True, padx=(0, 8))
         self._lib_query.trace_add("write", lambda *_: self._lib_refilter_soon())
-        self._link(nav, t("↺ Atualizar"), self._lib_scan).pack(side="right")
+        self._link(nav, t("Atualizar"), self._lib_scan,
+                   icon="atualizar").pack(side="right")
 
         wrap = tk.Frame(sec, bg=BG)
         wrap.pack(fill="both", expand=True, pady=(6, 0))
@@ -3863,17 +3935,19 @@ class App(tk.Tk):
         arow = tk.Frame(sec, bg=BG)
         arow.pack(fill="x", pady=(8, 0))
         self._lib_play_btn = self._lib_action(arow, "▶", self._lib_play,
-                                              "▶  Reproduzir")
+                                              "Reproduzir", icon="reproduzir")
         self._lib_tr_btn = self._lib_action(arow, "⚡", self._lib_transcribe,
-                                            "⚡  Transcrever", primary=True)
+                                            "Transcrever", icon="transcrever",
+                                            primary=True)
         self._lib_txt_btn = self._lib_action(arow, "📄", self._lib_open_txt,
                                              "Abrir transcrição")
         self._lib_sum_btn = self._lib_action(arow, "✦", self._lib_resumo,
                                              "✦  Resumo IA")
         self._lib_del_btn = self._lib_action(arow, "✕", self._lib_delete,
-                                             "✕  Excluir", danger=True)
-        self._lib_stop = self._btn(arow, t("⬛  Parar"),
-                                   self._stop_transcription, danger=True)
+                                             "Excluir", icon="excluir", danger=True)
+        self._lib_stop = self._btn(arow, t("Parar"),
+                                   self._stop_transcription, danger=True, icon="parar",
+                                   compound="left")
         # _lib_stop só é empacotado enquanto uma transcrição desta view roda
         self._link(arow, t("Abrir pasta"), self._lib_open_folder,
                    font=SEG_SM).pack(side="right")
@@ -3884,12 +3958,14 @@ class App(tk.Tk):
                      anchor="w", pady=(8, 0))
         self._lib_sync_actions()
 
-    def _lib_action(self, parent, glyph, cmd, tip_key, **kw):
+    def _lib_action(self, parent, glyph, cmd, tip_key, icon=None, **kw):
         """Botão-ícone da biblioteca: age no clique, caption no hover (mesmo
-        padrão dos ícones do estado STOPPED — a janela nunca cresce)."""
-        b = self._btn(parent, glyph, cmd, **kw)
+        padrão dos ícones do estado STOPPED — a janela nunca cresce). `icon`
+        (nome Lucide) tem prioridade sobre `glyph` (emoji, fallback pros
+        conceitos fora do escopo do roadmap de ícones — 📄/✦)."""
+        b = self._btn(parent, glyph, cmd, icon=icon, **kw)
         b.pack(side="left", padx=(0, 8))
-        b.bind("<Enter>", lambda e: self._show_tip(b, tip_key), add="+")
+        b.bind("<Enter>", lambda e: self._show_tip(b, tip_key, icon=icon), add="+")
         b.bind("<Leave>", lambda e: self._hide_pop(), add="+")
         return b
 
@@ -4163,8 +4239,8 @@ class App(tk.Tk):
 
         nav = tk.Frame(sec, bg=BG)
         nav.pack(fill="x")
-        self._link(nav, t("＋ Escolher vídeo ou áudio…"), self._cv_browse,
-                   fg=ACCENT, font=SEG_SM).pack(side="left")
+        self._link(nav, t("Escolher vídeo ou áudio…"), self._cv_browse,
+                   fg=ACCENT, font=SEG_SM, icon="escolher_arquivo").pack(side="left")
         self._link(nav, t("Abrir pasta"), self._open_cv_folder,
                    font=SEG_SM).pack(side="right")
 
@@ -4175,8 +4251,9 @@ class App(tk.Tk):
 
         arow = tk.Frame(sec, bg=BG)
         arow.pack(fill="x", pady=(8, 0))
-        self._cv_btn = self._btn(arow, t("🎵  Converter para MP3"),
-                                 self._cv_convert, primary=True)
+        self._cv_btn = self._btn(arow, t("Converter para MP3"),
+                                 self._cv_convert, primary=True, icon="converter_mp3",
+                                 compound="left")
         self._cv_btn.pack(side="left")
 
         self._cv_status_var = tk.StringVar(
@@ -4302,10 +4379,10 @@ class App(tk.Tk):
 
     def _update_shortcut_link(self):
         exists = self._shortcut_path().exists()
-        self._sc_link.config(
-            text=t("⌨ Remover atalho") if exists
-                 else t("⌨ Criar atalho (Ctrl+Shift+R)"),
-            fg=ACCENT if exists else SUBTLE)
+        self._link_recolor(
+            self._sc_link,
+            t("Remover atalho") if exists else t("Criar atalho (Ctrl+Shift+R)"),
+            ACCENT if exists else SUBTLE, icon="atalho")
 
     def _toggle_shortcut(self):
         lnk = self._shortcut_path()
@@ -4370,16 +4447,16 @@ class App(tk.Tk):
         # Called by the tray while the menu is being built (same thread as Tk, since
         # Tk's loop dispatches our WndProc), so reading the state here is safe.
         if self._state in (RECORDING, PAUSED):
-            return t("⬛  Parar")
+            return t("Parar")
         if self._state == IDLE:
-            return t("⬤  Gravar")
+            return t("Gravar")
         return None                   # BUSY / STOPPED: no sensible one-click action
 
     def _tray_pause_label(self):
         if self._state == RECORDING:
-            return t("❚❚  Pausar")
+            return t("Pausar")
         if self._state == PAUSED:
-            return t("▶  Continuar")
+            return t("Continuar")
         return None
 
     def _tray_toggle_rec(self):

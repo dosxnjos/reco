@@ -35,6 +35,10 @@ hiddenimports += [
     # huggingface_hub pulls these lazily during snapshot_download
     "huggingface_hub", "requests", "tqdm", "filelock", "fsspec",
     "packaging", "yaml",
+    # Pillow — ícones Lucide tingidos em runtime (roadmap/2026-08-12-icones-lucide.md).
+    # PIL._tkinter_finder é a armadilha clássica de PyInstaller + ImageTk: sem ele
+    # o PIL.ImageTk não acha o Tcl/Tk bundlado.
+    "PIL.Image", "PIL.ImageTk", "PIL._tkinter_finder",
 ]
 
 a = Analysis(
@@ -45,7 +49,10 @@ a = Analysis(
                    # tray icons: idle + recording (red dot) — loaded from disk by
                    # LoadImageW at runtime, so they must exist as real files.
                    ('logo/tray_idle.ico', 'logo'),
-                   ('logo/tray_rec.ico', 'logo')],
+                   ('logo/tray_rec.ico', 'logo'),
+                   # máscaras PNG dos ícones Lucide (assets/icons_src/ NÃO entra —
+                   # só a saída rasterizada, ver tools/gerar_icones.py).
+                   ('assets/icons', 'assets/icons')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -54,7 +61,7 @@ a = Analysis(
         # we don't use these transcription stacks (OpenVINO replaces them)
         'faster_whisper', 'ctranslate2', 'tokenizers', 'onnxruntime',
         # heavy libs we don't use
-        'matplotlib', 'PIL', 'cv2', 'pandas', 'IPython',
+        'matplotlib', 'cv2', 'pandas', 'IPython',
         'PyQt5', 'PyQt6', 'wx',
     ],
     noarchive=False,

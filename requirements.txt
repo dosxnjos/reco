@@ -2,6 +2,7 @@
 soundcard        # WASAPI capture (mic + system loopback)
 numpy
 av               # MP3 encode/decode + resampling (bundles ffmpeg libs)
+Pillow           # tinge os ícones Lucide em runtime (ImageTk.PhotoImage)
 
 # Optional — echo cancellation on the transcribe screen
 scipy

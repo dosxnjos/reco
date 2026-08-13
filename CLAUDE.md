@@ -175,9 +175,12 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 
 - A view **"Gravações…"** lista a pasta de saída (duração via PyAV, cache por
   `(path, mtime)`), com busca por nome E por conteúdo dos `.txt` e ações
-  ▶ ⚡ 📄 ✦ ✕ (✕ = Lixeira; o `.txt`/`.resumo.md` ficam — o transcript
-  sobrevive ao áudio). **O filesystem é o banco** (mp3 + .txt + .resumo.md
-  lado a lado) — sem SQLite, de propósito.
+  reproduzir/transcrever/📄/✦/excluir (excluir = Lixeira; o `.txt`/`.resumo.md`
+  ficam — o transcript sobrevive ao áudio). Desde 13/08/2026 reproduzir/
+  transcrever/excluir são ícones **Lucide** vetoriais (`_icon()`,
+  [roadmap/2026-08-12-icones-lucide.md](roadmap/2026-08-12-icones-lucide.md));
+  📄/✦ seguem emoji — fora do escopo dessa troca. **O filesystem é o banco**
+  (mp3 + .txt + .resumo.md lado a lado) — sem SQLite, de propósito.
 - **✦ Resumo IA**: roda `claude -p --model sonnet` (CLI do Claude Code do
   usuário, via `shutil.which`) com a transcrição no stdin e salva
   `<gravação>.resumo.md`; se já existe, abre (refazer = excluir o .md). Sem
@@ -190,6 +193,43 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 - Origem, análise de mercado (Meetily/Char/anarlog/OGAD) e os NÃO-fazer
   (tela no Windows, LLM embarcado, SQLite, notepad):
   [roadmap/2026-08-12-melhoria-biblioteca-e-resumo.md](roadmap/2026-08-12-melhoria-biblioteca-e-resumo.md).
+
+## Ícones Lucide (13/08/2026)
+
+13 dos botões que eram emoji de texto (mistura `Segoe UI Symbol`/`Segoe UI
+Emoji` inconsistente entre si) agora são ícones **Lucide** vetoriais, tingidos
+com a cor do tema em runtime. Três camadas — decisão e trade-offs completos em
+[roadmap/2026-08-12-icones-lucide.md](roadmap/2026-08-12-icones-lucide.md):
+
+1. `assets/icons_src/*.svg` — fonte Lucide baixada (dev-time, versionada, NÃO
+   entra no bundle).
+2. `tools/gerar_icones.py` — rasteriza cada SVG numa máscara PNG
+   branco-sobre-transparente em `assets/icons/*.png` (essas sim entram no
+   `.exe`, `reco.spec` `datas`). Rodar de novo só se trocar/adicionar ícone.
+3. `App._icon(nome, cor, tamanho)` (runtime) — abre a máscara com Pillow,
+   recolore via `putalpha`, cacheia em `self._icon_cache` por
+   `(nome, cor, tamanho)`. Troca de tema/`_rebuild_ui` só pede a cor nova; o
+   cache velho fica órfão e não atrapalha.
+
+⚠️ **Fallback nunca escondido em `_icon()`.** Se a máscara ou o Pillow faltar,
+`_icon()` devolve `None` e quem chamou decide — `_btn`/`_link` só setam
+`image=` quando `_icon()` teve sucesso, então o `text=` (emoji/palavra antigos)
+sempre passado pelo caller aparece sozinho. **Nunca** passar `text=""` num
+botão ícone-só sem essa rede: viraria botão em branco silencioso se o Pillow
+faltar no bundle (era exatamente esse bug que o `reco.spec` excluindo `'PIL'`
+de propósito ia reintroduzir — corrigido junto: `'PIL'` saiu dos `excludes`,
+entrou em `hiddenimports` com `PIL._tkinter_finder`).
+
+⚠️ **`compound` decide se o ícone substitui ou acompanha o texto.** Default de
+`_btn`/`_link` é `compound="none"` (Tk: só a imagem aparece se ela existir,
+senão o texto) — é o que faz o fallback funcionar. Botão com ícone **e**
+palavra visíveis ao mesmo tempo (ex. "Gravar", "Transcrever") precisa passar
+`compound="left"` explicitamente na chamada — sem isso o ícone esconde o
+texto por padrão.
+
+Ícone-só sem correspondente Lucide (📄 abrir transcrição, ✦ resumo IA) e o "✓"
+de célula do Treeview da biblioteca continuam emoji/texto — fora do escopo
+dessa troca.
 
 ## Config e persistência
 

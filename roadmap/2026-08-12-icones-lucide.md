@@ -136,12 +136,12 @@ atualização, menu do ⚡, tooltip de hover, e os rótulos dinâmicos de
 
 ## Passos
 
-1. [ ] **Baixar os SVGs Lucide** (`play`, `pause`, `zap`, `trash-2`, `check`,
+1. [x] **Baixar os SVGs Lucide** (`play`, `pause`, `zap`, `trash-2`, `check`,
    `settings`, `refresh-cw`, `keyboard`, `circle-arrow-up` ⚠️ (nome novo —
    `arrow-up-circle` dá 404), `plus`, `music`) em `assets/icons_src/*.svg`
    via `curl` (raw.githubusercontent.com; os 11 nomes testados com HTTP 200
    em 12/08/2026). — **prova:** `ls assets/icons_src/*.svg | wc -l` → 11.
-2. [ ] **`tools/gerar_icones.py`:** roda `cairosvg` sobre os 11 SVGs de
+2. [x] **`tools/gerar_icones.py`:** roda `cairosvg` sobre os 11 SVGs de
    `assets/icons_src/` **+ os 2 SVGs próprios embutidos no script**
    (`record`/`stop`, círculo e quadrado com `fill` — ver exceção acima),
    produzindo máscara branca-sobre-transparente em `assets/icons/*.png`:
@@ -151,48 +151,62 @@ atualização, menu do ⚡, tooltip de hover, e os rótulos dinâmicos de
    `python tools/gerar_icones.py && ls assets/icons/*.png | wc -l` → **13**
    (8 + 5; nenhum conceito sai em dois tamanhos — o ✓ de 16px caiu do escopo
    junto com a célula do Treeview).
-3. [ ] **`_icon(nome, cor, tamanho)` em `reco.py`:** abre a máscara com
+3. [x] **`_icon(nome, cor, tamanho)` em `reco.py`:** abre a máscara com
    Pillow, recolore, cacheia em dict, devolve `ImageTk.PhotoImage` (guardar
    referência viva — armadilha clássica do Tk, `PhotoImage` sem referência
    forte vira lixo e o botão fica em branco). Fallback: se a máscara não
    existir (ou o `import PIL` falhar), `_icon` devolve `None` e o **caller**
    mantém o `text=` com o glifo antigo — o branch fica no ponto de uso, não
-   escondido dentro de `_icon`. — **prova:** `python -c "import
-   reco; im = reco.App.__new__(reco.App); print(type(im))"` não é suficiente
-   (precisa de Tk root); prova real é rodar o app e ver os ícones — manual
-   (ver risco abaixo).
-4. [ ] **Trocar os pontos de uso dos 13 conceitos** (~30 ocorrências vivas,
+   escondido dentro de `_icon`. — **prova:** rodado com App real (Tk root),
+   `app._icon_cache` populado com os 12 ícones esperados sem exceção;
+   simulado `HAS_PIL=False` e confirmado que os botões ícone-só voltam pro
+   glifo antigo (`text=`) sem `image=`, sem crash.
+4. [x] **Trocar os pontos de uso dos 13 conceitos** (~30 ocorrências vivas,
    ver mapa) de `text="⚡"` / `t("⚡  Transcrever")` pra
-   `image=self._icon(...)` (+ `compound="left"` nos que têm ícone-mais-texto,
-   ex. "⬛  Parar"). ⚠️ Tirar o emoji da string **muda a CHAVE de tradução**
-   ("⚡  Transcrever" → "Transcrever"): atualizar o `_TR_EN` inteiro em
-   paralelo (`reco.py:271-430`) e os rótulos dinâmicos de `_btn_label`
-   (`reco.py:4373-4382`). O ✓ de célula do Treeview fica como texto (fora do
-   escopo, ver mapa). — **prova (dupla):** (a) `python tools/check_i18n.py`
-   verde; (b) `grep -n "⚡\|✕\|✓\|⚙\|↺\|⌨\|⬆\|＋\|🎵\|❚❚\|▶\|⬤\|⬛" reco.py`
-   só deve sobrar no ✓ do Treeview e em comentários/docstrings que documentam
-   a troca, não em `text=`/`t(...)` de botão vivo — conferir manualmente cada
-   ocorrência restante.
-5. [ ] **`reco.spec`:** (a) ⚠️ **REMOVER `'PIL'` da lista `excludes`**
-   (linha ~57 — sem isso o exe sai sem Pillow e todos os ícones caem no
-   fallback em silêncio); (b) adicionar `PIL.Image`, `PIL.ImageTk` e
-   `PIL._tkinter_finder` aos `hiddenimports`; (c) adicionar
-   `('assets/icons', 'assets/icons')` aos `datas` (só a pasta de saída — a
-   `assets/icons_src/` NÃO entra). `requirements.txt` ganha `Pillow`
-   explícito. — **prova:** `powershell -ExecutionPolicy Bypass -File
-   build.ps1` verde, `dist/Reco/_internal/assets/icons/` com os 13 PNGs, e
-   **abrir o `dist\Reco\Reco.exe` e ver os ícones vetoriais** (não o emoji do
-   fallback) — é o único jeito de pegar Pillow faltando dentro do bundle.
-6. [ ] **Checar tema custom:** trocar cor de destaque em Opções (manual) e
-   confirmar que os ícones tingidos acompanham (não ficam com a cor antiga
-   presa). — manual, mesma razão do F13: é exatamente o bug que esse plano
-   promete não reintroduzir.
-7. [ ] **Screenshot + docs:** recapturar `docs/screenshot.png` com os ícones
-   novos; se `trash-2` for aprovado, atualizar qualquer menção a "✕" em
-   `CLAUDE.md`/`README.md`. — **prova:** `git log -1 --stat
-   docs/screenshot.png` mostra a troca.
-8. [ ] **Commit + consolidar:** um commit (ou um por etapa grande, a critério
-   de quem executar), roadmap fechado, diário do dia atualizado.
+   `image=self._icon(...)`. ⚠️ Tirar o emoji da string **muda a CHAVE de
+   tradução** ("⚡  Transcrever" → "Transcrever"): `_TR_EN` inteiro atualizado
+   em paralelo (`reco.py`, seção `_TR_EN`) — os rótulos dinâmicos usados pelo
+   menu de bandeja (`_tray_rec_label`/`_tray_pause_label`, não havia
+   `_btn_label` — a referência de linha do plano estava desatualizada)
+   acompanham porque chamam `t()` com a mesma chave. O ✓ de célula do
+   Treeview fica como texto (fora do escopo, ver mapa). ⚠️ Achado no
+   caminho: o `compound` default de `_btn`/`_link` precisa ser `"none"`
+   (não `"left"` quando havia texto) — com `"left"` os botões ícone-só
+   (⚡/✕/▶/❚❚) mostravam ícone E glifo juntos em vez do glifo só como
+   fallback; corrigido antes do build, com `compound="left"` explícito só
+   nos botões que querem ícone+palavra (Gravar, Parar, Transcrever…). —
+   **prova (dupla):** (a) `python tools/check_i18n.py` → `OK — cobertura
+   completa, nada morto.`; (b) `grep -n
+   "⚡\|✕\|✓\|⚙\|↺\|⌨\|⬆\|＋\|🎵\|❚❚\|▶\|⬤\|⬛" reco.py` só sobra no ✓ do
+   Treeview (`reco.py`, colunas `txt`) e em comentários que documentam a
+   troca.
+5. [x] **`reco.spec`:** `'PIL'` removido de `excludes`; `PIL.Image`,
+   `PIL.ImageTk`, `PIL._tkinter_finder` em `hiddenimports`;
+   `('assets/icons', 'assets/icons')` em `datas`. `requirements.txt` ganhou
+   `Pillow` explícito. — **prova:** `build.ps1` verde (2×, a 2ª após corrigir
+   o achado do `compound` no passo 4); `dist/Reco/_internal/assets/icons/`
+   com os 13 PNGs; `Reco.exe` aberto de verdade (screenshot) — ícone Gravar
+   (círculo) e Opções (engrenagem) renderizando vetoriais, tingidos com a cor
+   do tema, nada de fallback emoji.
+6. [x] **Checar tema custom:** testado em processo (App real): trocar o
+   `bg_color` recalcula `SUBTLE` (`#969CA4` → `#5C5C66` no teste) e o
+   `_icon_cache` passa a ter as DUAS versões do mesmo ícone (cor antiga órfã
+   + cor nova em uso) — confirma que nenhum ícone fica preso na cor antiga
+   (o bug do F13 que este plano prometia não reintroduzir). ⚠️ O teste
+   gravou as cores de tema experimentais em `~/.reco_config.json`; restaurado
+   pra `DEFAULT_BG`/`DEFAULT_ACCENT` (tema original do Gabriel) antes de
+   seguir.
+7. [x] **Screenshot + docs:** `docs/screenshot.png` recapturado com os
+   ícones novos (Gravar/Opções vetoriais visíveis). `trash-2` NÃO foi
+   aprovado (ver pendência de decisão abaixo — ficou `x`), então não há
+   menção a "✕" pra atualizar em CLAUDE.md/README.md; adicionada uma seção
+   nova em `CLAUDE.md` (§ "Ícones Lucide") documentando a arquitetura de 3
+   camadas e a armadilha do `compound`. — **prova:** `git log -1 --stat
+   docs/screenshot.png` (após o commit do passo 8) mostra a troca.
+8. [x] **Commit + consolidar:** commit único com `reco.py`, `reco.spec`,
+   `requirements.txt`, `CLAUDE.md`, `docs/screenshot.png`,
+   `assets/icons_src/`, `assets/icons/`, `tools/gerar_icones.py` e este
+   roadmap; diário do dia atualizado.
 
 ## Riscos / o que pode dar errado
 
@@ -219,3 +233,19 @@ atualização, menu do ⚡, tooltip de hover, e os rótulos dinâmicos de
   `tk.PhotoImage` — o GC coleta a imagem se nada segura uma referência
   Python). Guardar em `self._icon_cache` (dict de instância), não variável
   local de função.
+
+## Pendências de decisão (execução 2026-08-13, /goal autônomo)
+
+- **`trash-2` vs `x` para o Excluir (✕) — pulada, resolvida pelo caminho
+  conservador.** O próprio plano marca isso como "pergunta aberta pro
+  Gabriel, não decidida sozinho" (linha 215-217). Em modo autônomo (`/goal`)
+  não há quem responda, e essa é uma bifurcação que muda o *significado*
+  visual do ícone (trade-off já registrado acima em "Decisões e
+  trade-offs"). Resolução aplicada: baixado o SVG **`x`** (não `trash-2`) —
+  preserva exatamente o significado do ✕ atual, é reversível (troca o nome
+  do SVG em `assets/icons_src/` e regera `assets/icons/excluir.png` via
+  `tools/gerar_icones.py`, sem tocar em runtime) e não fecha porta nenhuma.
+  Se o Gabriel preferir `trash-2` (lata de lixo, mais alinhado à Lixeira de
+  verdade que `_excluir_gravacao()` já usa desde 12/08), é só baixar
+  `https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/trash-2.svg`
+  por cima de `assets/icons_src/excluir.svg` e rerodar o passo 2.
