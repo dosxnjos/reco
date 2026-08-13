@@ -11,10 +11,11 @@ Regenerar ao criar ou fechar um roadmap:
 Este índice também é a porta de entrada de cada arquivo da pasta no grafo
 do vault — sem ele, roadmap vira nó solto no Obsidian.
 
-## Ativos (2)
+## Ativos (3)
 
 | Data | Arquivo | Resumo |
 | --- | --- | --- |
+| 2026-08-12 | [2026-08-12-icones-lucide.md](2026-08-12-icones-lucide.md) | Plano — ícones Lucide substituindo emoji nos botões (2026-08-12) |
 | 2026-08-02 | [2026-08-02-melhoria-evolucao-mac-tela-meet.md](2026-08-02-melhoria-evolucao-mac-tela-meet.md) | Roadmap de melhoria — Reco: porte macOS, gravação de tela e Meet via extensão (2026-08-02) |
 | 2026-07-29 | [2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md](2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md) | Roadmap de melhoria — Reco: VAD, diarização e transcrição ao vivo (2026-07-29) |
 
@@ -41,4 +42,4 @@ de checkbox `[x]`/`[ ]` — esses caem em **N/A** mesmo com progresso real
 feito na prosa, zero checkbox no arquivo). Para julgar backlog real (e
 não só navegar), abrir o arquivo antes de assumir que N/A = nada feito.
 
-<!-- 7 arquivos indexados -->
+<!-- 8 arquivos indexados -->
