@@ -257,3 +257,84 @@ O roadmap de 12/08 (Fase 1.4) cita esse script como prova de não-regressão do
 `LiveTranscriber.stop(discard=True)` — ele serve pra isso (o app não trava, a
 passada final roda), mas **não** serve como gate de latência enquanto esse
 problema de GPU não for investigado à parte.
+
+## `medir_eco.py` subestima o eco por construção (19/08/2026)
+
+**Sintoma.** A métrica do projeto reporta acoplamento caixa→mic de −20 a −31 dB
+("quase desprezível") em gravações cujo canal de mic é, na verdade, **dominado**
+pelo áudio do PC — e o eco continua audível no MP3.
+
+**Causa.** O rótulo de "só o PC falando" exige que o mic esteja quase mudo:
+
+```python
+so_sys = (s >= lim_s) & (m < lim_m * 3)
+```
+
+Como o eco entra no mic, todo bloco com eco **forte** é reclassificado como
+`ambos` e sai da conta. No arquivo de 19/08 11:00: 1753 blocos `so_sistema`
+contra **11448 `ambos`** (59% do arquivo). A medida acontece nos ~9% de blocos
+onde o eco é mais fraco — é viés de seleção, não medição.
+
+**O que fazer.** Medir por **predição**, não por rótulo de energia: estimar o
+caminho de eco por mínimos quadrados (a voz do near-end é descorrelacionada da
+referência, então o LS é não-viesado mesmo com fala em cima) e reportar a fração
+da energia do mic que a referência explica. Medido assim, no mesmo arquivo:
+**77% a 93%** (contra −30,9 dB da métrica antiga). E **sempre rodar o controle
+negativo** — a mesma estimativa com referência falsa (outro trecho, canal
+invertido, ruído branco) explica 1–5%; sem esse controle não há como distinguir
+medição de sobre-ajuste. Números históricos (−17,9 / −23,7 / −20,5 / −30,9 dB)
+herdam o viés: não citar como acoplamento real.
+
+---
+
+## ERLE sem "dano na voz" ao lado é métrica que mente (19/08/2026)
+
+**Sintoma.** O `cancel_echo` reportava ERLE de +9 a +18 dB e parecia estar
+funcionando. Medindo a **atenuação da voz do usuário** nos mesmos trechos:
++12 a +17 dB, chegando a **+28,4 dB** numa janela — o app estava apagando a voz
+do Gabriel, não o eco.
+
+**Causa.** Duas somadas:
+
+1. **Não existe detector de double-talk.** O LS por bin roda igual em bloco com
+   e sem fala do near-end, e **59%** do arquivo de 19/08 é double-talk. Filtro
+   que se adapta durante double-talk aprende a voz do near-end e a subtrai — é o
+   modo de falha clássico de AEC, e explica o número inteiro: prova disso é que
+   congelar o filtro fora dos trechos far-end-only derruba o dano para −0,1 e
+   +2,1 dB.
+2. **A pós-supressão residual é cega** (`E * max(beta, 1 - pe/(pr+pe))`): onde a
+   estimativa de eco é espúria, ela atenua sinal legítimo até o piso de −20 dB.
+   Ela responde por ~6 dB dos números; o resto é o LS sem DTD.
+
+Agravante: `_alinhar_canais` busca o atraso em `maxlag_s=0.2` (3200 amostras) e
+o atraso real do arquivo chega a **3370** — o alinhamento satura e o filtro passa
+a ajustar correlação espúria.
+
+**O que fazer.** Reportar AEC **sempre** como par (ERLE, dano na voz), medido
+out-of-sample — ERLE sozinho é indistinguível de "abaixei o volume". A rede de
+segurança atual (`r_out > r_in*1.05` devolve o original) não pega isso: ela só
+protege contra a saída ficar **mais alta**, nunca contra atenuar demais. Plano
+de correção: `roadmap/2026-08-19-melhoria-antieco-de-verdade.md` (Fase 0).
+
+---
+
+## Os canais do MP3 saem desalinhados por ~200 ms (19/08/2026)
+
+**Sintoma.** Ao ouvir a gravação, a fala do interlocutor aparece duas vezes com
+separação nítida — soa como eco de sala grande, não como vazamento fraco.
+
+**Causa.** Não é acústica: eco de caixa a um metro são ~3 ms. Medido no arquivo
+de 19/08 11:00, o atraso mic↔loopback é de **3241 amostras (203 ms)**, com jitter
+de 24 ms entre janelas e deriva de +21 ppm (+76 ms/hora). É **latência de buffer**
+entre os dois streams: o `DualRecorder` sincroniza o *início* dos streams com
+`threading.Barrier`, mas o loopback entrega o primeiro bloco com offset próprio, e
+`_pump` pareia por **contagem de amostras** — o offset inicial fica gravado para
+sempre. Acima de ~50 ms o ouvido deixa de integrar a reflexão como reverberação e
+passa a ouvir eco separado, então esse offset é provavelmente a causa da queixa,
+mesmo quando o acoplamento é modesto.
+
+**O que fazer.** Compensar o offset na gravação (Fase 1 do roadmap de 19/08) —
+alinhar não é "processar o áudio", é corrigir buffer, e é pré-requisito de
+qualquer AEC e da diarização. ⚠️ E não confundir alinhar com cancelar: alinhar +
+ganho escalar ótimo dá **−1,1 dB** de ERLE (não cancela nada); o ganho do
+alinhamento é percepção e correção do resto do pipeline.

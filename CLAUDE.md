@@ -146,10 +146,22 @@ Medições e alternativas descartadas:
   ícone (mostra/ativa a janela da 1ª). `--selftest`/`--transcribe` saem antes
   desse ponto e nunca criam o mutex.
 - **Cancelamento de eco (`cancel_echo`):** mínimos quadrados em blocos de 2 s com
-  6 taps + pós-supressão residual. Entrega **~7 dB** de ERLE no áudio real (a
-  versão anterior entregava ~3, apesar de "37 dB validados" — em eco sintético).
-  ⚠️ **O teto não é o filtro, é a deriva de clock** entre mic e loopback
-  (−65,8 ppm medidos, ~237 ms/hora). Não alongar o filtro esperando 20 dB.
+  6 taps + pós-supressão residual. Roda **só na transcrição** (canal do mic, com
+  o R como referência) — o MP3 é gravado cru, de propósito (limpeza é exportação
+  sob demanda, não gravação).
+  ⚠️ **DEFEITO ABERTO, medido em 19/08/2026: ele atenua a voz do usuário em até
+  28 dB.** Não tem detector de double-talk, e 59% de uma gravação real é
+  double-talk; o "ERLE de ~7 a 18 dB" é a mesma atenuação cega, não cancelamento.
+  Antes de citar qualquer número de AEC deste projeto, ler
+  [roadmap/2026-08-19-melhoria-antieco-de-verdade.md](roadmap/2026-08-19-melhoria-antieco-de-verdade.md):
+  o acoplamento real é de 77–93% da energia do mic (a métrica antiga dizia
+  −30 dB, por viés de seleção), os canais saem **203 ms desalinhados**, e o teto
+  honesto de um filtro linear aqui é ~8–10 dB **com dano na voz ≤ 1 dB** — meta,
+  não conquista. Regra que passa a valer: **ERLE sozinho é métrica proibida**;
+  reportar sempre o par (ERLE, dano na voz), out-of-sample. A deriva de clock
+  (medida: −65,8 ppm em 23/07, +21 ppm em 19/08) continua sendo um dos tetos, mas
+  não é o único — o mic (array do Intel Smart Sound) aplica AGC/supressão própria
+  e o caminho de eco muda com o conteúdo.
 
 ## Ferramentas de apoio (`tools/`)
 
@@ -162,7 +174,7 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 | `reparar_duracao.py <pasta> [--aplicar]` | conserta a duração de MP3 antigos por remux (ver a regra acima) |
 | `test_antiloop.py <mp3> [modelo] [device]` | roda as janelas mais fracas com e sem a defesa anti-loop. Rodar **sempre** que mexer em `_degenerado`/`_generate_sem_loop`. Critério: nenhum n-grama > 3× |
 | `test_e2e.py <mp3>` | transcrição ponta a ponta pelo caminho real do app (decode + diarização + AEC + anti-loop), com tempo e extrapolação para 2 h |
-| `medir_eco.py <mp3>` | acoplamento caixa→mic e ERLE do `cancel_echo` **em áudio real**. Rodar **sempre** que mexer no AEC — validar em eco sintético já mascarou uma implementação que entregava 3 dB |
+| `medir_eco.py <mp3>` | acoplamento caixa→mic e ERLE do `cancel_echo` **em áudio real**. Rodar **sempre** que mexer no AEC — validar em eco sintético já mascarou uma implementação que entregava 3 dB. ⚠️ **A métrica é enviesada** (19/08/2026): mede acoplamento só em blocos com o mic quase mudo, então subestima o eco por construção, e não mede dano na voz. Ver `docs/ARMADILHAS.md` e a Fase 3 do roadmap de 19/08; até lá, o número que ela imprime é piso, não valor |
 | `bench_final.py <mp3> [n]` | device × modelo: velocidade, extrapolação p/ 2 h, e qualidade por divergência (WER) contra o melhor modelo disponível. `BENCH_MODELOS`/`BENCH_DEVICES`/`BENCH_MODO=fracas` filtram |
 | `bench_convivencia.py <mp3> [n]` + `vizinho.py` | quanto a transcrição atrasa **outro app** (latência de um vizinho single-thread em processo separado). É o que decide iGPU × NPU |
 | `bench_convivencia_pipeline.py <mp3>` | igual acima, mas com o pipeline REAL (`OVTranscriber.transcribe`, VAD+contexto+dominância) em vez de `pipe.generate()` cru — o que decide o orçamento de device do modo ao vivo |
