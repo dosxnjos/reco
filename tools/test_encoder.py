@@ -77,6 +77,12 @@ print("\n[2] Sincronia: canais chegando desalinhados (o encoder só pareia o com
 r = reco.DualRecorder()
 r._writer = reco.MP3Writer(OUT / "t_sync.mp3", CAP, reco.OUT_SR, reco.OUT_CH, reco.MP3_BR)
 r._mic_live = r._sys_live = True
+# ⚠️ `_al_estado = "off"` porque este bloco testa o PAREAMENTO, e desde 19/08 o
+# `_pump` retém o áudio nos primeiros segundos para estimar o offset entre os
+# canais (Fase 1 do roadmap do antieco) — com o alinhamento ativo, um pump de
+# 1000 amostras não escreve nada, de propósito. O alinhamento tem teste próprio:
+# tools/test_alinhamento.py.
+r._al_estado = "off"
 r._mic_chunks[:] = [np.ones(3000, np.float32) * 0.5]      # mic 3000 à frente
 r._sys_chunks[:] = [np.ones(1000, np.float32) * 0.5]
 r._pump()
@@ -103,6 +109,7 @@ print("\n[4] Pump final: rabo de um canal é preenchido com silêncio")
 r = reco.DualRecorder()
 r._writer = reco.MP3Writer(OUT / "t_final.mp3", CAP, reco.OUT_SR, reco.OUT_CH, reco.MP3_BR)
 r._mic_live = r._sys_live = True
+r._al_estado = "off"                                      # ver a nota do bloco [2]
 r._mic_chunks[:] = [np.ones(4000, np.float32) * 0.5]
 r._sys_chunks[:] = [np.ones(1000, np.float32) * 0.5]
 r._pump(final=True)

@@ -65,6 +65,21 @@ Medições e alternativas descartadas:
   sincronizados por um `threading.Barrier` antes do `__enter__` dos streams.
   Pausar **continua lendo e descarta** os frames (não para o stream) para os dois
   canais caírem em lockstep e L/R não dessincronizarem.
+  ⚠️ **A barreira sincroniza o INÍCIO dos streams, não o conteúdo** — o loopback
+  entrega o primeiro bloco com um offset próprio, e como o `_pump` pareia por
+  contagem de amostras, esse offset ficava gravado no arquivo (medido: +203 ms num
+  arquivo, **−399 ms** noutro; o sinal varia). Desde 19/08/2026 o `_pump`
+  **alinha** os canais: retém o pareamento nos primeiros ~10 s (até
+  `ALIGN_DESISTE_S`=20 s), estima o offset por correlação cruzada
+  (`estimar_offset`), descarta as amostras do canal adiantado, e reestima a cada
+  `ALIGN_RECHECK_S`=60 s para acompanhar deriva de clock e jitter. Consequências
+  que **não** são acidentes: o MP3 só começa a crescer ~10 s depois do start; sem
+  eco medível (gravação de fone) o estado vai para `"tentando"` e a gravação segue
+  sem alinhar, tentando de novo a cada minuto; `alinhamento()` expõe o estado para
+  log/testes. Provas: `tools/test_alinhamento.py` (unitário, sem hardware) e
+  `tools/test_gravacao_alinhada.py` (grava tocando áudio de verdade; gate: pior
+  janela < 10 ms — medido −0,3 ms). Alinhar **não** é processar o áudio: não há
+  filtro nem ganho, só descarte de amostras.
 - **Encode em streaming (desde 28/07/2026):** um terceiro thread (`_encode_loop`)
   drena os buffers dos dois canais a cada 200 ms, pareia **só o trecho que ambos
   já entregaram** (`_pump`) e alimenta o `MP3Writer`; a sobra de quem está à
@@ -180,6 +195,10 @@ Rodam pelo fonte, com o venv do projeto — não entram no executável.
 | `reparar_duracao.py <pasta> [--aplicar]` | conserta a duração de MP3 antigos por remux (ver a regra acima) |
 | `test_antiloop.py <mp3> [modelo] [device]` | roda as janelas mais fracas com e sem a defesa anti-loop. Rodar **sempre** que mexer em `_degenerado`/`_generate_sem_loop`. Critério: nenhum n-grama > 3× |
 | `test_e2e.py <mp3>` | transcrição ponta a ponta pelo caminho real do app (decode + diarização + AEC + anti-loop), com tempo e extrapolação para 2 h |
+| `test_alinhamento.py` | alinhamento dos canais **sem hardware**: offset positivo/negativo, retenção inicial, correção de deriva, fone (sem eco → não alinha), canal único. Rodar **sempre** que mexer em `estimar_offset`/`_al_*`/`_pump` |
+| `test_gravacao_alinhada.py [seg]` | prova ponta a ponta do alinhamento: grava de verdade **tocando áudio pelos alto-falantes** (sem isso não há eco para correlacionar) e mede o atraso residual por janela. Gate: pior janela < 10 ms. Medido em 19/08: **−0,3 ms** (era +203 ms) |
+| `alinhar_gravacao.py <mp3\|pasta> [--aplicar]` | conserta gravações **antigas**, escrevendo `<nome>_alinhado.mp3` ao lado (nunca sobrescreve — o áudio é re-encodado). Reestima o deslocamento a cada 30 s, então corrige a deriva dentro do arquivo. Streaming, um passe, sem `seek` |
+| `medir_aec.py <mp3> [janelas] [dur]` | par **(ERLE, dano na voz)** com rotulagem alinhada — é o gate de regressão do AEC. Use este, não o `medir_eco.py`, para julgar cancelamento de eco |
 | `medir_eco.py <mp3>` | acoplamento caixa→mic e ERLE do `cancel_echo` **em áudio real**. Rodar **sempre** que mexer no AEC — validar em eco sintético já mascarou uma implementação que entregava 3 dB. ⚠️ **A métrica é enviesada** (19/08/2026): mede acoplamento só em blocos com o mic quase mudo, então subestima o eco por construção, e não mede dano na voz. Ver `docs/ARMADILHAS.md` e a Fase 3 do roadmap de 19/08; até lá, o número que ela imprime é piso, não valor |
 | `bench_final.py <mp3> [n]` | device × modelo: velocidade, extrapolação p/ 2 h, e qualidade por divergência (WER) contra o melhor modelo disponível. `BENCH_MODELOS`/`BENCH_DEVICES`/`BENCH_MODO=fracas` filtram |
 | `bench_convivencia.py <mp3> [n]` + `vizinho.py` | quanto a transcrição atrasa **outro app** (latência de um vizinho single-thread em processo separado). É o que decide iGPU × NPU |

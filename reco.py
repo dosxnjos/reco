@@ -1354,6 +1354,77 @@ class NoAudioCaptured(Exception):
     pass
 
 
+# ── Alinhamento dos canais na gravação (Fase 1, 19/08/2026) ────────────────────
+# Os dois streams do WASAPI começam juntos (o Barrier garante isso), mas o
+# loopback entrega o primeiro bloco com um offset próprio, e `_pump` pareia por
+# CONTAGEM DE AMOSTRAS — então o offset inicial ficava gravado no arquivo para
+# sempre. Medido em gravações reais: 203 ms num arquivo, −399 ms noutro (o SINAL
+# varia: às vezes o loopback vem depois do mic). Acima de ~50 ms o ouvido para de
+# integrar a cópia como reverberação e passa a ouvir eco separado — foi a queixa
+# que abriu o roadmap 2026-08-19-melhoria-antieco-de-verdade.md.
+#
+# ⚠️ Alinhar NÃO é processar o áudio (decisão 3 do § 2 daquele roadmap): não há
+# filtro nem ganho aqui, só descarte/inserção de amostras para que t=0 dos dois
+# canais seja o mesmo instante real. O MP3 continua sendo mic cru | loopback cru.
+ALIGN_COLETA_S   = 10.0    # quanto acumular antes de estimar o offset inicial
+ALIGN_DESISTE_S  = 20.0    # ⚠️ teto da RETENÇÃO. Sem eco medível (gravação de fone,
+                           # caixa muda, ninguém falou ainda) a correlação não fecha,
+                           # e prender o áudio esperando por ela deixaria o MP3
+                           # vazio e o rascunho ao vivo mudo por todo esse tempo.
+                           # Passado o teto, grava normalmente e segue tentando o
+                           # offset completo nas reestimativas (estado "tentando")
+ALIGN_RECHECK_S  = 60.0    # reestimativa periódica. ⚠️ Era 300 s, e não bastava:
+                           # a deriva de clock é lenta (~76 ms/hora) mas o atraso
+                           # tem JITTER de ~24 ms entre trechos, e com 5 min entre
+                           # checagens o residual medido numa gravação real ficou
+                           # em 18 ms (gate: 10 ms). A 60 s o custo é uma correlação
+                           # de 20 s decimados por minuto — ~30 ms de CPU.
+ALIGN_JANELA_S   = 20.0    # janela (decimada a 16k) usada nas reestimativas
+ALIGN_MAXLAG_S   = 0.5     # busca de atraso — mesmo teto de _alinhar_canais
+ALIGN_Q_MIN      = 0.15    # correlação normalizada mínima para confiar no pico
+ALIGN_MIN_AJUSTE = 48      # 1 ms @48k — abaixo disso não vale mexer
+ALIGN_MAX_AJUSTE = 2400    # 50 ms @48k — teto por reestimativa, contra estimativa
+                           # ruim fazer estrago de uma vez
+
+
+def estimar_offset(mic, sistema, sr=CAPTURE_SR, maxlag_s=ALIGN_MAXLAG_S):
+    """Atraso do mic em relação ao loopback, em amostras de `sr`, + qualidade.
+
+    Positivo = o conteúdo comum (o eco do que a caixa tocou) aparece no mic
+    DEPOIS de aparecer no loopback, que é o caso normal. Negativo = o loopback é
+    que está atrasado; acontece de verdade (medido em 18/08/2026), então quem
+    consome isto tem que tratar os dois sinais.
+
+    A qualidade é a correlação cruzada normalizada no pico (0..1): sem eco
+    audível — gravação de fone, caixa muda — não existe conteúdo comum, o pico é
+    ruído e o offset não deve ser aplicado. Correlaciona em 16 kHz (decima por 3,
+    razão exata) porque 62 µs de resolução é muito mais do que o suficiente e a
+    FFT fica 3× menor.
+    """
+    try:
+        from scipy.signal import correlate, resample_poly
+    except Exception:
+        return 0, 0.0
+    dec = sr // 16000 if sr % 16000 == 0 else 1
+    a = np.asarray(mic, np.float64)
+    b = np.asarray(sistema, np.float64)
+    if dec > 1:
+        a, b = resample_poly(a, 1, dec), resample_poly(b, 1, dec)
+    n = min(len(a), len(b))
+    if n < 16000:                       # menos de 1 s decimado: não dá pra confiar
+        return 0, 0.0
+    a, b = a[:n], b[:n]
+    na, nb = np.linalg.norm(a), np.linalg.norm(b)
+    if na < 1e-6 or nb < 1e-6:          # um dos canais está mudo
+        return 0, 0.0
+    c = correlate(a, b, mode="full", method="fft")
+    lags = np.arange(-n + 1, n)
+    janela = np.abs(lags) <= int(maxlag_s * (sr // dec))
+    cw, lw = c[janela], lags[janela]
+    k = int(np.argmax(np.abs(cw)))
+    return int(lw[k]) * dec, float(np.abs(cw[k]) / (na * nb))
+
+
 class DualRecorder:
     """Captures mic + system in lockstep and encodes the MP3 as it goes.
 
@@ -1393,6 +1464,16 @@ class DualRecorder:
         # that will never come (otherwise one dead device stalls the pairing).
         self._mic_live   = False
         self._sys_live   = False
+        # Alinhamento dos canais (Fase 1). "coletando" retém o pareamento até dar
+        # para estimar o offset; "ok" já alinhou; "off" desistiu (sem eco medível
+        # — fone, ou caixa muda — ou canal único).
+        self._al_estado  = "coletando"
+        self._al_off     = 0        # offset inicial aplicado, em amostras @48k
+        self._al_ajustes = 0        # quantas correções de deriva já foram feitas
+        self._al_deriva  = 0        # soma das correções de deriva, em amostras
+        self._al_jan_m   = np.zeros(0, np.float32)   # janela decimada (16k) do que
+        self._al_jan_s   = np.zeros(0, np.float32)   # já foi pareado, p/ reestimar
+        self._al_desde   = 0        # amostras @48k pareadas desde a última checagem
         # Per-channel linear gain, applied as each block is encoded. Live-adjustable:
         # a change applies from that moment on (it used to be baked in at save
         # time, over the whole file — impossible once we encode while recording).
@@ -1431,6 +1512,13 @@ class DualRecorder:
         # behind, which would otherwise open the next recording.
         self._buf_mic = np.zeros(0, np.float32)
         self._buf_sys = np.zeros(0, np.float32)
+        self._al_estado  = "coletando" if (mic_id is not None and sys_id is not None)                            else "off"      # canal único não tem o que alinhar
+        self._al_off     = 0
+        self._al_ajustes = 0
+        self._al_deriva  = 0
+        self._al_jan_m   = np.zeros(0, np.float32)
+        self._al_jan_s   = np.zeros(0, np.float32)
+        self._al_desde   = 0
 
         self._on_level    = on_level
         self._on_error    = on_error
@@ -1635,6 +1723,112 @@ class DualRecorder:
             del self._sys_chunks[:]
         return mic, sys_
 
+    # ── alinhamento dos canais (Fase 1) ────────────────────────────────────────
+    def _al_estimar_inicial(self, final: bool) -> bool:
+        """Tenta fixar o offset inicial. Devolve True se o pareamento pode seguir.
+
+        Enquanto retorna False, `_pump` NÃO escreve nada: o áudio fica retido nos
+        buffers. É de propósito — alinhar depois de já ter escrito os primeiros
+        segundos deixaria um salto no meio do arquivo. O preço é o MP3 só começar
+        a crescer ~10 s depois do start (e um crash antes disso perder esses 10 s).
+        """
+        n = min(len(self._buf_mic), len(self._buf_sys))
+        precisa = int(ALIGN_COLETA_S * CAPTURE_SR)
+        if n < precisa and not final:
+            if n >= int(ALIGN_DESISTE_S * CAPTURE_SR):
+                self._al_estado = "tentando"      # para de reter; tenta mais tarde
+                print("[align] sem par nos dois canais — gravando e tentando depois")
+                return True
+            return False
+        if n <= 0:
+            return bool(final)
+        d, q = estimar_offset(self._buf_mic[:n], self._buf_sys[:n])
+        if q < ALIGN_Q_MIN:
+            # Sem eco medível não há como (nem por que) alinhar: gravação de fone,
+            # caixa muda, ou ninguém falou ainda. Espera mais material até o teto.
+            if n >= int(ALIGN_DESISTE_S * CAPTURE_SR) or final:
+                self._al_estado = "tentando"
+                print(f"[align] sem correlação confiável (q={q:.3f}) — gravando e "
+                      f"tentando depois")
+                return True
+            return False
+        d = int(np.clip(d, -int(ALIGN_MAXLAG_S * CAPTURE_SR),
+                        int(ALIGN_MAXLAG_S * CAPTURE_SR)))
+        if d > 0:                                # mic atrasado: adianta o mic
+            self._buf_mic = self._buf_mic[d:]
+        elif d < 0:                              # loopback atrasado: adianta ele
+            self._buf_sys = self._buf_sys[-d:]
+        self._al_off = d
+        self._al_estado = "ok"
+        print(f"[align] offset inicial {d:+d} amostras "
+              f"({d / CAPTURE_SR * 1000:+.0f} ms), q={q:.3f}")
+        return True
+
+    def _al_acumular(self, mic, sistema):
+        """Guarda o trecho pareado (decimado a 16k) para a próxima reestimativa."""
+        try:
+            from scipy.signal import resample_poly
+        except Exception:
+            return
+        dec = CAPTURE_SR // 16000
+        m = resample_poly(mic, 1, dec).astype(np.float32)
+        t = resample_poly(sistema, 1, dec).astype(np.float32)
+        teto = int(ALIGN_JANELA_S * 16000)
+        self._al_jan_m = np.concatenate([self._al_jan_m, m])[-teto:]
+        self._al_jan_s = np.concatenate([self._al_jan_s, t])[-teto:]
+
+    def _al_corrigir_deriva(self):
+        """Reestima o offset a cada ALIGN_RECHECK_S e corrige o que derivou.
+
+        Mic e loopback correm em relógios independentes: medido, +21 ppm (≈76 ms
+        por hora) num arquivo e −65,8 ppm noutro. Um alinhamento só, no início, não
+        sobrevive a uma reunião de duas horas.
+        """
+        if self._al_desde < int(ALIGN_RECHECK_S * CAPTURE_SR):
+            return
+        self._al_desde = 0
+        if len(self._al_jan_m) < int(5 * 16000):
+            return
+        d16, q = estimar_offset(self._al_jan_m, self._al_jan_s, sr=16000)
+        if q < ALIGN_Q_MIN:
+            return
+        d = int(d16 * (CAPTURE_SR // 16000))
+        if abs(d) < ALIGN_MIN_AJUSTE:
+            if self._al_estado == "tentando":     # já estava alinhado por sorte
+                self._al_estado = "ok"
+            return
+        # Quem ainda não alinhou pode aplicar o offset INTEIRO (é a primeira
+        # correção, não deriva); quem já alinhou só corrige o que derivou — um
+        # salto de 200 ms no meio de uma gravação alinhada seria estimativa ruim,
+        # não deriva de clock.
+        teto = (int(ALIGN_MAXLAG_S * CAPTURE_SR) if self._al_estado == "tentando"
+                else ALIGN_MAX_AJUSTE)
+        d = int(np.clip(d, -teto, teto))
+        if d > 0:
+            self._buf_mic = self._buf_mic[d:] if len(self._buf_mic) > d else                             np.zeros(0, np.float32)
+        else:
+            # Loopback atrasou: inserir silêncio no mic é o inverso barato de
+            # descartar, e alguns milissegundos são inaudíveis.
+            self._buf_mic = np.concatenate([np.zeros(-d, np.float32), self._buf_mic])
+        if self._al_estado == "tentando":
+            self._al_estado = "ok"
+            self._al_off = d
+            print(f"[align] offset {d:+d} amostras ({d / CAPTURE_SR * 1000:+.0f} ms) "
+                  f"aplicado tarde (q={q:.3f}) — há um salto neste ponto do arquivo")
+        else:
+            self._al_ajustes += 1
+            self._al_deriva += d
+            print(f"[align] deriva corrigida {d:+d} amostras "
+                  f"({d / CAPTURE_SR * 1000:+.1f} ms), q={q:.3f}")
+
+    def alinhamento(self) -> dict:
+        """Estado do alinhamento, para log/relatório e para os testes."""
+        return {"estado": self._al_estado,
+                "offset_amostras": self._al_off,
+                "offset_ms": self._al_off / CAPTURE_SR * 1000.0,
+                "ajustes_deriva": self._al_ajustes,
+                "deriva_amostras": self._al_deriva}
+
     def _pump(self, final: bool = False):
         """Pair the two channels sample-for-sample and hand the pair to the writer.
 
@@ -1647,6 +1841,15 @@ class DualRecorder:
             self._buf_mic = np.concatenate([self._buf_mic, *new_mic])
         if new_sys:
             self._buf_sys = np.concatenate([self._buf_sys, *new_sys])
+
+        # Alinhamento (Fase 1): retém o pareamento até saber o offset, depois
+        # corrige a deriva periodicamente. Roda ANTES do padding por canal morto —
+        # senão o silêncio do canal ausente entra na correlação e a envenena.
+        if self._al_estado == "coletando" and self._mic_live and self._sys_live:
+            if not self._al_estimar_inicial(final):
+                return
+        elif self._al_estado in ("ok", "tentando"):
+            self._al_corrigir_deriva()
 
         nm, ns = len(self._buf_mic), len(self._buf_sys)
         # A channel that is gone (never requested, failed, or done capturing) can
@@ -1679,6 +1882,9 @@ class DualRecorder:
                               self._buf_sys[:n] * np.float32(self.sys_gain))
             except Exception as e:
                 print(f"[live] on_pair falhou: {e}")
+        if self._al_estado in ("ok", "tentando"):
+            self._al_acumular(self._buf_mic[:n], self._buf_sys[:n])
+            self._al_desde += n
         self._buf_mic = self._buf_mic[n:]
         self._buf_sys = self._buf_sys[n:]
 

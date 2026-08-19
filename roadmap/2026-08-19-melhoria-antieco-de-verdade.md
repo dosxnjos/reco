@@ -202,7 +202,17 @@ tinham trechos far-end-only suficientes na medição original, feita antes de
       saturado (0.1), não o filtro divergindo.
 - [x] **Instrumento:** `tools/medir_aec.py`, com o gate da decisão 5.
 
-### Fase 1 — Alinhar os canais na gravação
+### Fase 1 — ✅ EXECUTADA em 19/08/2026 (ver § 8)
+
+O Gabriel escutou `1_original.mp3` × `2_alinhado.mp3` (§ 5) e confirmou: **o
+desalinhamento é o que incomoda**. Isso fechou a dúvida do § 7 e disparou a fase.
+
+- [x] **1.1** offset inicial medido e compensado no `_pump` (`estimar_offset` +
+      retenção do pareamento até saber o offset).
+- [x] **1.2** reestimativa periódica (`ALIGN_RECHECK_S`, 60 s) para deriva e jitter.
+- [x] **1.3** `tools/alinhar_gravacao.py` para as gravações que já existem.
+
+Especificação original, para referência:
 
 **1.1 Medir o offset no início da gravação.** No `DualRecorder`, após os primeiros
 ~10 s com energia nos dois canais, estimar o atraso (reusar `_alinhar_canais`,
@@ -372,16 +382,129 @@ como gate. Substitui `tools/medir_eco.py` para julgar AEC.
 
 ---
 
+## 8. Relatório de execução — Fase 1 (19/08/2026, sessão 40ca3f49, `/goal`)
+
+Disparada pela confirmação do Gabriel de que o `1_original.mp3` incomoda — o
+desalinhamento é o problema audível, como o § 1.2 previa.
+
+### 8.1 O que foi feito
+
+**1.1 — offset inicial (`reco.py`).** Helper novo `estimar_offset(mic, sistema, sr,
+maxlag_s)` (correlação cruzada em 16 kHz, devolve atraso **e qualidade**), e o
+`_pump` ganhou um estágio de alinhamento antes do pareamento:
+
+- estado `"coletando"`: **retém** o pareamento (nada é escrito) até ter
+  `ALIGN_COLETA_S`=10 s dos dois canais, estima o offset, e descarta as amostras do
+  canal adiantado. Reter é de propósito: alinhar depois de escrever deixaria um
+  salto no meio do arquivo;
+- se a correlação não fecha (`q < ALIGN_Q_MIN`=0.15 — fone, caixa muda, ninguém
+  falou), o estado vai para `"tentando"` em `ALIGN_DESISTE_S`=20 s: **grava
+  normalmente** e segue tentando o offset completo a cada reestimativa. ⚠️ Este
+  caminho existe porque a primeira versão retinha até 60 s, o que deixaria o MP3
+  vazio e o rascunho ao vivo mudo por um minuto em toda gravação de fone;
+- canal único → `"off"`, sem tentativa (não há o que alinhar).
+
+**1.2 — deriva e jitter.** `_al_corrigir_deriva` reestima a cada
+`ALIGN_RECHECK_S`=60 s sobre uma janela de 20 s decimada a 16 kHz (`_al_acumular`),
+e corrige descartando (mic atrasou) ou inserindo silêncio (loopback atrasou), com
+teto de `ALIGN_MAX_AJUSTE`=2400 amostras por checagem. ⚠️ **Era 300 s e não
+bastou:** a deriva é lenta (~76 ms/hora) mas o atraso tem **jitter de ~24 ms**, e
+com 5 min entre checagens o residual medido numa gravação real ficou em **18 ms**
+(gate: 10 ms). A 60 s ficou em −0,3 ms.
+
+**1.3 — gravações antigas.** `tools/alinhar_gravacao.py`: reestima o deslocamento a
+cada 30 s (corrigindo a deriva dentro do próprio arquivo), escreve
+`<nome>_alinhado.mp3` ao lado e **confere o resultado no arquivo escrito**. Nunca
+sobrescreve o original — diferente de `reparar_duracao.py`, aqui o áudio é
+re-encodado. Streaming, um passe, sem `seek` (decodificar 32 min de uma vez são
+249 MB, que já estouraram a memória desta máquina; e `seek` em MP3 é aproximado, o
+que emendaria os trechos com salto).
+
+### 8.2 Provas
+
+**`tools/test_alinhamento.py`** (novo, sem hardware, 15 casos):
+
+```
+1) estimar_offset com atraso conhecido: 0, +480, +3200, +9744, -4800, -9744
+   -> erro 0 amostras em todos, q entre 0.83 e 0.86
+2) canais sem relacao (fone): q=0.030 -> nao alinha
+3) canal mudo: (0, 0.0)
+4) _pump com 3 s: nada escrito (retido); com 15 s: offset +9744 aplicado,
+   residual do par escrito +0 amostras
+5) loopback atrasado (-14400): offset negativo aplicado, residual +0
+6) deriva de +288 amostras corrigida em 1 ajuste; nao reestima antes de 60 s
+7) canal unico: grava sem tentar alinhar
+TODOS OS TESTES PASSARAM
+```
+
+**`tools/test_gravacao_alinhada.py`** (novo, hardware real, tocando áudio pelos
+alto-falantes por 150 s):
+
+```
+[align] offset inicial +1686 amostras (+35 ms), q=0.512
+residual por janela de 15 s: +0, +1, +1, -5, +1, +1, +1, +1, +1, +1 amostras
+pior janela: -5 amostras (-0.3 ms) em 45s
+GATE (|atraso| < 160 amostras = 10 ms): PASSOU
+```
+
+**`tools/test_encoder.py`** (regressão obrigatória do `_pump`): TUDO OK — com uma
+mudança no próprio teste: os blocos [2] e [4] agora setam `_al_estado = "off"`,
+porque testam o **pareamento** e o alinhamento (novo) retém áudio nos primeiros
+segundos, o que faria um pump de 1000 amostras não escrever nada. A nota está no
+arquivo, junto do porquê.
+
+**`tools/alinhar_gravacao.py --aplicar`** nas três gravações:
+
+| arquivo | atraso encontrado (mediana, faixa) | residual depois |
+| --- | --- | --- |
+| 19/08 11:00 | +202 ms (+134..+211) | **−0,1 ms** |
+| 19/08 10:22 | +52 ms (+43..+83) | **0,0 ms** |
+| 18/08 15:16 | −149 ms (−399..+52) | **0,0 ms** |
+
+Os `_alinhado.mp3` estão em `~/Documents/Reco/`, com os originais intactos.
+
+### 8.3 Arquivos tocados
+
+`reco.py` (helper + constantes + 4 métodos novos no `DualRecorder` + engate no
+`_pump`), `tools/test_alinhamento.py` (novo), `tools/test_gravacao_alinhada.py`
+(novo), `tools/alinhar_gravacao.py` (novo), `tools/test_encoder.py` (ajuste de
+contrato), `CLAUDE.md` (arquitetura da captura + 4 linhas na tabela de
+ferramentas), `docs/ARMADILHAS.md`, este roadmap.
+
+### 8.4 Desvios e pegadinhas encontradas
+
+1. **Retenção de 60 s era inaceitável para gravação de fone** — virou 20 s + estado
+   `"tentando"`. Achado ao pensar no caso sem eco, não medido em campo.
+2. **`test_encoder.py` [2] quebrou** por mudança de contrato do `_pump` (legítima).
+   Corrigido no teste, com nota explicando.
+3. **Console cp1252**: um `⚠️` num `print` derrubou o teste de hardware no meio com
+   `UnicodeEncodeError`. Registrado em `docs/ARMADILHAS.md`.
+4. **Reestimativa a 300 s não bastava** (item 1.2 acima) — o contrato dizia "a cada
+   ~5 min", e a medição real forçou 60 s.
+
+---
+
 ## 7. Pendências — decisão do Gabriel
 
-- **Ordem das próximas fases.** Recomendação revisada: **Fase 1** (alinhar na
-  gravação — é o que ele ouve como eco, e é pré-requisito de tudo) → **Fase 3**
-  (métrica) → **Fase 2** (AEC melhor, ganho menor do que se pensava) → Fase 4
-  (operação). A Fase 2 desceu de prioridade porque o AEC vigente já entrega
-  +6 a +15 dB sem dano.
-- **Escutar `1_original.mp3` × `2_alinhado.mp3`** (§ 5) e dizer se os 203 ms são o
-  que incomoda. É o que confirma a Fase 1 como a prioridade certa.
+Fechadas em 19/08: ele escutou as amostras e confirmou que **o desalinhamento é o
+que incomoda**; a Fase 1 foi executada em seguida (§ 8).
+
+Em aberto:
+
+- **Ordem das fases restantes.** Recomendação: **Fase 3** (consertar
+  `medir_eco.py`, cujos rótulos simultâneos são inválidos) → **Fase 2** (AEC melhor,
+  ganho menor do que se pensava) → **Fase 4** (fone/operação). A Fase 2 está em
+  último entre as técnicas porque o AEC vigente já entrega +6 a +15 dB sem dano.
+- **Rodar `tools/alinhar_gravacao.py` no resto do acervo?** As três gravações
+  recentes já saíram alinhadas (§ 8.2). A pasta tem outras ~13 gravações antigas; o
+  comando aceita a pasta inteira (`tools/alinhar_gravacao.py <pasta> --aplicar`) e
+  gera um `_alinhado.mp3` por arquivo, dobrando o espaço ocupado. Não rodei em massa
+  porque duplicar ~500 MB é decisão dele, não minha.
+- **Reter 10 s no início é aceitável?** É o preço de alinhar sem salto no meio: o
+  MP3 só começa a crescer ~10 s após o start, e um crash nesse intervalo perde o
+  trecho. A alternativa (escrever desalinhado e corrigir depois) reintroduz o salto.
 - **A transcrição melhora?** O AEC não estava destruindo a voz, então a hipótese de
-  que as falas do Gabriel estavam sendo perdidas na transcrição **cai**. A
-  alucinação de `"Obrigada."` documentada em `docs/ARMADILHAS.md` continua sendo
-  outro assunto (silêncio pós-AEC nos trechos em que o interlocutor fala sozinho).
+  que as falas dele estavam sendo perdidas **cai**. Mas a diarização por
+  `dominancia_sistema` compara blocos de 100 ms e realinha a cada 30 s: com os
+  canais já alinhados na gravação, ela passa a acertar mais por construção. Vale
+  medir numa gravação nova (não medido nesta fase).
