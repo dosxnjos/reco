@@ -149,19 +149,25 @@ Medições e alternativas descartadas:
   6 taps + pós-supressão residual. Roda **só na transcrição** (canal do mic, com
   o R como referência) — o MP3 é gravado cru, de propósito (limpeza é exportação
   sob demanda, não gravação).
-  ⚠️ **DEFEITO ABERTO, medido em 19/08/2026: ele atenua a voz do usuário em até
-  28 dB.** Não tem detector de double-talk, e 59% de uma gravação real é
-  double-talk; o "ERLE de ~7 a 18 dB" é a mesma atenuação cega, não cancelamento.
-  Antes de citar qualquer número de AEC deste projeto, ler
-  [roadmap/2026-08-19-melhoria-antieco-de-verdade.md](roadmap/2026-08-19-melhoria-antieco-de-verdade.md):
-  o acoplamento real é de 77–93% da energia do mic (a métrica antiga dizia
-  −30 dB, por viés de seleção), os canais saem **203 ms desalinhados**, e o teto
-  honesto de um filtro linear aqui é ~8–10 dB **com dano na voz ≤ 1 dB** — meta,
-  não conquista. Regra que passa a valer: **ERLE sozinho é métrica proibida**;
-  reportar sempre o par (ERLE, dano na voz), out-of-sample. A deriva de clock
-  (medida: −65,8 ppm em 23/07, +21 ppm em 19/08) continua sendo um dos tetos, mas
-  não é o único — o mic (array do Intel Smart Sound) aplica AGC/supressão própria
-  e o caminho de eco muda com o conteúdo.
+  Números honestos, medidos em 19/08/2026 com `tools/medir_aec.py` em três
+  gravações: **ERLE mediano +15,5 / +6,4 / +9,0 dB, com dano na voz do usuário
+  ≤ +1,2 dB** (decomposição: +8,7 dB de cancelamento linear, +6,8 dB de
+  pós-supressão). O "~7 dB" que estava escrito aqui vinha de uma medição com
+  métrica inválida.
+  ⚠️ **Duas regras que passam a valer, e a segunda custou uma auditoria inteira:**
+  (1) **ERLE sozinho é métrica proibida** — reportar sempre o par (ERLE, dano na
+  voz); (2) **rotular far-end/near-end exige o canal do sistema ALINHADO.** Os
+  canais saem 200 a 400 ms desalinhados (latência de buffer, sinal variável), e
+  rotular por energia simultânea troca eco por voz: nessa métrica o AEC "aparecia"
+  destruindo 28 dB da voz do Gabriel, e o diagnóstico que saiu disso está
+  registrado como erro em `docs/ARMADILHAS.md`. Use `tools/medir_aec.py` (rotula
+  alinhado, é o gate de regressão); `tools/medir_eco.py` **não** serve para julgar
+  AEC. Contexto completo:
+  [roadmap/2026-08-19-melhoria-antieco-de-verdade.md](roadmap/2026-08-19-melhoria-antieco-de-verdade.md)
+  — inclui o acoplamento real (77–93% da energia do mic, medido por regressão com
+  controle negativo) e o teto out-of-sample (~2,5 dB: o mic do Intel Smart Sound
+  aplica AGC própria e o caminho de eco muda com o conteúdo). A deriva de clock
+  (−65,8 ppm em 23/07, +21 ppm em 19/08) é um dos tetos, não o único.
 
 ## Ferramentas de apoio (`tools/`)
 

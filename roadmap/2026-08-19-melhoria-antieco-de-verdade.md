@@ -1,35 +1,39 @@
-# 2026-08-19 — Antieco de verdade: o que o áudio real diz, e o que fazer
+# 2026-08-19 — Antieco: o que o áudio real diz, e o que fazer
 
-**Alvo:** o cancelamento de eco do Reco (`cancel_echo`, `dominancia_sistema`, o
-alinhamento de canais e a métrica `tools/medir_eco.py`).
+**Alvo:** o cancelamento de eco do Reco (`cancel_echo`, `_alinhar_canais`, a
+diarização por dominância e a métrica `tools/medir_eco.py`).
 
 **Origem:** o Gabriel perguntou por que a gravação de 19/08/2026 11:00 está com
-eco, e se o app não tem AEC configurado. A investigação achou três coisas piores
-que a pergunta: a métrica do projeto subestima o eco por construção, o AEC atual
-destrói a voz do usuário em até 28 dB, e os dois canais do MP3 estão
-desalinhados por ~203 ms.
+eco e se o app não tem AEC configurado.
 
 **Arquivo analisado:** `~/Documents/Reco/gravacao_reco_2026-08-19_11-00-54.mp3`
-(32,5 min, 16 kHz estéreo, L=mic com ganho 8×, R=loopback com ganho 1×).
+(32,5 min, 16 kHz estéreo, L=mic com ganho 8×, R=loopback com ganho 1×), mais
+`gravacao_reco_2026-08-19_10-22-24.mp3` e `gravacao_reco_2026-08-18_15-16-55.mp3`
+na validação.
+
+> ⚠️ **LEIA O § 1.4 ANTES DE CITAR QUALQUER NÚMERO DAQUI.** A primeira versão
+> deste roadmap (commit `76bcb9c`) afirmava que o `cancel_echo` destruía a voz do
+> usuário em até 28 dB. **Isso estava errado** e foi derrubado pela execução da
+> Fase 0 no mesmo dia: era artefato da métrica, não defeito do AEC. As seções
+> abaixo já estão corrigidas; a história de como o erro apareceu está no § 1.4
+> porque é o achado mais reaproveitável deste roadmap.
 
 **Contexto que muda o regime medido em 29/07:** o `mic_gain` do Gabriel está em
 **8,0×** (+18 dB) e isso é **necessidade, não descuido** — o mic dele (array
-digital do Intel Smart Sound) entrega voz ~18 dB abaixo do nível do loopback, e
-sem o ganho a fala dele fica inaudível ao lado do áudio do PC. Decisão do
-Gabriel nesta sessão: **o 8× fica**; a solução tem que ser antieco, não abaixar
-o ganho.
+digital do Intel Smart Sound) entrega voz ~18 dB abaixo do nível do loopback.
+Decisão do Gabriel nesta sessão: **o 8× fica**; a solução tem que ser antieco,
+não abaixar o ganho.
 
 ---
 
 ## 1. O que foi medido (nada aqui é suposição)
 
-Scripts usados (no scratchpad da sessão, portáveis para `tools/` quando a Fase 3
-for executada): `eco_stream.py` (métrica atual, em streaming), `analise_eco.py`
-(atraso, coerência, três tratamentos), `analise_eco2.py` (estimativa sem viés de
-rótulo), `controle2.py` (controle negativo), `aec_honesto.py` (DTD emulado),
-`amostras.py` (amostras de escuta).
+Instrumento definitivo: **`tools/medir_aec.py`** (criado nesta fase). Scripts de
+investigação ficaram no scratchpad da sessão: `analise_eco.py` (atraso, coerência,
+três tratamentos), `analise_eco2.py` (estimativa sem viés de rótulo),
+`controle2.py` (controle negativo), `aec_honesto.py`, `amostras.py`.
 
-### 1.1 A métrica do projeto subestima o eco por construção
+### 1.1 O acoplamento real é enorme, e a métrica antiga não mostra isso
 
 `tools/medir_eco.py` mede acoplamento só em blocos rotulados `so_sys`:
 
@@ -37,16 +41,15 @@ rótulo), `controle2.py` (controle negativo), `aec_honesto.py` (DTD emulado),
 so_sys = (s >= lim_s) & (m < lim_m * 3)   # PC fala, voce (quase) calado
 ```
 
-O segundo termo exige que **o mic esteja quase mudo**. Como o eco entra no mic,
-todo bloco com eco forte cai em `ambos` e **sai da conta**. Neste arquivo:
-`so_sistema=1753`, `so_mic=4401`, **`ambos=11448`** (59% do arquivo), `silêncio=1875`.
-A medida é feita nos 9% de blocos onde o eco é mais fraco.
+O segundo termo exige que **o mic esteja quase mudo**, então bloco com eco forte
+cai em `ambos` e sai da conta. Neste arquivo: `so_sistema=1753`, `so_mic=4401`,
+**`ambos=11448`** (59%), `silêncio=1875`.
 
 | medida | valor | como foi obtido |
 | --- | --- | --- |
-| acoplamento pela métrica atual | **−30,9 dB** | `medir_eco.py`, blocos `so_sys` |
+| acoplamento pela métrica antiga | −30,9 dB | `medir_eco.py`, blocos `so_sys` |
 | energia do mic explicada pelo loopback | **77% a 93%** | LS 128–320 taps, blocos de 1 s realinhados, janelas de 4 s |
-| coerência mic↔loopback (alinhada) | **0,48 a 0,76** | Welch, ref alinhada pelo atraso ótimo |
+| coerência mic↔loopback (alinhada) | 0,48 a 0,76 | Welch, referência alinhada |
 
 Controle negativo (mesma estimativa com referência falsa — outro trecho do mesmo
 canal, o canal invertido no tempo, ruído branco de mesmo RMS):
@@ -58,239 +61,242 @@ janela 22.8m  real 93.4% | outro 5.0% | invertido 5.4% | ruido 1.6%
 janela 31.7m  real 76.7% | outro 2.7% | invertido 1.3% | ruido 0.9%
 ```
 
-Referência falsa explica 1–5% (o esperado por azar com taps/N ≈ 1%); a real
-explica 77–93%. **O canal do mic é dominado pelo áudio do PC, não pela voz do
-usuário.** O −30,9 dB da métrica atual é artefato de seleção.
+Falsa explica 1–5% (o esperado por azar, taps/N ≈ 1%); a real explica 77–93%.
+**O canal do mic é dominado pelo áudio do PC.** Este resultado NÃO depende de
+rotulagem, e é o único número desta análise que sobreviveu intacto ao § 1.4.
 
-⚠️ Os números históricos do projeto (−17,9 / −23,7 / −20,5 / −30,9 dB) herdam o
-mesmo viés e **não devem ser citados** como acoplamento real até a Fase 3.
+### 1.2 Os dois canais saem desalinhados por centenas de milissegundos
 
-### 1.2 Os dois canais estão desalinhados por ~203 ms
+| medida | 19/08 11:00 | 18/08 15:16 |
+| --- | --- | --- |
+| atraso mic↔loopback | **+3241 amostras (+203 ms)** | **−2736 a −6385 (−171 a −399 ms)** |
+| faixa ao longo do arquivo | 2142..3370 (134..211 ms) | cresce em módulo ao longo do arquivo |
+| jitter entre janelas | 385 amostras (24 ms) | — |
+| deriva | +21 ppm (+76 ms/hora) | — |
 
-| medida | valor |
-| --- | --- |
-| atraso mic↔loopback (mediana de 8 janelas) | **3241 amostras = +203 ms** |
-| faixa ao longo do arquivo | 2142..3370 amostras (134..211 ms) |
-| jitter entre janelas | 385 amostras (24 ms) |
-| tendência (deriva de clock) | **+21 ppm** (+76 ms/hora) |
+Eco acústico de caixa a um metro é ~3 ms. Isso é **latência de buffer** entre os
+dois streams do WASAPI: o `DualRecorder` sincroniza o *início* dos streams
+(`threading.Barrier` antes do `__enter__`), mas o loopback entrega o primeiro
+bloco com offset próprio e o `_pump` pareia por **contagem de amostras** — o
+offset fica gravado para sempre. **O sinal do offset varia entre gravações** (no
+arquivo de 18/08 o loopback vem depois do mic).
 
-Eco acústico de uma caixa a um metro é ~3 ms. Esses 203 ms são **latência de
-buffer** entre os dois streams do WASAPI: os threads do `DualRecorder` sincronizam
-o *início* (`threading.Barrier` antes do `__enter__`), mas o loopback entrega o
-primeiro bloco com um offset próprio, e o `_pump` pareia por **contagem de
-amostras** — então o offset inicial fica gravado para sempre.
+Consequências, todas confirmadas:
 
-Consequências, em ordem de importância:
+1. **Percepção.** Acima de ~50 ms o ouvido para de integrar a cópia como
+   reverberação e ouve **eco separado**. É a causa mais provável da queixa.
+2. **O alinhamento do código saturava.** `_alinhar_canais` usava `maxlag_s=0.2`
+   (3200 amostras). No arquivo de 18/08, com atraso de até 6385 amostras, o
+   alinhamento saía errado e o AEC ficava com **ERLE negativo** (−1 a −6 dB: ele
+   *somava* energia). Corrigido na Fase 0 — ver o § 3.
+3. **Métrica.** Rotular por energia simultânea com os canais desalinhados é
+   inválido, e foi o que produziu o diagnóstico errado do § 1.4.
 
-1. **Percepção.** Acima de ~50 ms o ouvido para de integrar a reflexão como
-   reverberação e passa a ouvir **eco separado**. É a causa mais provável da
-   queixa original.
-2. **O alinhamento do código satura.** `_alinhar_canais` usa `maxlag_s=0.2`
-   (= 3200 amostras) e o atraso real chega a **3370**. Nas janelas em que passa
-   de 3200, o alinhamento erra e o filtro subtrai sinal que não é eco.
-3. **Diarização.** `dominancia_sistema` realinha a cada 30 s e sobrevive, mas
-   compara blocos de 100 ms — um alinhamento errado inverte a decisão de quem
-   falou.
+### 1.3 O `cancel_echo` funciona — e os números honestos são estes
 
-### 1.3 O `cancel_echo` atual é um supressor, e ele come a voz do usuário
+Medido com `tools/medir_aec.py` (rotulagem alinhada), pós-correção da Fase 0:
 
-ERLE medido nos blocos `so_sys` × atenuação da voz medida nos blocos `so_mic`:
+| arquivo | ERLE mediano | dano na voz (pior) |
+| --- | --- | --- |
+| 19/08 11:00 | **+15,5 dB** | **+0,5 dB** |
+| 19/08 10:22 | +6,4 dB | +0,0 dB |
+| 18/08 15:16 | +9,0 dB | +1,2 dB |
 
-| janela | ERLE com pós-supressão | dano na voz | ERLE sem pós-supressão | dano na voz |
-| --- | --- | --- | --- | --- |
-| 0,0 min | +9,8 dB | +1,2 dB | +6,2 dB | +0,9 dB |
-| 7,0 min | +16,6 dB | **+17,1 dB** | +10,3 dB | +14,3 dB |
-| 17,7 min | +15,0 dB | **+12,4 dB** | +8,4 dB | +10,4 dB |
-| 31,7 min | +8,8 dB | **+14,2 dB** | +5,4 dB | +11,6 dB |
+Decomposição no arquivo de 19/08 11:00: **+8,7 dB de cancelamento linear** e
+**+6,8 dB de pós-supressão residual** (total +15,6 dB), com o mesmo +0,5 dB de
+dano na voz nos dois casos. Ou seja: é um cancelador de verdade com um supressor
+em cima, não um supressor disfarçado.
 
-E com o teste de double-talk emulado (filtro estimado **só** em blocos far-end-only,
-validado fora deles):
+Isso também revisa para cima o "~7 dB" que o `CLAUDE.md` citava de 29/07: naquela
+medição o ERLE era calculado com a rotulagem simultânea (§ 1.4) e com o
+alinhamento saturado (§ 1.2).
 
-| janela | DTD: ERLE in-sample | ERLE out-of-sample | dano na voz | atual: ERLE | dano na voz |
-| --- | --- | --- | --- | --- | --- |
-| 0,0 min | +4,3 dB | +2,2 dB | **−0,1 dB** | +6,8 dB | +1,8 dB |
-| 27,7 min | +7,7 dB | +2,8 dB | **+2,1 dB** | +18,1 dB | **+28,4 dB** |
+### 1.4 ⚠️ O erro que este roadmap cometeu, e como ele apareceu
 
-Leitura:
+**A afirmação errada:** "o `cancel_echo` atenua a voz do usuário em até 28,4 dB
+por falta de detector de double-talk".
 
-- O ERLE alto do código atual **é a mesma coisa** que o dano na voz: atenuação
-  cega. Onde ele "cancela" 18 dB, ele apaga 28 dB da voz do Gabriel.
-- Congelar o filtro fora dos trechos far-end-only **elimina o dano** (−0,1 e
-  +2,1 dB), o que prova que a causa é a **ausência de detector de double-talk**
-  (DTD) — e 59% deste arquivo é double-talk.
-- O roadmap de 29/07 mediu "+7,2 dB de ERLE com 0,3 dB de perda na voz". Aquele
-  número não vale mais no regime atual (ganho 8×, atraso 203 ms).
+**De onde veio:** o dano na voz era medido nos blocos rotulados `so_mic` (mic com
+energia, sistema abaixo do limiar) — rótulo calculado com **energias
+simultâneas**. Com o eco chegando ao mic **200 ms depois**, o bloco em que o
+sistema já silenciou mas o mic ainda toca o rabo do eco é rotulado "só o usuário
+falando". O AEC removia eco de verdade ali, e a métrica registrava como voz
+destruída. O espelho do mesmo erro inflava `so_sys`: o mic aparecia em −51 dBFS
+porque o eco daquele trecho ainda não tinha chegado.
 
-### 1.4 Teto realista de um cancelador linear neste sinal
+**Como foi pego:** implementando a correção. O detector de double-talk (Fase 0.2)
+derrubou o "dano" de 28,4 → 9,1 dB mas também matou o ERLE (+15 → +0,5), o que não
+faz sentido para um detector que só devia congelar o filtro em double-talk.
+Depurando a janela de 31,5 min, os blocos que "perdiam 34 dB de voz" perdiam
+23,7 dB **mesmo com `residual=False`** — subtração linear pura só remove tanto
+assim se o conteúdo estiver de fato na referência. Era eco. Rotulando com o
+sistema alinhado, o mesmo código mediu +15,6 dB de ERLE com +0,5 dB de dano.
+
+**A regra que fica:** rotulagem por energia simultânea **exige** canais
+alinhados. Sem isso, "far-end-only" e "near-end-only" trocam de lugar nas bordas
+de cada trecho de fala, e a métrica mede o oposto do que pensa medir. Registrado
+em `docs/ARMADILHAS.md`.
+
+**O que o erro NÃO invalidou:** o acoplamento de 77–93% (§ 1.1, medido por
+regressão com controle negativo), o atraso de 200–400 ms (§ 1.2, medido por
+correlação), o "sincronizar não cancela" (§ 1.5) e o fato de o MP3 ser gravado
+cru (decisão de projeto, não bug).
+
+### 1.5 Teto de um cancelador linear neste sinal
 
 | tratamento | ERLE |
 | --- | --- |
 | alinhar + ganho escalar ótimo ("sincronizar") | **−1,1 dB** (não cancela nada) |
-| LS 128–320 taps, bloco de 1 s, realinhado (in-sample) | **+6,3 a +11,8 dB** |
-| filtro estimado em far-end-only, aplicado adiante (out-of-sample) | **+2,2 a +2,8 dB** |
+| LS 128–320 taps, bloco de 1 s, realinhado (in-sample) | +6,3 a +11,8 dB |
+| filtro estimado em far-end-only, aplicado adiante (out-of-sample) | +2,2 a +2,8 dB |
+| **`cancel_echo` vigente (linear + pós-supressão)** | **+6,4 a +15,5 dB** |
 
-A queda de ~9 dB (in-sample) para ~2,5 dB (out-of-sample) é o dado mais
-importante para a Fase 2: **o caminho de eco muda mais rápido que a janela de
-estimativa.** Três causas somadas, todas presentes neste hardware:
+A queda de in-sample (~9 dB) para out-of-sample (~2,5 dB) mostra que o caminho de
+eco muda mais rápido que a janela de estimativa. Três causas somadas:
 
-1. **O mic tem processamento dinâmico próprio.** É o array digital do *Intel
-   Smart Sound*, que aplica AGC/supressão no APO. Medida que revela isso: nos
-   blocos `so_sys` o mic fica em −51 dBFS (piso de ruído do arquivo: −63 dBFS),
-   mas nas janelas com fala o loopback explica 90% da energia do mic — o ganho
-   efetivo do caminho **muda com o conteúdo**, o que nenhum filtro linear
-   invariante acompanha.
-2. **Deriva de clock**, +21 ppm aqui (era −65,8 ppm em 23/07) — ver a armadilha
-   antiga, continua valendo.
-3. **Distorção não-linear da caixa**, que é o que sobra depois do filtro.
+1. **O mic tem processamento dinâmico próprio** (array do *Intel Smart Sound*, com
+   AGC/supressão no APO): o ganho efetivo do caminho muda com o conteúdo.
+2. **Deriva de clock** (+21 ppm aqui; −65,8 ppm em 23/07).
+3. **Distorção não-linear da caixa** — o que sobra depois do filtro.
+
+⚠️ Ressalva de amostra: o número out-of-sample vem de **2 janelas** (só elas
+tinham trechos far-end-only suficientes na medição original, feita antes de
+`escolhe_janelas` existir). Trate como indicativo.
 
 ---
 
 ## 2. Decisões
 
 1. **O `mic_gain` 8× fica.** Decisão do Gabriel: é o que nivela a voz dele com o
-   áudio do PC. Qualquer proposta que dependa de baixá-lo está fora.
-2. **O eco audível no MP3 não é bug de configuração: o AEC nunca rodou no
-   arquivo.** `cancel_echo` só é chamado em `OVTranscriber._transcribe_channel`;
-   o caminho de gravação (`DualRecorder._pump` → `MP3Writer.feed`) grava cru, por
-   decisão de projeto (roadmap 29/07 § 2, decisão 5: "não processar o áudio na
-   gravação; limpeza é exportação sob demanda"). Isso **não muda** — mas ganha um
-   caminho de exportação limpa (Fase 2.3).
+   áudio do PC. Proposta que dependa de baixá-lo está fora.
+2. **O eco audível no MP3 não é bug de configuração: o AEC nunca roda no
+   arquivo.** `cancel_echo` só é chamado em `OVTranscriber._transcribe_channel`; o
+   caminho de gravação (`DualRecorder._pump` → `MP3Writer.feed`) grava cru, por
+   decisão de projeto (roadmap 29/07 § 2, decisão 5). Isso **não muda** — mas ganha
+   um caminho de exportação limpa (Fase 2.3).
 3. **Alinhar os canais NÃO é "processar o áudio"** e entra na gravação: é
-   compensação de offset de buffer, não filtragem. Ganho de percepção imediato e
-   pré-requisito de qualquer AEC.
-4. **ERLE sozinho é métrica proibida daqui pra frente.** Todo número de AEC neste
-   projeto passa a ser reportado como par **(ERLE, dano na voz)**, medido
-   out-of-sample. Foi um ERLE sem par que fez o AEC atual parecer bom por 3
-   semanas.
-5. **A meta da Fase 2 é ERLE ≥ 8 dB com dano na voz ≤ 1 dB**, não "20–40 dB". O
-   teto medido neste sinal não permite prometer mais sem tratar AGC do mic e
-   não-linearidade da caixa.
+   compensação de offset de buffer, não filtragem.
+4. **ERLE sozinho é métrica proibida.** Todo número de AEC sai como par
+   **(ERLE, dano na voz)**, com **rotulagem alinhada** — as duas metades da regra;
+   a segunda foi aprendida no § 1.4.
+5. **`tools/medir_aec.py` é o gate de regressão do AEC.** Piso: ERLE mediano
+   ≥ 5 dB, dano na voz ≤ 2 dB em toda janela, zero janelas com a busca de atraso
+   saturada.
+6. **Detector de double-talk foi medido e REJEITADO** (§ 4). O problema que ele
+   resolveria não existe neste sinal.
 
 ---
 
 ## 3. Fases
 
-### Fase 0 — Parar o dano (barato, primeiro)
+### Fase 0 — ✅ EXECUTADA em 19/08/2026 (ver § 6)
 
-**0.1 Alargar a busca de atraso.** `reco.py`, `_alinhar_canais`: `maxlag_s=0.2`
-→ `0.5`. Motivo no § 1.2 (o atraso real chega a 3370 amostras e satura o limite
-de 3200). Cuidado: `maxlag` maior aumenta o custo da correlação — é FFT, o
-impacto é desprezível no caminho offline.
-*Pronto quando:* nas 8 janelas do arquivo de 19/08, nenhum atraso ótimo bate no
-limite da busca (`|d| < maxlag - 1`).
-
-**0.2 Detector de double-talk no `cancel_echo`.** Hoje o LS por bin roda em todo
-bloco de 2 s, com ou sem fala do near-end. Implementar: por bloco, decidir
-`far_end_only` (critério Geigel — `max|mic|` contra `max|ref_al|` com margem — ou
-razão de energia entre mic e eco estimado do bloco anterior); **atualizar o
-filtro só quando `far_end_only`**, reusando `h` do último bloco válido caso
-contrário; e **aplicar a pós-supressão residual só em blocos `far_end_only`**.
-*Pronto quando:* `dano na voz ≤ 2 dB` em TODAS as janelas medidas em `aec_honesto.py`
-(hoje: até +28,4 dB) e o ERLE em far-end-only não cai abaixo de +5 dB.
-
-**0.3 Rede de segurança por bloco.** A atual só compara RMS do arquivo inteiro
-(`r_out > r_in*1.05` devolve o original). Trocar por: em cada bloco, se a energia
-removida passar de um teto (ex. 12 dB) **e** o bloco não for `far_end_only`,
-devolver o bloco original.
-*Pronto quando:* nenhum bloco `so_mic` perde mais de 3 dB.
+- [x] **0.1 Alargar a busca de atraso.** `_alinhar_canais`: `maxlag_s` 0.2 → 0.5,
+      e `cancel_echo` passa a expor `maxlag_s` para a correção ser mensurável.
+      *Resultado:* no arquivo de 18/08, ERLE saiu de **−1 a −6 dB para +4 a +10 dB**;
+      no de 19/08 11:00 o efeito é nulo (o atraso ali cabia no limite antigo).
+      Zero janelas saturadas nos 3 arquivos.
+- [x] **0.2 Detector de double-talk — implementado, medido e revertido.** Ver § 4.
+- [x] **0.3 Rede de segurança por bloco — revertida junto.** Sem dano na voz não há
+      o que proteger, e o ERLE negativo que motivou o item era o alinhamento
+      saturado (0.1), não o filtro divergindo.
+- [x] **Instrumento:** `tools/medir_aec.py`, com o gate da decisão 5.
 
 ### Fase 1 — Alinhar os canais na gravação
 
-**1.1 Medir o offset no início da gravação.** No `DualRecorder`, depois dos
-primeiros ~10 s com energia nos dois canais, estimar o atraso por correlação
-(reusar `_alinhar_canais`, com `maxlag_s=0.5`) e **descartar as amostras do canal
-adiantado** antes do pareamento no `_pump`. Registrar o offset aplicado no log.
-*Pronto quando:* em gravação nova de 3 min com áudio tocando, o atraso medido no
-MP3 resultante fica |d| < 160 amostras (10 ms).
+**1.1 Medir o offset no início da gravação.** No `DualRecorder`, após os primeiros
+~10 s com energia nos dois canais, estimar o atraso (reusar `_alinhar_canais`,
+`maxlag_s=0.5`) e **descartar as amostras do canal adiantado** antes do pareamento
+no `_pump`. ⚠️ O offset pode ter **qualquer sinal** (medido: +203 ms num arquivo,
+−399 ms noutro) — a implementação tem que tratar os dois casos.
+*Pronto quando:* em gravação nova de 3 min com áudio tocando, o atraso medido por
+`tools/medir_aec.py` fica |d| < 160 amostras (10 ms) em todas as janelas.
 
-**1.2 Reestimar durante a gravação (deriva).** +21 ppm = ~76 ms/hora; numa
-reunião de 2 h o alinhamento inicial não serve no fim. Reestimar a cada ~5 min e
-corrigir por drop/insert de amostras no canal adiantado (correção inteira basta:
-1 amostra a cada ~48 mil).
-*Pronto quando:* em gravação de 60 min, o atraso medido em janelas ao longo do
-arquivo varia menos de 32 amostras (2 ms).
+**1.2 Reestimar durante a gravação (deriva).** +21 ppm ≈ 76 ms/hora; numa reunião
+de 2 h o alinhamento inicial não serve no fim. Reestimar a cada ~5 min e corrigir
+por drop/insert de amostras no canal adiantado.
+*Pronto quando:* em gravação de 60 min, o atraso varia menos de 32 amostras (2 ms)
+entre janelas.
 
-**1.3 Consertar arquivos antigos** por remux com deslocamento de um canal, no
-molde de `tools/reparar_duracao.py` (valida antes de substituir; sem `--aplicar`
-só relata).
+**1.3 Consertar arquivos antigos** por remux com deslocamento de um canal, no molde
+de `tools/reparar_duracao.py` (valida antes de substituir; sem `--aplicar` só relata).
 
-### Fase 2 — AEC de verdade (offline, adaptativo)
+### Fase 2 — AEC melhor (offline, adaptativo)
 
-**2.1 Filtro adaptativo por sub-banda com DTD.** STFT como hoje, mas: NLMS
-normalizado **por bin** com passo congelado em double-talk (o DTD da Fase 0.2),
-comprimento de filtro cobrindo ≥ 200 ms de cauda, realinhamento a cada 0,5 s e
-atraso fracionário (interpolação) para a deriva sub-amostral. Nunca substituir o
-LS regularizado sem medir: o NLMS ingênuo já divergiu para −38 dB neste projeto
-(ver `docs/ARMADILHAS.md`).
-*Pronto quando:* **ERLE ≥ 8 dB out-of-sample com dano na voz ≤ 1 dB**, em 3
-gravações (19/08 11:00, 19/08 10:22, 18/08 15:16).
+Meta revisada pelos números do § 1.3: o AEC vigente já entrega +6 a +15 dB sem
+dano. O ganho disponível está em **estabilizar o pior caso** (o arquivo de 10:22
+fica em +6,4 dB), não em multiplicar o melhor.
 
-**2.2 Compensar o AGC do mic.** O caminho varia com o conteúdo (§ 1.4). Estimar
-um ganho lento por bloco (ex. mediana da razão mic/eco_estimado em 2 s) e
-normalizar antes do filtro.
-*Pronto quando:* a diferença entre ERLE in-sample e out-of-sample cair para menos
-de 3 dB (hoje: ~7 dB).
+**2.1 Filtro adaptativo por sub-banda**, cobrindo ≥ 200 ms de cauda, realinhado a
+cada 0,5 s, com atraso fracionário para a deriva sub-amostral. Nunca substituir o
+LS regularizado sem medir: o NLMS ingênuo já divergiu para −38 dB aqui.
+*Pronto quando:* ERLE mediano ≥ 12 dB **nos três** arquivos, dano ≤ 1 dB.
 
-**2.3 Exportar limpo.** Botão/ação na biblioteca que grava
-`<nome>_limpo.mp3` com o canal do mic tratado (alinhado + AEC), preservando o
-original. Fecha a decisão 5 de 29/07 (limpeza é exportação, não gravação).
-*Pronto quando:* o arquivo sai com duração idêntica ao original (header Xing
-correto — ver a regra do MP3 por container no `CLAUDE.md`) e o par (ERLE, dano)
-da Fase 2.1 é reproduzido no arquivo exportado.
+**2.2 Compensar o AGC do mic** (§ 1.5): estimar ganho lento por bloco e normalizar
+antes do filtro.
+*Pronto quando:* a diferença in-sample × out-of-sample cair abaixo de 3 dB.
 
-### Fase 3 — Consertar a métrica
+**2.3 Exportar limpo.** Ação na biblioteca que grava `<nome>_limpo.mp3` com o canal
+do mic tratado (alinhado + AEC), preservando o original.
+*Pronto quando:* duração idêntica ao original (header Xing — ver a regra do MP3 por
+container no `CLAUDE.md`) e o par (ERLE, dano) reproduzido no arquivo exportado.
 
-**3.1 `tools/medir_eco.py` sem viés.** Rotular far-end-only por **predição**
-(bloco em que o loopback explica a maior parte da energia do mic), não por "mic
-baixo". Reportar sempre: acoplamento real (energia explicada), ERLE in/out-of-sample
-e **dano na voz**.
-**3.2 Regravar os números** citados em `CLAUDE.md`, `docs/ARMADILHAS.md` e
-`cerebro/projetos/reco.md` com a métrica nova, marcando os antigos como enviesados.
-*Pronto quando:* rodar nos 3 arquivos e os números baterem com os deste roadmap
-(±1 dB).
+### Fase 3 — Consertar `tools/medir_eco.py`
+
+**3.1** Rotular com o sistema **alinhado** (a correção do § 1.4) e por **predição**
+(quanto da energia do mic a referência explica), não por energia simultânea.
+**3.2** Reportar sempre o par (ERLE, dano na voz) — ou simplesmente delegar para
+`tools/medir_aec.py` e manter `medir_eco.py` só para acoplamento/diagnóstico.
+**3.3 Regravar os números** citados em `CLAUDE.md`, `docs/ARMADILHAS.md` e
+`cerebro/projetos/reco.md`, marcando os antigos como medidos com métrica inválida.
+*Pronto quando:* os números baterem com os do § 1.1 e § 1.3 (±1 dB).
 
 ### Fase 4 — Origem (custo zero, maior efeito)
 
-Fone de ouvido elimina o acoplamento; baixar o volume da caixa e aproximar o mic
-reduz a necessidade dos 8×. Não é engenharia, é operação — mas é o único caminho
-que leva o eco a "desprezível" neste hardware.
+Fone elimina o acoplamento; baixar o volume da caixa e aproximar o mic reduz a
+necessidade dos 8×. Não é engenharia, é operação — mas é o único caminho que leva
+o eco a "desprezível" neste hardware.
 
 ---
 
 ## 4. Descartado e impraticável
 
-- **AEC de 20–40 dB por software neste sinal — impraticável.** Medido: filtro
-  estimado em far-end-only generaliza só 2,2–2,8 dB, porque o mic (array do Intel
-  Smart Sound) aplica AGC/supressão própria e o caminho muda com o conteúdo.
-  Passar de ~10 dB exigiria modelar esse processamento e a distorção da caixa.
-  Mantém o veredito de 29/07, agora com a causa medida (antes era atribuído só à
-  deriva de clock).
-- **"Sincronizar" como solução de eco — descartado como cancelamento, aceito como
-  percepção.** Alinhar + ganho escalar ótimo dá **−1,1 dB** de ERLE: não cancela
-  nada. Mas os 203 ms são a causa provável da queixa auditiva, então o
-  alinhamento entra na Fase 1 pelo motivo certo (percepção e pré-requisito de
-  AEC), não como antieco. Hipótese levantada pelo Gabriel nesta sessão; medida e
-  reclassificada, não descartada.
+- **Detector de double-talk no `cancel_echo` — IMPLEMENTADO, MEDIDO E REVERTIDO
+  (19/08/2026).** Três variantes: decisão por bloco de 2 s (dano 28,9 → 6,9 dB,
+  ERLE 11,8 → 5,1), por bloco de 1 s (dano 11,5 — pior), e por quadro de 16 ms com
+  janela deslizante de quadros far-end (dano 9,1, **ERLE +0,5**). Varredura de 24
+  combinações de `dtd_limiar`/`suave`/`teto_bloco_db`/`bloco_s`: nenhuma passou o
+  gate. Quando a métrica foi corrigida (§ 1.4), ficou claro por quê: **não havia
+  dano para corrigir** (+0,5 dB), e o DTD só tirava do filtro os dados de que ele
+  precisava — ERLE caiu de +15,5 para +0,5. Revertido por `git checkout reco.py`;
+  só a correção 0.1 ficou. Se um dia houver dano de verdade medido com rotulagem
+  alinhada, o desenho por quadro é o ponto de partida, com uma diferença: estimar o
+  filtro **também** com quadros de double-talk (o congelamento é que matou o ERLE).
+- **AEC de 20–40 dB por software neste sinal — impraticável.** Filtro estimado em
+  far-end-only generaliza 2,2–2,8 dB out-of-sample: o mic aplica AGC própria e o
+  caminho muda com o conteúdo. Mantém o veredito de 29/07, agora com a causa
+  medida (antes era atribuído só à deriva de clock).
+- **"Sincronizar" como antieco — descartado como cancelamento, aceito como
+  percepção.** Alinhar + ganho escalar ótimo dá **−1,1 dB**. Mas os 203 ms são a
+  causa provável da queixa auditiva, então o alinhamento entra na Fase 1 pelo
+  motivo certo. Hipótese levantada pelo Gabriel; medida e reclassificada.
 - **Baixar o `mic_gain` de 8× — recusado pelo Gabriel** nesta sessão: é o que
-  nivela a voz dele com o áudio do PC. Registrado porque foi a primeira proposta
-  do agente e está errada em premissa (trata sintoma, cria outro).
+  nivela a voz dele com o áudio do PC. Registrado porque foi a primeira proposta do
+  agente e erra na premissa.
 - **WebRTC AEC3 em tempo real — segue descartado** (dependência binária no
-  PyInstaller, 29/07). Nota nova: se algum dia o AEC for para a **captura**, é a
-  rota mais promissora, porque resolve deriva por construção. Reavaliar só nesse
-  cenário.
+  PyInstaller, 29/07). Nota: se o AEC for algum dia para a **captura**, é a rota
+  mais promissora, porque resolve deriva por construção.
 - **Windows Voice Capture DSP (`CLSID_CWMAudioAEC`) — não avaliado, não
-  descartado.** É o AEC da plataforma, com acesso aos dois endpoints e
-  compensação de deriva nativa. Exigiria reescrever a captura em Media Foundation
-  (o `soundcard` abre WASAPI em shared mode sem `SetClientProperties`, portanto
-  categoria `Other`, e não pede loopback reference — nenhum AEC de plataforma
-  entra hoje). Fica registrado para o Fable rever: é a única rota que poderia
-  passar de 10 dB.
-- **RNNoise / supressão de ruído — fora de escopo** (é ruído, não eco). Segue
-  como em 29/07.
-- **Medir com o arquivo inteiro na RAM — impraticável nesta máquina.** O decode
-  de 32,5 min (249 MB) estourou memória: a máquina tem **0,4 GB livres de
-  15,4 GB**. Toda medição aqui é por janela, via `seek`. Vale para qualquer
-  script novo em `tools/`.
+  descartado.** É o AEC da plataforma, com acesso aos dois endpoints e compensação
+  de deriva nativa. Exigiria reescrever a captura em Media Foundation (o
+  `soundcard` abre WASAPI em shared mode sem `SetClientProperties`, categoria
+  `Other`, e não pede loopback reference — nenhum AEC de plataforma entra hoje).
+  Fica registrado para o Fable rever: é a única rota que poderia passar de 15 dB.
+- **RNNoise / supressão de ruído — fora de escopo** (é ruído, não eco).
+- **Medir com o arquivo inteiro na RAM — impraticável nesta máquina.** O decode de
+  32,5 min (249 MB) estourou memória: a máquina tinha **0,4 GB livres de 15,4 GB**
+  durante a sessão. Toda medição é por janela, via `seek`. Vale para qualquer script
+  novo em `tools/`.
 
 ---
 
@@ -301,20 +307,81 @@ que leva o eco a "desprezível" neste hardware.
 | arquivo | o que é | nível do canal do mic |
 | --- | --- | --- |
 | `1_original.mp3` | como o Reco gravou | −20,9 dBFS |
-| `2_alinhado.mp3` | mesmos canais, 203 ms compensados | −20,9 dBFS |
+| `2_alinhado.mp3` | mesmos canais, 203 ms compensados (é o que a Fase 1 faz) | −20,9 dBFS |
 | `3_alinhado_aec.mp3` | alinhado + LS 160 taps/1 s, sem pós-supressão (−9,5 dB de eco) | −30,4 dBFS |
-| `4_atual_aec.mp3` | o `cancel_echo` de hoje | −38,2 dBFS |
+| `4_atual_aec.mp3` | o `cancel_echo` do app | −38,2 dBFS |
 
-A diferença de 7,8 dB entre `3` e `4` no canal do mic é a voz do usuário que o
-código atual remove.
+⚠️ A primeira versão desta seção dizia que a diferença de 7,8 dB entre `3` e `4`
+era "a voz do usuário que o app remove". **Falso** (§ 1.4): é eco a mais que a
+pós-supressão remove — o dano medido na voz é +0,5 dB. O par `1` × `2` isola o
+efeito do alinhamento, que é o que vale escutar.
 
 ---
 
-## 6. Pendente — decisão do Gabriel
+## 6. Relatório de execução — Fase 0 (19/08/2026, sessão 40ca3f49)
 
-- **Ordem de execução.** A recomendação é Fase 0 → 1 → 3 → 2 (parar o dano,
-  alinhar, consertar a métrica, e só então o AEC novo — sem métrica confiável a
-  Fase 2 não tem como ser validada).
-- **Fase 2 vale o custo?** Ganho realista: eco 8–10 dB menor, sem dano na voz.
-  Não elimina o eco. Fone elimina. A Fase 2 só se justifica para as gravações em
-  que não dá para usar fone.
+**Passo 0.1 — `maxlag_s` 0.2 → 0.5.** `reco.py:_alinhar_canais` (default) e
+`cancel_echo` (novo parâmetro `maxlag_s`, repassado, para permitir medir
+antes/depois na mesma execução).
+*Prova* (`python tools/medir_aec.py <mp3> 6 15`, coluna "maxlag 0.2 s"):
+
+```
+18/08 15:16   janela  atraso |  0.5 s ERLE | 0.2 s ERLE
+              13.0m  -3885   |     +8.5    |    -1.1
+              13.9m  -4736   |     +7.4    |    -5.9
+              15.8m  -4932   |     +9.5    |    -4.2
+              21.5m  -6385   |     +9.6    |    -1.3
+19/08 11:00   sem diferença material (+15,6 → +15,6): o atraso ali (203 ms) cabia
+              no limite antigo
+janelas com a busca de atraso saturada: 0 nos 3 arquivos (gate: 0)
+```
+
+**Passos 0.2 e 0.3 — revertidos.** Detalhe completo no § 4 (primeiro item).
+Reversão por `git checkout reco.py`, com o `maxlag_s` reaplicado depois.
+
+**Instrumento novo — `tools/medir_aec.py`.** Par (ERLE, dano na voz), rotulagem
+alinhada, escolha automática de janelas com material para os dois lados, exit code
+como gate. Substitui `tools/medir_eco.py` para julgar AEC.
+
+**Gate final (todos com `maxlag_s=0.5` vigente):**
+
+| arquivo | ERLE mediano | dano na voz (pior) | saturadas | veredito |
+| --- | --- | --- | --- | --- |
+| 19/08 11:00 | +15,5 dB | +0,5 dB | 0 | PASSOU |
+| 19/08 10:22 | +6,4 dB | +0,0 dB | 0 | PASSOU |
+| 18/08 15:16 | +9,0 dB | +1,2 dB | 0 | PASSOU |
+
+**Arquivos tocados:** `reco.py` (+14/−3), `tools/medir_aec.py` (novo),
+`docs/ARMADILHAS.md`, `CLAUDE.md`, este roadmap, `roadmap/README.md`,
+`cerebro/projetos/reco.md`, `cerebro/pessoal/diario/2026-08-19.md`.
+
+**Desvios de contrato (2):**
+
+1. **O gate da Fase 0, como escrito no contrato, media a coisa errada** — dano na
+   voz por rotulagem simultânea. Não foi "critério afrouxado depois de ver o
+   resultado": a rotulagem foi corrigida porque a depuração provou que ela
+   classificava eco como voz (§ 1.4). O gate ficou **mais** exigente (ganhou a
+   trava de saturação de busca).
+2. **Tasklist no chat, não no Task system** — `TaskCreate`/`TaskUpdate` não estão
+   disponíveis nesta sessão (não aparecem entre as deferred tools). Rastreado por
+   lista numerada.
+
+**O que ficou fora:** Fases 1 a 4 (não pedidas nesta invocação).
+
+**Pendências:** ver § 7.
+
+---
+
+## 7. Pendências — decisão do Gabriel
+
+- **Ordem das próximas fases.** Recomendação revisada: **Fase 1** (alinhar na
+  gravação — é o que ele ouve como eco, e é pré-requisito de tudo) → **Fase 3**
+  (métrica) → **Fase 2** (AEC melhor, ganho menor do que se pensava) → Fase 4
+  (operação). A Fase 2 desceu de prioridade porque o AEC vigente já entrega
+  +6 a +15 dB sem dano.
+- **Escutar `1_original.mp3` × `2_alinhado.mp3`** (§ 5) e dizer se os 203 ms são o
+  que incomoda. É o que confirma a Fase 1 como a prioridade certa.
+- **A transcrição melhora?** O AEC não estava destruindo a voz, então a hipótese de
+  que as falas do Gabriel estavam sendo perdidas na transcrição **cai**. A
+  alucinação de `"Obrigada."` documentada em `docs/ARMADILHAS.md` continua sendo
+  outro assunto (silêncio pós-AEC nos trechos em que o interlocutor fala sozinho).

@@ -285,36 +285,49 @@ invertido, ruído branco) explica 1–5%; sem esse controle não há como distin
 medição de sobre-ajuste. Números históricos (−17,9 / −23,7 / −20,5 / −30,9 dB)
 herdam o viés: não citar como acoplamento real.
 
+⚠️ Este é o viés do **acoplamento**. O mesmo script tem um segundo problema, pior
+e independente: os rótulos são por energia **simultânea**, o que com canais
+desalinhados troca eco por voz — ver a armadilha seguinte.
+
 ---
 
-## ERLE sem "dano na voz" ao lado é métrica que mente (19/08/2026)
+## Rotulagem por energia simultânea mede o OPOSTO quando os canais estão desalinhados (19/08/2026)
 
-**Sintoma.** O `cancel_echo` reportava ERLE de +9 a +18 dB e parecia estar
-funcionando. Medindo a **atenuação da voz do usuário** nos mesmos trechos:
-+12 a +17 dB, chegando a **+28,4 dB** numa janela — o app estava apagando a voz
-do Gabriel, não o eco.
+**Sintoma.** Medindo o `cancel_echo`, o AEC aparecia **destruindo a voz do
+usuário em até 28,4 dB** nos blocos rotulados "só o usuário fala". O diagnóstico
+que saiu disso — "o AEC não tem detector de double-talk e está apagando a voz" —
+foi escrito, commitado (`76bcb9c`) e está **errado**.
 
-**Causa.** Duas somadas:
+**Causa.** O rótulo vinha de energias **simultâneas** (`mic` alto e `sistema`
+abaixo do limiar, no mesmo bloco de 100 ms), e o eco chega ao mic **~200 ms
+depois** (latência de buffer entre os streams). O bloco em que o sistema já
+silenciou mas o mic ainda toca o rabo do eco é rotulado "só o usuário falando" —
+o AEC remove eco de verdade ali, e a métrica registra como voz destruída. O
+espelho do mesmo erro infla `so_sys`: o mic aparece em −51 dBFS porque o eco
+daquele trecho ainda não chegou, e o "ERLE" ali é atenuação de ruído de piso.
 
-1. **Não existe detector de double-talk.** O LS por bin roda igual em bloco com
-   e sem fala do near-end, e **59%** do arquivo de 19/08 é double-talk. Filtro
-   que se adapta durante double-talk aprende a voz do near-end e a subtrai — é o
-   modo de falha clássico de AEC, e explica o número inteiro: prova disso é que
-   congelar o filtro fora dos trechos far-end-only derruba o dano para −0,1 e
-   +2,1 dB.
-2. **A pós-supressão residual é cega** (`E * max(beta, 1 - pe/(pr+pe))`): onde a
-   estimativa de eco é espúria, ela atenua sinal legítimo até o piso de −20 dB.
-   Ela responde por ~6 dB dos números; o resto é o LS sem DTD.
+**Como foi pego** (vale mais que a conclusão): a "correção" não fechava. O
+detector de double-talk derrubou o dano de 28,4 → 9,1 dB mas matou o ERLE
+(+15 → +0,5), o que nenhum DTD deveria fazer. Depurando a janela suspeita, os
+blocos que "perdiam 34 dB de voz" perdiam 23,7 dB **mesmo com `residual=False`**
+— subtração linear pura só remove tanto se o conteúdo estiver na referência. Era
+eco. Rotulando com o sistema **alinhado**, o mesmo código mediu **+15,6 dB de
+ERLE com +0,5 dB de dano**.
 
-Agravante: `_alinhar_canais` busca o atraso em `maxlag_s=0.2` (3200 amostras) e
-o atraso real do arquivo chega a **3370** — o alinhamento satura e o filtro passa
-a ajustar correlação espúria.
+**O que fazer.**
 
-**O que fazer.** Reportar AEC **sempre** como par (ERLE, dano na voz), medido
-out-of-sample — ERLE sozinho é indistinguível de "abaixei o volume". A rede de
-segurança atual (`r_out > r_in*1.05` devolve o original) não pega isso: ela só
-protege contra a saída ficar **mais alta**, nunca contra atenuar demais. Plano
-de correção: `roadmap/2026-08-19-melhoria-antieco-de-verdade.md` (Fase 0).
+- Rotular far-end-only / near-end-only **sempre** com o canal do sistema alinhado
+  (`_alinhar_canais`) — é o que `tools/medir_aec.py` faz. `tools/medir_eco.py`
+  **não** faz, e por isso não serve para julgar AEC.
+- Reportar AEC como par **(ERLE, dano na voz)**. ERLE sozinho não distingue
+  cancelar de abaixar o volume — isso continua verdade, e é por isso que o par
+  existe; o que era falso é o número que ele acusou.
+- Números honestos do `cancel_echo` (19/08, rotulagem alinhada): ERLE mediano
+  **+15,5 / +6,4 / +9,0 dB** em três gravações, dano **≤ +1,2 dB**; a
+  decomposição dá +8,7 dB de cancelamento linear e +6,8 dB de pós-supressão.
+- E a lição de método: **quando a correção de um defeito "resolve" o número mas
+  destrói o resultado que deveria preservar, suspeite da medição antes de aceitar
+  o trade-off.**
 
 ---
 
@@ -332,6 +345,14 @@ entre os dois streams: o `DualRecorder` sincroniza o *início* dos streams com
 sempre. Acima de ~50 ms o ouvido deixa de integrar a reflexão como reverberação e
 passa a ouvir eco separado, então esse offset é provavelmente a causa da queixa,
 mesmo quando o acoplamento é modesto.
+
+⚠️ **O sinal do offset varia entre gravações.** No arquivo de 18/08 15:16 o
+loopback vem DEPOIS do mic, e o atraso chega a **−6385 amostras (−399 ms)** —
+fora da busca de ±0,2 s que `_alinhar_canais` usava. Consequência medida: o AEC
+saía com **ERLE negativo** (−1 a −6 dB, ou seja *somando* energia) naquele
+arquivo. Corrigido em 19/08 subindo `maxlag_s` para 0.5 s; com a busca larga o
+mesmo arquivo dá +4 a +10 dB. Implementação de alinhamento que assuma sinal
+positivo está errada.
 
 **O que fazer.** Compensar o offset na gravação (Fase 1 do roadmap de 19/08) —
 alinhar não é "processar o áudio", é corrigir buffer, e é pré-requisito de

@@ -869,8 +869,19 @@ def _fmt_size(n: int) -> str:
 # perfect cancellation. Full analysis in
 # roadmap/2026-07-29-transcricao-precisa-rapida-e-aec.md § 1.5.
 def _alinhar_canais(mic: "np.ndarray", ref: "np.ndarray",
-                    sr: int = 16000, maxlag_s: float = 0.2):
+                    sr: int = 16000, maxlag_s: float = 0.5):
     """Alinha `ref` a `mic` por correlação cruzada (busca ±maxlag_s).
+
+    ⚠️ `maxlag_s` era 0.2 e **saturava** (19/08/2026). O atraso entre mic e
+    loopback não é acústico (eco de caixa a 1 m são ~3 ms): é latência de buffer
+    entre os dois streams do WASAPI. Medido em 8 janelas do arquivo de 19/08
+    11:00, vai de 2142 a **3370 amostras** (134 a 211 ms), com jitter de 24 ms e
+    deriva de +21 ppm. Com o limite em 0.2 s (3200 amostras), as janelas acima de
+    200 ms batiam na borda: na janela de 31,5 min o alinhamento saía em 3143
+    amostras em vez de 3370 — 14 ms de erro, com o filtro de eco tentando cobrir a
+    diferença. 0.5 s dá folga de 2,4× sobre o pior atraso visto, e a correlação é
+    por FFT (custo desprezível). Ver
+    roadmap/2026-08-19-melhoria-antieco-de-verdade.md § 1.2.
 
     Retorna (mic_pad, ref_alinhado), ambos do mesmo tamanho — paddados ao maior
     dos dois. Extraído de dentro de `cancel_echo` (era só usado ali) para ser
@@ -971,7 +982,7 @@ def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
                 sr: int = 16000, nfft: int = 1024, hop: int = 256,
                 taps: int = 6, bloco_s: float = 2.0,
                 residual: bool = True, beta: float = 0.1,
-                lam: float = 1e-3) -> "np.ndarray":
+                lam: float = 1e-3, maxlag_s: float = 0.5) -> "np.ndarray":
     """Remove the echo of `ref` (system loopback) bleeding into `mic`.
 
     On speakers, the PC audio leaks acoustically into the microphone, duplicating
@@ -1000,7 +1011,7 @@ def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
     except Exception:
         return mic
     n0 = len(mic)
-    mic, ref_al = _alinhar_canais(mic, ref, sr)
+    mic, ref_al = _alinhar_canais(mic, ref, sr, maxlag_s=maxlag_s)
 
     _, _, M = stft(mic, fs=sr, nperseg=nfft, noverlap=nfft - hop)
     _, _, S = stft(ref_al, fs=sr, nperseg=nfft, noverlap=nfft - hop)
