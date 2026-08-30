@@ -115,6 +115,7 @@ _CFG_DEFAULTS: dict = {
     "diarize":     True,      # channel-based diarization (mic = "Eu", system = others)
     "aec":         True,      # cancel PC-audio echo bleeding into the mic
     "output_dir":  None,      # save folder; None -> Documents\Reco
+    "nota_dir":    None,      # modo nota (.md) destination; None -> same as output_dir
     "mic_device":  None,      # soundcard device id (str)
     "sys_device":  None,      # soundcard speaker id (str)
     "mic_gain":    1.0,       # linear gain applied to the mic channel (0 dB = 1.0)
@@ -307,6 +308,15 @@ _TR_EN = {
     "e só acontece uma vez.":
         "Preparing '{size}' on {dev} for the first time — this takes a few "
         "minutes and happens only once.",
+    # status — modo nota
+    "Nenhum microfone selecionado — abra Opções.":
+        "No microphone selected — open Options.",
+    "Gravando nota…  (só microfone)": "Recording note…  (mic only)",
+    "Salvo: {n}  —  transcrevendo…": "Saved: {n}  —  transcribing…",
+    "Nota preservada: {n}  —  {e}": "Note kept: {n}  —  {e}",
+    "Nota preservada: {n}  —  falha ao salvar: {e}":
+        "Note kept: {n}  —  failed to save: {e}",
+    "Nota pronta — caminho copiado": "Note ready — path copied",
     # status — devices
     "Pronto para gravar.": "Ready to record.",
     "Buscando dispositivos…": "Searching for devices…",
@@ -1487,7 +1497,8 @@ class DualRecorder:
             self.sys_gain = float(sys)
 
     def start(self, mic_id, sys_id, on_level=None, on_error=None, on_pair=None,
-              out_sr=OUT_SR, out_channels=OUT_CH, bitrate=MP3_BR, out_dir=None):
+              out_sr=OUT_SR, out_channels=OUT_CH, bitrate=MP3_BR, out_dir=None,
+              prefix=None):
         if self.recording:
             return
         # Reap any leftover threads from a previous session before touching state.
@@ -1539,7 +1550,8 @@ class DualRecorder:
         # the recording, and a crash mid-meeting leaves a playable partial MP3
         # instead of nothing.
         try:
-            self._writer = self._new_writer(out_sr, out_channels, bitrate, out_dir)
+            self._writer = self._new_writer(out_sr, out_channels, bitrate, out_dir,
+                                            prefix)
         except Exception as e:
             self._writer      = None
             self._n_requested = 1                  # so all_failed() is True
@@ -1561,12 +1573,15 @@ class DualRecorder:
         self._enc_thread.start()
 
     @staticmethod
-    def _new_writer(out_sr, out_channels, bitrate, out_dir) -> "MP3Writer":
+    def _new_writer(out_sr, out_channels, bitrate, out_dir, prefix=None) -> "MP3Writer":
         folder = Path(out_dir) if out_dir else default_output_dir()
         folder.mkdir(parents=True, exist_ok=True)
         # 'reco' marks this as a dual-channel (mic+system) recording (see RECO_TAG).
-        prefix = "gravacao_reco" if LANG == "pt" else "recording_reco"
-        ts     = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        # Nota mode passes its own prefix ("nota"/"note") — no RECO_TAG, so the
+        # transcribe screen treats it as a plain (non-diarized, no-AEC) file.
+        if prefix is None:
+            prefix = "gravacao_reco" if LANG == "pt" else "recording_reco"
+        ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         return MP3Writer(folder / f"{prefix}_{ts}.mp3",
                          CAPTURE_SR, out_sr, out_channels, bitrate)
 
@@ -2756,6 +2771,7 @@ class App(tk.Tk):
         self._transcribing = False
         self._live         = None     # LiveTranscriber ativo durante a gravação (Fase 3)
         self._live_was_on  = False    # travado no início da gravação — não muda no meio
+        self._nota         = False    # gravação atual é modo nota (fala com IA)?
         self._last_rec     = None
         self._mic_devs     = []
         self._sys_devs     = []
@@ -3671,6 +3687,53 @@ class App(tk.Tk):
         else:
             self._status(t("Gravando…  (mic + sistema)"))
 
+    def _start_nota(self):
+        """Modo nota (fala com IA): grava só o mic, mono, e ao parar transcreve
+        + copia o caminho do .md pro clipboard + descarta o mp3 (ver `_after_stop`
+        e `_nota_done`). Sem UI própria ainda (Fase 2) — chamado direto."""
+        if not self._recorder:
+            self._status(t("Captura indisponível — instale soundcard, numpy e av."))
+            return
+        if self._state != IDLE or self._transcribing:
+            return
+        mic_id = id_for_name(self._mic_devs, self._mic_var.get())
+        if mic_id is None:
+            self._status(t("Nenhum microfone selecionado — abra Opções."))
+            return
+
+        self._nota      = True
+        self._state     = RECORDING
+        self._start_ts  = time.monotonic()
+        self._accum     = 0.0
+        self._set_rec_state(RECORDING)
+        self._vu_mic.reset()
+        self._vu_sys.reset()
+        self._set_combos_enabled(False)
+        self._show_open_txt(self._rec_open_txt, None)
+
+        # Nota é curta — nunca liga o rascunho ao vivo (não paga o acelerador
+        # por uma gravação de segundos), mesmo que o config "live" esteja ligado.
+        self._live_was_on = False
+        self._live         = None
+        self._live_show(False)
+
+        prefix = "nota" if LANG == "pt" else "note"
+        self._recorder.start(
+            mic_id, None,
+            on_level=lambda src, rms: self._post(
+                lambda s=src, r=rms: self._on_level(s, r)),
+            on_error=lambda src, msg: self._post(
+                lambda s=src, m=msg: self._on_stream_error(s, m)),
+            out_sr=OUT_SR, out_channels=1, bitrate=MP3_BR,
+            out_dir=self._out_dir, prefix=prefix)
+        if not self._recorder.recording:         # couldn't open the file
+            self._nota = False
+            return
+
+        self._tick_timer()
+        self._blink_dot()
+        self._status(t("Gravando nota…  (só microfone)"))
+
     def _set_combos_enabled(self, enabled):
         st = "readonly" if enabled else "disabled"
         for cb in (self._mic_cb, self._sys_cb, self._lang_cb):
@@ -3762,7 +3825,13 @@ class App(tk.Tk):
         self._set_combos_enabled(True)
         self._state = STOPPED
         self._set_rec_state(STOPPED)
-        if self._live_was_on:
+        if self._nota:
+            # Modo nota: pula o "Escolha o que fazer" e vai direto pra
+            # transcrição — sucesso vira .md + clipboard + mp3 descartado,
+            # erro preserva o mp3 (ver `_nota_done`).
+            self._status(tf("Salvo: {n}  —  transcrevendo…", n=path.name))
+            self._run_nota_final_pass(path)
+        elif self._live_was_on:
             # Dec2: o texto ao vivo é RASCUNHO — a passada final roda agora,
             # com a máquina livre da disputa da gravação, e substitui o painel.
             self._status(tf("Salvo: {n}  —  refinando a transcrição…", n=path.name))
@@ -3799,6 +3868,57 @@ class App(tk.Tk):
             else:
                 self._status(t("Transcrição final pronta (falha ao salvar o .txt)."))
         self._show_open_txt(self._rec_open_txt, None)
+        self._run_transcriber(path, self._status, done)
+
+    def _run_nota_final_pass(self, path: Path):
+        """Passada final do modo nota: sucesso vira .md em `nota_dir` (None ->
+        pasta de gravações), clipboard recebe o caminho entre aspas e o mp3 vai
+        pra Lixeira; erro/cancelamento PRESERVA o mp3 (não perde a fala)."""
+        def done(text, err):
+            self._nota = False
+            if err:
+                self._state = IDLE
+                self._set_rec_state(IDLE)
+                self._timer_var.set("00:00:00")
+                erro = tf("Nota preservada: {n}  —  {e}", n=path.name, e=str(err)[:80])
+                self._status(erro)
+                self._balloon_if_hidden(erro)
+                return
+
+            dest = (Path(self._cfg["nota_dir"])
+                    if self._cfg.get("nota_dir") else self._out_dir)
+            try:
+                dest.mkdir(parents=True, exist_ok=True)
+                md = dest / f"{path.stem}.md"
+                md.write_text(text or "(no content recognized)", encoding="utf-8")
+            except Exception as e:
+                self._state = IDLE
+                self._set_rec_state(IDLE)
+                self._timer_var.set("00:00:00")
+                erro = tf("Nota preservada: {n}  —  falha ao salvar: {e}",
+                          n=path.name, e=str(e)[:80])
+                self._status(erro)
+                self._balloon_if_hidden(erro)
+                return
+
+            try:
+                self.clipboard_clear()
+                self.clipboard_append(f'"{md}"')
+            except Exception:
+                pass          # sem clipboard, a nota ainda existe em disco
+            try:
+                _excluir_gravacao(path)
+            except Exception:
+                pass
+
+            self._last_rec = None
+            self._state = IDLE
+            self._set_rec_state(IDLE)
+            self._timer_var.set("00:00:00")
+            ok = t("Nota pronta — caminho copiado")
+            self._status(ok)
+            self._balloon_if_hidden(ok)
+
         self._run_transcriber(path, self._status, done)
 
     def _conclude_save(self):
