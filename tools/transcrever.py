@@ -24,10 +24,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import reco  # noqa: E402
 
 
+def sem_trilha_de_audio(src: Path) -> bool:
+    """Vídeo sem som (ex.: o GIF que o WhatsApp manda como mp4) não tem o que
+    transcrever, e o decode do app quebra com `IndexError` em
+    `streams.audio[0]`. Medido em 25/09/2026 nos 2 vídeos do coletor da central.
+    Na dúvida devolve False e deixa o pipeline real dizer o que houve."""
+    try:
+        import av
+        with av.open(str(src)) as cont:
+            return not cont.streams.audio
+    except Exception:
+        return False
+
+
 def transcrever_um(tr, src: Path, args) -> Path:
     dst = src.with_suffix(src.suffix + ".txt")
     if dst.exists() and not args.forcar:
         print(f"[pulado, já existe] {dst}")
+        return dst
+    if sem_trilha_de_audio(src):
+        # .txt vazio é a resposta verdadeira ("nada foi dito") e para a
+        # retentativa: o coletor mantém a mídia com .txt vazio e não a reenvia
+        dst.write_text("", encoding="utf-8")
+        print(f"[sem trilha de áudio, .txt vazio] {dst}")
         return dst
     fim = threading.Event()
     resultado = {}
