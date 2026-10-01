@@ -1,5 +1,7 @@
 # Roadmap de melhoria — Reco: VAD, diarização e transcrição ao vivo (2026-07-29)
 
+> Estacionado em 2026-10-01: Fases 1–2 feitas e Fase 3 com código pronto (97a966f, 9b69d84, 8772bb5, c6f109e; `reco.py:2296` `LiveTranscriber`); falta só o 3.6, o teste de 20 min reais com `live` ligado (gate humano bloqueante), dono gabriel; reabrir = criar card.
+
 ## Contexto e motivação
 
 O Gabriel usa o Reco para gravar reuniões (mic + áudio do sistema em MP3 estéreo,
