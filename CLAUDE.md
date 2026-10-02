@@ -3,12 +3,14 @@
 App de desktop (Windows, Tkinter) que grava **microfone + áudio do sistema**
 (WASAPI loopback) num MP3 estéreo (L=mic, R=sistema) e transcreve localmente via
 OpenVINO GenAI (Whisper), com diarização por canal e cancelamento de eco.
-Todo o código vive em `reco.py` (um arquivo só) + `tray.py` (bandeja).
+Código em modularização desde 02/10/2026: quase tudo ainda em `reco.py` +
+`tray.py` (bandeja), saindo em módulos pelo
+[roadmap](roadmap/2026-10-02-melhoria-modularizacao.md).
 
-**Rota (o hook cobra):** hub `C:\Dev\cerebro\projetos\reco.md` antes de editar;
-`docs/ARMADILHAS.md` antes de mexer em transcrição, AEC ou benchmark.
-(local desta máquina — ler antes de decisão não-trivial: pendências abertas,
-decisões recentes).
+**Rota:** [hub](../cerebro/projetos/reco.md) (estado, roadmaps em voo,
+pendências) antes de editar; o hook passa a cobrar na Fase 2 da doc modular.
+[docs/ARMADILHAS.md](docs/ARMADILHAS.md) antes de mexer em transcrição, AEC ou
+benchmark. Mapa dos docs: [docs/_INDICE.md](docs/_INDICE.md).
 
 ## REGRA: sempre compilar após alterar o código
 
@@ -78,15 +80,11 @@ caso em `_migra_config()`:
 
 ## Onde está o resto
 
-| quero… | leio |
-| --- | --- |
-| o que **parece** funcionar e não funciona | [docs/ARMADILHAS.md](docs/ARMADILHAS.md) — ler antes de mexer em transcrição, AEC ou benchmark |
-| como cada peça funciona por dentro | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) |
-| para que serve cada script de `tools/` | [docs/TOOLS.md](docs/TOOLS.md) |
-| por que decidimos X, e o que foi descartado | [roadmap/README.md](roadmap/README.md) |
+[docs/_INDICE.md](docs/_INDICE.md): 1 linha por doc (ARMADILHAS, ARQUITETURA,
+TOOLS, README) e pelo índice dos roadmaps, com o que tem dentro e quando ler.
 
 ## Ritual
 
 Segue o ritual da raiz `C:\Dev` (plano em `roadmap/`, docs atualizadas,
-consolidado datado em `docs/CONSOLIDADO-<data>.md` ao fim). A regra de compilar
+consolidado em fragmento do diário do cérebro ao fim). A regra de compilar
 acima é específica deste projeto e **não** é opcional.
