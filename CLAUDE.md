@@ -8,7 +8,7 @@ Código em modularização desde 02/10/2026: quase tudo ainda em `reco.py` +
 [roadmap](roadmap/2026-10-02-melhoria-modularizacao.md).
 
 **Rota:** [hub](../cerebro/projetos/reco.md) (estado, roadmaps em voo,
-pendências) antes de editar; o hook passa a cobrar na Fase 2 da doc modular.
+pendências) antes de editar; o hook `guarda-escrita` cobra (desde 03/10/2026).
 [docs/ARMADILHAS.md](docs/ARMADILHAS.md) antes de mexer em transcrição, AEC ou
 benchmark. Mapa dos docs: [docs/_INDICE.md](docs/_INDICE.md).
 
