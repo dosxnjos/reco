@@ -1,0 +1,15 @@
+{
+  "_doc": "Trava de tamanho e de complexidade do Reco (scripts do cérebro: C:/Dev/cerebro/scripts/gate_tamanho.py e gate_complexidade.py; Fase 6 de roadmap/2026-10-11-melhoria-trava-tamanho-e-complexidade.md em C:/Dev). Arquivo de código novo até teto_linhas; o que passa do teto não cresce; a soma por código C901/PLR0912/PLR0915 do commit não cresce contra o HEAD (extrair função para módulo novo no mesmo commit não conta). Até aviso_ate (inclusive) só avisa. Qualquer mudança neste json entra em commit PRÓPRIO; exceção de tamanho exige motivo e valida_ate em até 30 dias.",
+  "teto_linhas": 500,
+  "aviso_ate": "2026-10-26",
+  "_aviso_ate_motivo": "14 dias de aviso, régua do veredito de 28/09 (D6 do roadmap 2026-10-11-melhoria-trava-tamanho-e-complexidade.md); o card lateral de 23/10 lê o log em <git-common-dir>/trava-tamanho.jsonl e decide se bloqueia.",
+  "extensoes": [".py", ".js", ".mjs", ".cjs", ".ps1", ".sh", ".cmd", ".bat"],
+  "ignorar": ["**/__pycache__/**", "temp/**"],
+  "excecoes": {},
+  "complexidade": {
+    "aviso_ate": "2026-10-26",
+    "max_complexity": 10,
+    "max_branches": 12,
+    "max_statements": 50
+  }
+}
