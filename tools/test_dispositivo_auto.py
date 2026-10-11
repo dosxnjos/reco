@@ -22,6 +22,9 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+_CFG = Path.home() / ".reco_config.json"
+_CFG_ANTES = _CFG.read_bytes() if _CFG.exists() else None
+
 import reco  # noqa: E402
 
 KINDS = ("speaker", "microphone")
@@ -160,6 +163,21 @@ def teste_resolve_papeis():
         print("   (papéis forjados: pulado, nenhum fluxo com 2+ endpoints)")
 
 
+def teste_import_nao_grava():
+    """`import reco` carrega o config (idioma) e NÃO pode reescrever o
+    ~/.reco_config.json: persistir a migração 2 antes do exe novo existir faz o exe
+    antigo, ao abrir, regravar o id do padrão como escolha (re-arma o bug do PDI)."""
+    atual = _CFG.read_bytes() if _CFG.exists() else None
+    if atual != _CFG_ANTES:
+        _falha("`import reco` reescreveu ~/.reco_config.json")
+    c = reco.load_config()                       # persist=False é o default
+    if _CFG.exists() and _CFG.read_bytes() != _CFG_ANTES:
+        _falha("load_config() reescreveu ~/.reco_config.json sem persist=True")
+    if c.get("_migracao") != reco.CFG_MIGRACAO:
+        _falha(f"load_config() não aplicou a migração em memória: {c.get('_migracao')}")
+    print("OK import e load_config() não gravam o config (só App, com persist=True)")
+
+
 def teste_sem_colisao():
     """Duas `def` de mesmo nome no módulo: a segunda esconde a primeira SEM erro de
     import (aconteceu em 11/10/2026: o `resolve_device(pref)` do OpenVINO foi
@@ -201,6 +219,7 @@ def main():
     teste_resolve_papeis()
     teste_scan()
     teste_sem_colisao()
+    teste_import_nao_grava()
 
 
 if __name__ == "__main__":
