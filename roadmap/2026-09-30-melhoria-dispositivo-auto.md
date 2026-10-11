@@ -271,7 +271,7 @@ Guardar `self._rec_devs = {"mic": (id, nome, via), "sys": (…)}` para a Fase 2.
 — **prova:** `python tools/check_i18n.py` → `OK — cobertura completa, nada morto.`
    **reprova se:** o script lista `FALTANTES` (string nova sem par EN).
 
-1.7. [ ] Regressão + build: `python tools/test_encoder.py`, depois
+1.7. [ ] (regressão feita: `test_encoder` TUDO OK, `--selftest` OK; **build pendente, `Reco.exe` aberto**: ver `pendencias-decisao-2026-10-11-03fa30be.md` no sidecar) Regressão + build: `python tools/test_encoder.py`, depois
 `powershell -ExecutionPolicy Bypass -File "C:\Dev\Reco\build.ps1"`.
 — **prova:** `python -c "import os;print('exe_novo', os.path.getmtime('dist/Reco/Reco.exe') > os.path.getmtime('reco.py'))"` → `exe_novo True`
    **reprova se:** `exe_novo False` (o build não rodou depois da mudança).
