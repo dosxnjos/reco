@@ -131,6 +131,35 @@ def teste_resolve():
     print(f"   (medido: mic + sistema no clique de Gravar {ms:.1f} ms)")
 
 
+def teste_resolve_papeis():
+    """Papéis independentes da máquina: com um único padrão (console == comm) o teste
+    real não distingue "seguiu o papel" de "pegou o 1º da lista". Aqui o padrão é
+    forjado em dispositivos DIFERENTES e fora de ordem."""
+    original = reco.default_endpoint_id
+    cobertos = 0
+    try:
+        for kind in KINDS:
+            devs = _enumera(kind)
+            if len(devs) < 2:
+                continue
+            console, comm = devs[-1], devs[0]       # console NÃO é o 1º da lista
+            reco.default_endpoint_id = (
+                lambda k, role, _c=console, _m=comm: (_c.id if role == 0 else _m.id))
+            casos = [(reco.AUTO_CONSOLE, console), (None, console), (reco.AUTO_COMM, comm),
+                     ("{0.0.0.00000000}.{00000000-dead-beef-0000-000000000000}", console)]
+            for valor, esperado in casos:
+                id_, _nome, _via = reco.resolve_device(valor, kind)
+                if id_ != esperado.id:
+                    _falha(f"papéis ({kind}, valor={valor!r}): {id_!r} ≠ {esperado.id!r}")
+            cobertos += 1
+    finally:
+        reco.default_endpoint_id = original
+    if cobertos:
+        print(f"OK papéis Auto independentes da máquina ({cobertos} fluxo(s) com 2+ endpoints)")
+    else:
+        print("   (papéis forjados: pulado, nenhum fluxo com 2+ endpoints)")
+
+
 def main():
     if not reco.HAS_SC:
         _falha("soundcard indisponível")
@@ -139,6 +168,7 @@ def main():
         return
     teste_endpoint()
     teste_resolve()
+    teste_resolve_papeis()
 
 
 if __name__ == "__main__":
