@@ -278,3 +278,36 @@ config existente. Se a mudança **precisa** chegar aos usuários atuais, suba
 `_migracao` dentro do próprio JSON) e só promove valores que eram o **default
 antigo**, preservando escolha deliberada. Foi assim que `small` → `large-v3-turbo`
 e `NPU` → `AUTO` chegaram na máquina do Gabriel em 29/07/2026.
+
+**Migração 2 (11/10/2026) é a exceção: incondicional.** `mic_device`/`sys_device` viram
+`"auto:console"` em qualquer config existente, porque o combo gravava no JSON o
+dispositivo que o próprio app pré-selecionava (escrita programática disparava o
+`trace_add`): nada no arquivo distingue escolha deliberada de autosave. Quem tinha
+escolha manual refaz com 1 clique.
+
+### Dispositivo: valor no config e Auto
+
+`mic_device`/`sys_device` guardam `"auto:console"` (padrão do Windows, papel
+`eConsole`), `"auto:comm"` (padrão de comunicação, `eCommunications`) ou um id de endpoint
+(escolha manual). **O config é a única fonte da verdade**: o combo só mostra, e só o
+`<<ComboboxSelected>>` grava (`_on_device_selected`, por índice). ⚠️ Nunca voltar a
+`trace_add("write")` nem a ler o combo para decidir o dispositivo.
+
+- `resolve_audio_device(valor, kind)` → `(id, nome, via)` com enumeração fresca
+  (⚠️ **não** `resolve_device`: esse nome é do acelerador OpenVINO, e uma 2ª `def` de mesmo
+  nome sobrescreve a 1ª sem erro de import; o guard confere def duplicada); `via` =
+  `auto` | `manual` | `ausente`. Id salvo que sumiu (fone desligado) cai no padrão do
+  console com aviso no status e **nunca devolve id morto** (o recorder preencheria o
+  canal com zeros: o silêncio sem alarme do PDI de 29/09).
+- `default_endpoint_id(kind, role)` chama `GetDefaultAudioEndpoint` pela API privada do
+  `soundcard` (`mediafoundation._DeviceEnumerator`/`_ffi`/`_com`; o pacote só expõe o
+  papel 0): por isso o pin `soundcard==0.4.6`. Papel 2 que falhe cai no 0.
+- No **clique de Gravar** roda síncrono `resolve_audio_device` (mic + sistema) **e** um
+  `scan_device_state` (atualiza os rótulos Auto com o nome de agora): exceção declarada a
+  "COM fora do Tk", porque o id tem de existir antes do `DualRecorder.start`. Medido por
+  `tools/test_dispositivo_auto.py`: ~4 ms + ~6 ms nesta máquina (28 ms numa medição
+  fria). O scan do botão "Atualizar dispositivos" roda fora do Tk.
+- `auto:comm` cuja chamada de API privada falhe cai no console só com um `print` no
+  console de debug (a UI mostra o rótulo "comunicação" e grava o console).
+- `import reco` roda `load_config()` (para o idioma): **qualquer script que importe o
+  `reco` aplica a migração ao `~/.reco_config.json` real**.

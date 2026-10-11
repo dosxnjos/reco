@@ -17,6 +17,7 @@ MP3 por container" citada na tabela está em
 
 | script | para quê |
 | --- | --- |
+| `test_dispositivo_auto.py [--listar]` | guard do "Auto" de dispositivo, sem janela nem gravação: `default_endpoint_id` (papel 0 = console == `soundcard`; papel 2 = comunicação, inclusive em outra thread, 4 chamadas < 50 ms), `resolve_audio_device` (Auto padrão, Auto comunicação, id manual presente, id manual **ausente** nunca devolve id morto) def duplicada no módulo (o `resolve_device` do acelerador OpenVINO foi sobrescrito por engano em 11/10) e os papéis forjados em dispositivos diferentes (a máquina de 1 padrão não distingue "seguiu o papel" de "pegou o 1º da lista"). Rodar quando mexer em `resolve_audio_device`/`default_endpoint_id` ou **ao subir o pin `soundcard==0.4.6`** (o papel 2 usa API privada do pacote). `--listar` imprime os endpoints e o padrão de cada papel (passo 4.1, com o fone) |
 | `test_encoder.py` | testa o encoder sem hardware: duração declarada == real, header Xing, L/R separados, pareamento dos canais e `close()` instantâneo. Rodar **sempre** que mexer em `MP3Writer`/`_pump` |
 | `test_gravacao_real.py [seg]` | grava de verdade pelos dispositivos padrão, mede o tempo do `stop()` e apaga o MP3 no fim |
 | `reparar_duracao.py <pasta> [--aplicar]` | conserta a duração de MP3 antigos por remux (ver a regra acima) |

@@ -116,8 +116,10 @@ _CFG_DEFAULTS: dict = {
     "aec":         True,      # cancel PC-audio echo bleeding into the mic
     "output_dir":  None,      # save folder; None -> Documents\Reco
     "nota_dir":    None,      # modo nota (.md) destination; None -> same as output_dir
-    "mic_device":  None,      # soundcard device id (str)
-    "sys_device":  None,      # soundcard speaker id (str)
+    # "auto:console" (padrão do Windows) | "auto:comm" (padrão de comunicação) | id
+    # de endpoint do soundcard (escolha manual). Ver resolve_audio_device().
+    "mic_device":  "auto:console",
+    "sys_device":  "auto:console",
     "mic_gain":    1.0,       # linear gain applied to the mic channel (0 dB = 1.0)
     "sys_gain":    1.0,       # linear gain applied to the system channel
     # Rascunho de transcrição durante a gravação (Fase 3 do roadmap
@@ -160,10 +162,15 @@ def is_video(path) -> bool:
 EXTRACT_CH = 1
 EXTRACT_BR = 64
 
+# Valores de `mic_device`/`sys_device` além de um id de endpoint (escolha manual).
+# Ficam aqui, antes de qualquer load_config(), porque a migração 2 os usa.
+AUTO_CONSOLE = "auto:console"     # padrão do Windows (eConsole)
+AUTO_COMM    = "auto:comm"        # padrão de comunicação (eCommunications)
+
 # Bump when a default changes in a way that must reach users who already have a
 # saved config. Without this, changing _CFG_DEFAULTS is a no-op for everyone who
 # has ever opened the app: load_config() lets the saved file win, by design.
-CFG_MIGRACAO = 1
+CFG_MIGRACAO = 2
 
 
 def _migra_config(cfg: dict) -> bool:
@@ -176,7 +183,15 @@ def _migra_config(cfg: dict) -> bool:
     automatically. `small` locks into repetition loops (measured: 221 identical
     repeats on one window) and NPU-first was picked without measuring; AUTO now
     resolves to the iGPU, which is ~55% faster on large-v3-turbo. Anyone who does
-    want NPU can select it — the control is back."""
+    want NPU can select it — the control is back.
+
+    Migration 2 (11/10/2026) — mic_device / sys_device → "auto:console",
+    INCONDICIONAL. Até aqui o combo gravava no JSON o dispositivo que o próprio app
+    pré-selecionava na 1ª abertura (escrita programática disparava o trace), então
+    nada no arquivo distingue escolha deliberada de autosave — e o id "salvo"
+    vencia o padrão do Windows para sempre (PDI de 29/09/2026: fone Bluetooth era o
+    padrão, o Reco gravou o Realtek mudo). Quem tinha escolha manual refaz com 1
+    clique no combo."""
     v = int(cfg.get("_migracao", 0) or 0)
     if v >= CFG_MIGRACAO:
         return False
@@ -185,6 +200,9 @@ def _migra_config(cfg: dict) -> bool:
             cfg["model"] = "large-v3-turbo"
         if cfg.get("device") == "NPU":
             cfg["device"] = "AUTO"
+    if v < 2:
+        cfg["mic_device"] = AUTO_CONSOLE
+        cfg["sys_device"] = AUTO_CONSOLE
     cfg["_migracao"] = CFG_MIGRACAO
     return True
 
@@ -331,7 +349,16 @@ _TR_EN = {
     "Nenhuma fonte de áudio — abra Opções.":
         "No audio source — open Options.",
     # status — recording
-    "Gravando…  (mic + sistema)": "Recording…  (mic + system)",
+    "Gravando…  mic: {m} · sistema: {s}": "Recording…  mic: {m} · system: {s}",
+    # dispositivos "Auto" (roadmap 2026-09-30-melhoria-dispositivo-auto)
+    "Auto: padrão do Windows ({nome})": "Auto: Windows default ({nome})",
+    "Auto: padrão de comunicação ({nome})": "Auto: communications default ({nome})",
+    "Dispositivo salvo (ausente: usando o padrão do Windows)":
+        "Saved device (missing: using the Windows default)",
+    "{canal} escolhida ausente: usando o padrão do Windows ({nome})":
+        "{canal} device missing: using the Windows default ({nome})",
+    "Entrada": "Input",
+    "Saída": "Output",
     "microfone": "microphone",
     "áudio do sistema": "system audio",
     "Nenhuma fonte pôde ser capturada ({which}): {m}":
@@ -1338,21 +1365,98 @@ def default_speaker_id() -> str | None:
         return None
 
 
-def pick_device(devs: list, saved_id: str | None, default_id: str | None) -> str | None:
-    ids = [d[0] for d in devs]
-    if saved_id and saved_id in ids:
-        return saved_id
-    if default_id and default_id in ids:
-        return default_id
-    return devs[0][0] if devs else None
+# ── "Auto": segue o padrão do Windows (roadmap 2026-09-30-melhoria-dispositivo-auto) ──
+# Valores em AUTO_CONSOLE/AUTO_COMM (topo, junto do config). O config é a única
+# fonte da verdade: o combo só mostra, nunca decide.
+_ROLE_CONSOLE, _ROLE_COMM = 0, 2
+
+
+def default_endpoint_id(kind: str, role: int) -> str | None:
+    """Id do endpoint padrão de `kind` ("speaker"/"microphone") no papel `role`
+    (0 = console, 2 = comunicação). O `soundcard` 0.4.6 só expõe o papel 0 (fixo em
+    `mediafoundation.default_device`); o 2 chama `GetDefaultAudioEndpoint` pela API
+    privada do pacote (`_DeviceEnumerator`/`_ffi`/`_com`), por isso o pin
+    `soundcard==0.4.6`. Papel 2 que falhe cai no 0; papel 0 que falhe devolve None."""
+    if not HAS_SC:
+        return None
+    try:
+        from soundcard import mediafoundation as _mf
+        flow = 0 if kind == "speaker" else 1          # eRender / eCapture
+        with _mf._DeviceEnumerator() as enum:
+            pp = _mf._ffi.new("IMMDevice **")
+            hr = enum._ptr[0][0].lpVtbl.GetDefaultAudioEndpoint(enum._ptr[0], flow, role, pp)
+            _mf._com.check_error(hr)
+            try:
+                return enum._device_id(pp)
+            finally:
+                _mf._com.release(pp)
+    except Exception as e:
+        if role == _ROLE_COMM:
+            print(f"[auto] eCommunications indisponível: {e}")
+            return default_endpoint_id(kind, _ROLE_CONSOLE)
+        return None
+
+
+def resolve_audio_device(value: str | None, kind: str) -> tuple[str | None, str | None, str]:
+    """(id, nome, via) do dispositivo a gravar, com enumeração FRESCA (um fone
+    conectado depois de abrir o app funciona sem "Atualizar dispositivos").
+
+    via = "auto" (segue o padrão do Windows no papel pedido), "manual" (id presente)
+    ou "ausente" (id salvo que sumiu, ex. fone desligado: cai no padrão do console).
+    Nunca devolve id morto: o `_fail` do recorder preencheria o canal com zeros, o
+    mesmo silêncio sem alarme do PDI de 29/09/2026."""
+    devs: list = []
+    if HAS_SC:
+        try:
+            lst = sc.all_speakers() if kind == "speaker" else sc.all_microphones(include_loopback=False)
+            devs = [(d.id, d.name) for d in lst if not getattr(d, "isloopback", False)]
+        except Exception as e:
+            print(f"[resolve {kind}] {e}")
+    nomes = dict(devs)
+    if value not in (None, "", AUTO_CONSOLE, AUTO_COMM):
+        if value in nomes:
+            return value, nomes[value], "manual"
+        via = "ausente"
+        role = _ROLE_CONSOLE
+    else:
+        via = "auto"
+        role = _ROLE_COMM if value == AUTO_COMM else _ROLE_CONSOLE
+    dev_id = default_endpoint_id(kind, role)
+    return dev_id, nomes.get(dev_id), via
 
 
 def name_for_id(devs: list, dev_id: str | None) -> str | None:
     return next((n for i, n in devs if i == dev_id), None)
 
 
-def id_for_name(devs: list, name: str | None) -> str | None:
-    return next((i for i, n in devs if n == name), None)
+def scan_device_state() -> dict:
+    """Tudo que os combos precisam numa passada (COM: roda fora do thread do Tk):
+    por kind, a lista [(id, nome)] e o NOME do padrão de cada papel."""
+    mics, spks = list_capture_devices()
+    state = {"microphone": {"devs": mics}, "speaker": {"devs": spks}}
+    for kind, st in state.items():
+        st["console"] = name_for_id(st["devs"], default_endpoint_id(kind, _ROLE_CONSOLE))
+        st["comm"] = name_for_id(st["devs"], default_endpoint_id(kind, _ROLE_COMM))
+    return state
+
+
+def device_options(devs: list, console_name: str | None, comm_name: str | None,
+                   saved: str | None) -> tuple[list, list, int | None]:
+    """(rótulos, valores de config, índice selecionado) de um combo: 2 Auto no topo
+    e depois os dispositivos. Índice None = id salvo que não está mais na lista (o
+    chamador mostra o aviso SEM gravar nada). Função pura: o combo só mostra."""
+    labels = [tf("Auto: padrão do Windows ({nome})", nome=console_name or "—"),
+              tf("Auto: padrão de comunicação ({nome})", nome=comm_name or "—")]
+    values = [AUTO_CONSOLE, AUTO_COMM]
+    labels += [n for _, n in devs]
+    values += [i for i, _ in devs]
+    if saved in (None, "", AUTO_CONSOLE):
+        return labels, values, 0
+    if saved == AUTO_COMM:
+        return labels, values, 1
+    if saved in values[2:]:
+        return labels, values, values.index(saved)
+    return labels, values, None
 
 
 # ── Dual Recorder ─────────────────────────────────────────────────────────────
@@ -2773,8 +2877,8 @@ class App(tk.Tk):
         self._live_was_on  = False    # travado no início da gravação — não muda no meio
         self._nota         = False    # gravação atual é modo nota (fala com IA)?
         self._last_rec     = None
-        self._mic_devs     = []
-        self._sys_devs     = []
+        self._dev_vals     = {}       # cfg_key -> valores de config, alinhados ao combo
+        self._rec_devs     = {}       # {"mic"/"sys": (id, nome, via)} da gravação em curso
         self._start_ts     = 0.0
         self._accum        = 0.0      # captured seconds before the current segment
         self._final_dur    = "00:00:00"
@@ -3229,6 +3333,10 @@ class App(tk.Tk):
                                     fg=ACCENT, font=SEG_SM)
         self._lib_link.pack(side="right", padx=(0, 14))
 
+    # cfg_key -> (kind do soundcard, var, combo)
+    _DEV_KEYS = {"mic_device": ("microphone", "_mic_var", "_mic_cb"),
+                 "sys_device": ("speaker", "_sys_var", "_sys_cb")}
+
     def _build_advanced(self, body):
         self._adv = tk.Frame(body, bg=BG)
 
@@ -3248,8 +3356,11 @@ class App(tk.Tk):
                               style="D.TCombobox", font=SEG_SM, width=24)
             cb.pack(side="left")
             setattr(self, cb_attr, cb)
-            var.trace_add("write",
-                lambda *_, v=var, k=cfg_key: self._on_device_change(v, k))
+            # Só a escolha do usuário grava config. NUNCA `trace_add("write")` aqui:
+            # a escrita programática do _apply_device_state gravaria como "escolha"
+            # o dispositivo que o próprio app pré-selecionou (causa do PDI de 29/09).
+            cb.bind("<<ComboboxSelected>>",
+                    lambda e, k=cfg_key: self._on_device_selected(k, e))
 
         self._link(self._adv, t("Atualizar dispositivos"),
                    self._scan_devices, icon="atualizar").pack(anchor="w", pady=(2, 6))
@@ -3346,11 +3457,14 @@ class App(tk.Tk):
         self.geometry("")
 
     # ── config callbacks ─────────────────────────────────────────────────────
-    def _on_device_change(self, var: tk.StringVar, cfg_key: str):
-        devs = self._mic_devs if cfg_key == "mic_device" else self._sys_devs
-        dev_id = id_for_name(devs, var.get())
-        if dev_id:
-            self._cfg[cfg_key] = dev_id
+    def _on_device_selected(self, cfg_key: str, event=None):
+        """Escolha do usuário no combo (único caminho que grava dispositivo).
+        Mapeia pelo ÍNDICE, não pelo rótulo: o rótulo Auto muda a cada scan."""
+        cb = getattr(self, self._DEV_KEYS[cfg_key][2])
+        i = cb.current()
+        vals = self._dev_vals.get(cfg_key, [])
+        if 0 <= i < len(vals):
+            self._cfg[cfg_key] = vals[i]
             save_config(self._cfg)
 
     def _on_device_pref_change(self):
@@ -3577,32 +3691,31 @@ class App(tk.Tk):
 
     def _scan_thread(self):
         try:
-            mics, spks = list_capture_devices()
-            def_mic = default_mic_id()
-            def_spk = default_speaker_id()
+            state = scan_device_state()       # COM aqui, nunca no thread do Tk
         except Exception as e:
             self._post(lambda msg=str(e):
                        self._status(tf("Erro ao listar dispositivos: {m}", m=msg)))
             return
-        self._post(lambda: self._populate_devices(mics, spks, def_mic, def_spk))
+        self._post(lambda: self._populate_devices(state))
 
-    def _populate_devices(self, mics, spks, def_mic, def_spk):
-        self._mic_devs = mics
-        self._sys_devs = spks
-        self._mic_cb["values"] = [n for _, n in mics]
-        self._sys_cb["values"] = [n for _, n in spks]
+    def _apply_device_state(self, state: dict):
+        """Reflete o scan nos combos. NÃO grava config: só a escolha do usuário
+        (`_on_device_selected`) grava; id salvo que sumiu fica no JSON."""
+        for cfg_key, (kind, var_attr, cb_attr) in self._DEV_KEYS.items():
+            st = state[kind]
+            labels, values, sel = device_options(
+                st["devs"], st["console"], st["comm"], self._cfg.get(cfg_key))
+            cb, var = getattr(self, cb_attr), getattr(self, var_attr)
+            cb["values"] = labels
+            self._dev_vals[cfg_key] = values
+            if sel is None:                   # id salvo ausente: rótulo sem entrar na lista
+                var.set(tf("Dispositivo salvo (ausente: usando o padrão do Windows)"))
+            else:
+                cb.current(sel)
 
-        if mics:
-            chosen = pick_device(mics, self._cfg.get("mic_device"), def_mic)
-            self._mic_var.set(name_for_id(mics, chosen) or mics[0][1])
-        else:
-            self._mic_var.set("")
-
-        if spks:
-            chosen = pick_device(spks, self._cfg.get("sys_device"), def_spk)
-            self._sys_var.set(name_for_id(spks, chosen) or spks[0][1])
-        else:
-            self._sys_var.set("")
+    def _populate_devices(self, state: dict):
+        mics, spks = state["microphone"]["devs"], state["speaker"]["devs"]
+        self._apply_device_state(state)
 
         if not mics and not spks:
             self._status(t("Nenhum dispositivo de áudio encontrado."))
@@ -3624,8 +3737,7 @@ class App(tk.Tk):
         if not self._recorder:
             self._status(t("Captura indisponível — instale soundcard, numpy e av."))
             return
-        mic_id = id_for_name(self._mic_devs, self._mic_var.get())
-        sys_id = id_for_name(self._sys_devs, self._sys_var.get())
+        mic_id, sys_id = self._resolve_devices(usa_mic=True, usa_sys=True)
         if mic_id is None and sys_id is None:
             self._status(t("Nenhuma fonte de áudio — abra Opções."))
             return
@@ -3683,9 +3795,10 @@ class App(tk.Tk):
         self._tick_timer()
         self._blink_dot()
         if live_suprimido:
-            self._status(t("Rascunho ao vivo desativado — transcrição em andamento."))
+            self._status(t("Rascunho ao vivo desativado — transcrição em andamento.")
+                         + self._aviso_ausente())
         else:
-            self._status(t("Gravando…  (mic + sistema)"))
+            self._status(self._status_gravando())
 
     def _start_nota(self):
         """Modo nota (fala com IA): grava só o mic, mono, e ao parar transcreve
@@ -3696,7 +3809,7 @@ class App(tk.Tk):
             return
         if self._state != IDLE or self._transcribing:
             return
-        mic_id = id_for_name(self._mic_devs, self._mic_var.get())
+        mic_id, _ = self._resolve_devices(usa_mic=True, usa_sys=False)
         if mic_id is None:
             self._status(t("Nenhum microfone selecionado — abra Opções."))
             return
@@ -3732,7 +3845,45 @@ class App(tk.Tk):
 
         self._tick_timer()
         self._blink_dot()
-        self._status(t("Gravando nota…  (só microfone)"))
+        self._status(self._status_gravando())
+
+    def _resolve_devices(self, usa_mic: bool, usa_sys: bool) -> tuple:
+        """Resolve o dispositivo de cada canal pelo CONFIG (o combo só mostra), com
+        enumeração fresca, e guarda em `self._rec_devs` ({"mic"/"sys": (id, nome,
+        via)}) para a vigia da Fase 2. ⚠️ Roda SÍNCRONO no clique de Gravar: exceção
+        declarada à regra "COM fora do Tk" porque o id tem de existir antes do
+        `DualRecorder.start`; ~5 ms medidos em tools/test_dispositivo_auto.py."""
+        self._rec_devs = {"mic": (None, None, "auto"), "sys": (None, None, "auto")}
+        if usa_mic:
+            self._rec_devs["mic"] = resolve_audio_device(self._cfg.get("mic_device"), "microphone")
+        if usa_sys:
+            self._rec_devs["sys"] = resolve_audio_device(self._cfg.get("sys_device"), "speaker")
+        try:                          # rótulos Auto com o nome de AGORA (não o do último scan)
+            self._apply_device_state(scan_device_state())
+        except Exception as e:
+            print(f"[auto] rótulos não atualizados: {e}")
+        return self._rec_devs["mic"][0], self._rec_devs["sys"][0]
+
+    def _status_gravando(self) -> str:
+        """Status de "gravando" com os nomes resolvidos e o aviso de ausente; o
+        início e o retomar da pausa usam o mesmo texto."""
+        if self._nota:
+            base = t("Gravando nota…  (só microfone)")
+        else:
+            base = tf("Gravando…  mic: {m} · sistema: {s}",
+                      m=self._rec_devs["mic"][1] or "—", s=self._rec_devs["sys"][1] or "—")
+        return base + self._aviso_ausente()
+
+    def _aviso_ausente(self) -> str:
+        """Sufixo do status quando o dispositivo salvo sumiu (fone desligado) e a
+        gravação caiu no padrão do Windows; vazio no caso normal."""
+        avisos = []
+        for chave, canal in (("mic", t("Entrada")), ("sys", t("Saída"))):
+            _id, nome, via = self._rec_devs.get(chave, (None, None, "auto"))
+            if via == "ausente":
+                avisos.append(tf("{canal} escolhida ausente: usando o padrão do Windows ({nome})",
+                                 canal=canal, nome=nome or "—"))
+        return ("  ⚠ " + " · ".join(avisos)) if avisos else ""
 
     def _set_combos_enabled(self, enabled):
         st = "readonly" if enabled else "disabled"
@@ -4015,7 +4166,7 @@ class App(tk.Tk):
         self._set_rec_state(RECORDING)
         self._tick_timer()
         self._blink_dot()
-        self._status(t("Gravando…  (mic + sistema)"))
+        self._status(self._status_gravando())
 
     def _on_level(self, src, rms):
         if src == "mic":

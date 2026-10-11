@@ -188,7 +188,7 @@ Linha nova em `docs/TOOLS.md`. Os números de § Medições já saíram dela.
 
 ### Fase 1 — núcleo do Auto (`reco.py`)
 
-1.1. [ ] Helper `default_endpoint_id(kind: str, role: int) -> str | None` ao
+1.1. [x] (guard OK; 4 chamadas 3 ms; vermelho = AttributeError em 9d83c1b) Helper `default_endpoint_id(kind: str, role: int) -> str | None` ao
 lado de `default_speaker_id` (l.1332). `kind` = `"speaker"`/`"microphone"`
 (fluxo 0/1), `role` 0 = console, 2 = comunicação. Implementação (a do spike):
 `with mediafoundation._DeviceEnumerator() as enum:` →
@@ -202,9 +202,11 @@ nos dois fluxos (e numa thread separada) e mede o tempo de 4 chamadas.
    **reprova se:** o cruzamento falha (role errado ou fluxo trocado) ou dá
    exceção de import (API privada mudou: conferir o pin do 0.3).
 
-1.2. [ ] Constantes `AUTO_CONSOLE = "auto:console"` e `AUTO_COMM =
-"auto:comm"`, e `resolve_device(value, kind) -> tuple[str | None, str | None,
-str]` (id, nome, `via`). **O config é a única fonte da verdade** (o combo só
+1.2. [x] (`resolve_audio_device`; guard 4 casos + papéis forjados) Constantes `AUTO_CONSOLE = "auto:console"` e `AUTO_COMM =
+"auto:comm"`, e `resolve_audio_device(value, kind) -> tuple[str | None, str | None,
+str]` (id, nome, `via`). ⚠️ **Nome corrigido na execução (11/10):** o md dizia
+`resolve_device`, mas esse nome já é do acelerador OpenVINO (`resolve_device(pref)`,
+l.1114); a 2ª `def` o sobrescrevia sem erro e quebrava toda transcrição. **O config é a única fonte da verdade** (o combo só
 mostra; nunca é lido para decidir o dispositivo). Regras:
 - `"auto:console"`/`None` → papel 0; `"auto:comm"` → papel 2; `via="auto"`.
 - id presente na enumeração fresca (`sc.all_speakers()`/`sc.all_microphones()`,
@@ -215,12 +217,12 @@ mostra; nunca é lido para decidir o dispositivo). Regras:
   sem alarme do incidente.
 `pick_device` (l.1341) só tem caller em `_populate_devices` (`tools/` não usa,
 conferido): remover junto com o 1.4.
-— **prova:** `python tools/test_dispositivo_auto.py` → `OK resolve_device (4 casos)`
+— **prova:** `python tools/test_dispositivo_auto.py` → `OK resolve_audio_device (4 casos)`
    **reprova se:** o caso Auto devolve o id salvo, `None` vira id fixo, ou o
    id ausente volta como id (os 4 casos do guard: console, comm, manual
    presente, manual ausente).
 
-1.3. [ ] Config: `_CFG_DEFAULTS["mic_device"] = AUTO_CONSOLE` e
+1.3. [x] (`True auto:console auto:console 2`; vermelho antes: `False … 1`; backup em temp/) Config: `_CFG_DEFAULTS["mic_device"] = AUTO_CONSOLE` e
 `["sys_device"] = AUTO_CONSOLE` (comentário atualizado); `CFG_MIGRACAO = 2`;
 em `_migra_config` (l.169) bloco `if v < 2:` que põe `AUTO_CONSOLE` nos dois
 campos, com docstring da migração 2 (motivo: diag. 1). Risco `dado`: a
@@ -230,7 +232,7 @@ migração reescreve o JSON do Gabriel; antes de rodar o app, copiar
    **reprova se:** devolve `False` ou mantém os ids (`CFG_MIGRACAO` não subiu
    ou o bloco `v < 2` falta).
 
-1.4. [ ] Combobox (l.3232-3252 e `_populate_devices` l.3589):
+1.4. [x] (`autosave 0`, era 2; smoke Tk com HOME isolado: abrir não muda o JSON, escolha grava, ausente não grava) Combobox (l.3232-3252 e `_populate_devices` l.3589):
 - `values` = `[rótulo Auto padrão, rótulo Auto comunicação, *nomes]`, rótulos
   `"Auto: padrão do Windows ({nome})"` e `"Auto: padrão de comunicação ({nome})"`
   via `tf`; nome resolvido entre parênteses.
@@ -253,9 +255,9 @@ migração reescreve o JSON do Gabriel; antes de rodar o app, copiar
    Opções → 2 Auto no topo dos dois combos, com o nome resolvido; o
    `~/.reco_config.json` não muda ao só abrir o app.
 
-1.5. [ ] `_start_rec` (l.3623) e `_start_nota` (l.3690): trocar
-`id_for_name(...)` por `resolve_device(self._cfg["mic_device"], "microphone")`
-e `resolve_device(self._cfg["sys_device"], "speaker")`. **Exceção declarada à
+1.5. [x] (`lista_velha 0`, era 3) `_start_rec` (l.3623) e `_start_nota` (l.3690): trocar
+`id_for_name(...)` por `resolve_audio_device(self._cfg["mic_device"], "microphone")`
+e `resolve_audio_device(self._cfg["sys_device"], "speaker")`. **Exceção declarada à
 regra "COM fora do Tk"**: estas duas chamadas rodam síncronas no clique de
 Gravar, porque o id tem de existir antes do `DualRecorder.start`; o limite
 medido no guard do 1.1 (4 chamadas < 50 ms) é o que a autoriza. Status de
@@ -265,7 +267,7 @@ Guardar `self._rec_devs = {"mic": (id, nome, via), "sys": (…)}` para a Fase 2.
    **reprova se:** > 0 (algum início ainda decide pelo nome do combo e pela
    lista do último scan).
 
-1.6. [ ] i18n: toda string nova com par em `_TR_EN` (l.~300).
+1.6. [x] (`OK — cobertura completa, nada morto.`) i18n: toda string nova com par em `_TR_EN` (l.~300).
 — **prova:** `python tools/check_i18n.py` → `OK — cobertura completa, nada morto.`
    **reprova se:** o script lista `FALTANTES` (string nova sem par EN).
 
@@ -338,7 +340,7 @@ episódio; some quando a condição acaba.
 
 3.1. [ ] Regressão: `python tools/test_encoder.py` e
 `python tools/test_gravacao_real.py 15` (este passa a usar
-`resolve_device(AUTO_CONSOLE, …)` no lugar de `default_mic_id`/`default_speaker_id`).
+`resolve_audio_device(AUTO_CONSOLE, …)` no lugar de `default_mic_id`/`default_speaker_id`).
 — **prova:** `python tools/test_encoder.py` → `TUDO OK`
    **reprova se:** exceção ou exit ≠ 0.
 O script ganha a linha `resolvido: mic={'sim' if mic_id else 'não'} sys={'sim' if sys_id else 'não'}`.
