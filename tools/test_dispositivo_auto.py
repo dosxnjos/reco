@@ -3,7 +3,7 @@
 Sem janela e sem gravar nada: confere que `default_endpoint_id` (papel 0 =
 console, 2 = comunicação) bate com o `soundcard`, que roda em outra thread, que é
 barato (a resolução roda síncrona no clique de Gravar, fora da regra "COM fora do
-Tk") e que `resolve_device` trata os 4 casos: Auto padrão, Auto comunicação, id
+Tk") e que `resolve_audio_device` trata os 4 casos: Auto padrão, Auto comunicação, id
 manual presente e id manual ausente (nunca devolve id morto).
 
     python tools/test_dispositivo_auto.py            # roda os guards
@@ -26,7 +26,7 @@ import reco  # noqa: E402
 
 KINDS = ("speaker", "microphone")
 LIMITE_4_CHAMADAS_MS = 50
-LIMITE_RESOLVE_MS = 250       # 2 resolve_device (mic + sistema) = o clique de Gravar
+LIMITE_RESOLVE_MS = 250       # 2 resolve_audio_device (mic + sistema) = o clique de Gravar
 
 
 def _falha(msg: str):
@@ -104,30 +104,30 @@ def teste_resolve():
         p2 = reco.default_endpoint_id(kind, 2)
         # 1. Auto padrão (e None, que vem de config antigo sem a chave)
         for valor in (reco.AUTO_CONSOLE, None):
-            id_, nome, via = reco.resolve_device(valor, kind)
+            id_, nome, via = reco.resolve_audio_device(valor, kind)
             if (id_, via) != (p0, "auto") or nome != ids.get(p0):
                 _falha(f"auto:console ({kind}, valor={valor!r}): {(id_, nome, via)}")
         # 2. Auto comunicação
-        id_, nome, via = reco.resolve_device(reco.AUTO_COMM, kind)
+        id_, nome, via = reco.resolve_audio_device(reco.AUTO_COMM, kind)
         if (id_, via) != (p2, "auto") or nome != ids.get(p2):
             _falha(f"auto:comm ({kind}): {(id_, nome, via)}")
         # 3. id manual presente: o próprio id, mesmo que o padrão seja outro
         alvo = next((d for d in devs if d.id != p0), devs[0])
-        id_, nome, via = reco.resolve_device(alvo.id, kind)
+        id_, nome, via = reco.resolve_audio_device(alvo.id, kind)
         if (id_, nome, via) != (alvo.id, alvo.name, "manual"):
             _falha(f"manual presente ({kind}): {(id_, nome, via)}")
         # 4. id manual ausente (fone desligado): cai no padrão, jamais devolve o id morto
         morto = "{0.0.0.00000000}.{00000000-dead-beef-0000-000000000000}"
-        id_, nome, via = reco.resolve_device(morto, kind)
+        id_, nome, via = reco.resolve_audio_device(morto, kind)
         if (id_, via) != (p0, "ausente") or id_ == morto:
             _falha(f"manual ausente ({kind}): {(id_, nome, via)}")
     t0 = time.perf_counter()
-    reco.resolve_device(reco.AUTO_CONSOLE, "microphone")
-    reco.resolve_device(reco.AUTO_COMM, "speaker")
+    reco.resolve_audio_device(reco.AUTO_CONSOLE, "microphone")
+    reco.resolve_audio_device(reco.AUTO_COMM, "speaker")
     ms = (time.perf_counter() - t0) * 1000
     if ms >= LIMITE_RESOLVE_MS:
-        _falha(f"resolve_device (mic + sistema) levou {ms:.1f} ms (limite {LIMITE_RESOLVE_MS})")
-    print("OK resolve_device (4 casos)")
+        _falha(f"resolve_audio_device (mic + sistema) levou {ms:.1f} ms (limite {LIMITE_RESOLVE_MS})")
+    print("OK resolve_audio_device (4 casos)")
     print(f"   (medido: mic + sistema no clique de Gravar {ms:.1f} ms)")
 
 
@@ -148,7 +148,7 @@ def teste_resolve_papeis():
             casos = [(reco.AUTO_CONSOLE, console), (None, console), (reco.AUTO_COMM, comm),
                      ("{0.0.0.00000000}.{00000000-dead-beef-0000-000000000000}", console)]
             for valor, esperado in casos:
-                id_, _nome, _via = reco.resolve_device(valor, kind)
+                id_, _nome, _via = reco.resolve_audio_device(valor, kind)
                 if id_ != esperado.id:
                     _falha(f"papéis ({kind}, valor={valor!r}): {id_!r} ≠ {esperado.id!r}")
             cobertos += 1
@@ -160,6 +160,36 @@ def teste_resolve_papeis():
         print("   (papéis forjados: pulado, nenhum fluxo com 2+ endpoints)")
 
 
+def teste_sem_colisao():
+    """Duas `def` de mesmo nome no módulo: a segunda esconde a primeira SEM erro de
+    import (aconteceu em 11/10/2026: o `resolve_device(pref)` do OpenVINO foi
+    sobrescrito e toda transcrição levantava TypeError). Falha com o nome."""
+    import ast
+    arvore = ast.parse(Path(reco.__file__).read_text(encoding="utf-8"))
+    nomes = [n.name for n in arvore.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))]
+    dup = sorted({n for n in nomes if nomes.count(n) > 1})
+    if dup:
+        _falha(f"def/class duplicada no nível do módulo: {dup}")
+    if reco.HAS_OV:
+        # a API antiga do acelerador (OpenVINO) segue com a assinatura de 1 argumento
+        r = reco.resolve_device("AUTO")
+        if not isinstance(r, str):
+            _falha(f"resolve_device('AUTO') (acelerador) devolveu {r!r}")
+    print("OK sem def duplicada · resolve_device (acelerador) intacto")
+
+
+def teste_scan():
+    t0 = time.perf_counter()
+    st = reco.scan_device_state()
+    ms = (time.perf_counter() - t0) * 1000
+    for kind in KINDS:
+        if not {"devs", "console", "comm"} <= set(st[kind]):
+            _falha(f"scan_device_state sem chaves ({kind}): {sorted(st[kind])}")
+    if ms >= LIMITE_RESOLVE_MS:
+        _falha(f"scan_device_state levou {ms:.1f} ms (limite {LIMITE_RESOLVE_MS})")
+    print(f"OK scan_device_state\n   (medido: {ms:.1f} ms; roda também no clique de Gravar)")
+
+
 def main():
     if not reco.HAS_SC:
         _falha("soundcard indisponível")
@@ -169,6 +199,8 @@ def main():
     teste_endpoint()
     teste_resolve()
     teste_resolve_papeis()
+    teste_scan()
+    teste_sem_colisao()
 
 
 if __name__ == "__main__":
