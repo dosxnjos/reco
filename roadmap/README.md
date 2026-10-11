@@ -4,26 +4,29 @@
 
 Status vem do padrão `[x]`/`[ ]` da seção de passos de cada plano:
 **fechado** = todos os passos marcados · **ativo** = algum em aberto ·
-**N/A** = documento sem seção de passos (ata, briefing, decisão).
+**N/A** = documento sem seção de passos (ata, briefing, decisão) ·
+**movido** = aviso `⚠️ MOVIDO` no topo (a cópia daqui não se executa).
 
 Regenerar ao criar ou fechar um roadmap:
 `python cerebro/scripts/gerar_indice_roadmaps.py <esta pasta> --escrever`.
 Este índice também é a porta de entrada de cada arquivo da pasta no grafo
 do vault — sem ele, roadmap vira nó solto no Obsidian.
 
-## Ativos (4)
+## Ativos (5)
 
 | Data | Arquivo | Resumo |
 | --- | --- | --- |
+| 2026-10-02 | [2026-10-02-melhoria-modularizacao.md](2026-10-02-melhoria-modularizacao.md) | Roadmap de melhoria: modularização do reco.py (2026-10-02) |
 | 2026-08-21 | [2026-08-21-salto-de-alinhamento-sob-carga.md](2026-08-21-salto-de-alinhamento-sob-carga.md) | Salto de alinhamento sob carga: o buffer de captura tem 22 ms |
 | 2026-08-13 | [2026-08-13-melhoria-modo-nota-speech-to-ia.md](2026-08-13-melhoria-modo-nota-speech-to-ia.md) | Roadmap de melhoria — modo nota ("speech to IA") (2026-08-13) |
 | 2026-08-02 | [2026-08-02-melhoria-evolucao-mac-tela-meet.md](2026-08-02-melhoria-evolucao-mac-tela-meet.md) | Roadmap de melhoria — Reco: porte macOS, gravação de tela e Meet via extensão (2026-08-02) |
 | 2026-07-29 | [2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md](2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md) | Roadmap de melhoria — Reco: VAD, diarização e transcrição ao vivo (2026-07-29) |
 
-## Sem seção de passos (1)
+## Sem seção de passos (2)
 
 | Data | Arquivo | Resumo |
 | --- | --- | --- |
+| 2026-09-30 | [2026-09-30-melhoria-dispositivo-auto.md](2026-09-30-melhoria-dispositivo-auto.md) | Roadmap de melhoria — Reco: opções "Auto" de dispositivo (2026-09-30) |
 | 2026-07-29 | [2026-07-29-transcricao-precisa-rapida-e-aec.md](2026-07-29-transcricao-precisa-rapida-e-aec.md) | 2026-07-29 — Transcrição precisa e rápida + cancelamento de eco |
 
 ## Fechados (6)
@@ -45,4 +48,4 @@ de checkbox `[x]`/`[ ]` — esses caem em **N/A** mesmo com progresso real
 feito na prosa, zero checkbox no arquivo). Para julgar backlog real (e
 não só navegar), abrir o arquivo antes de assumir que N/A = nada feito.
 
-<!-- 11 arquivos indexados -->
+<!-- 13 arquivos indexados -->
