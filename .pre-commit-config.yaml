@@ -31,3 +31,23 @@ repos:
         language: system
         files: '^CLAUDE\.md$'
         pass_filenames: false
+      # Trava de tamanho e de complexidade (11/10/2026, Fase 6 de
+      # C:/Dev/roadmap/2026-10-11-melhoria-trava-tamanho-e-complexidade.md): arquivo
+      # de código novo até 500 linhas, o grande não cresce, função complexa nova
+      # avisa. Só AVISA até 26/10 (`aviso_ate` em tools/tamanho.json); o framework
+      # esconde a saída de hook que passa, então `verbose: true` é o que mostra o
+      # aviso no commit. Mesmo caminho absoluto e a mesma ressalva do bloco acima.
+      - id: trava-tamanho
+        name: trava de tamanho (arquivo novo até 500 linhas; o grande não cresce)
+        entry: python C:/Dev/cerebro/scripts/gate_tamanho.py --config tools/tamanho.json
+        language: system
+        files: '\.(py|js|mjs|cjs|ps1|sh|cmd|bat)$|^tools/tamanho\.json$'
+        pass_filenames: false
+        verbose: true
+      - id: trava-complexidade
+        name: trava de complexidade (C901/PLR0912/PLR0915 do commit não cresce)
+        entry: python C:/Dev/cerebro/scripts/gate_complexidade.py --config tools/tamanho.json
+        language: system
+        files: '\.py$|^tools/tamanho\.json$'
+        pass_filenames: false
+        verbose: true
