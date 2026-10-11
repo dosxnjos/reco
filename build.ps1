@@ -21,7 +21,7 @@ Write-Host "Installing PyInstaller..." -ForegroundColor Yellow
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: failed to install PyInstaller." -ForegroundColor Red; exit 1 }
 
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
-& $pythonExe -m pip install soundcard lameenc numpy scipy av huggingface_hub openvino openvino-genai openvino-tokenizers --quiet
+& $pythonExe -m pip install soundcard==0.4.6 lameenc numpy scipy av huggingface_hub openvino openvino-genai openvino-tokenizers --quiet
 if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: a dependency failed to install." -ForegroundColor Yellow }
 
 if ($Clean) {

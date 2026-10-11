@@ -17,6 +17,10 @@ O executável distribuído é `dist\Reco\Reco.exe` (PyInstaller, via `reco.spec`
 Sem recompilar, a mudança fica só no fonte e não chega ao app que o Gabriel usa.
 
 - Build normal reaproveita `dist/`/`build/`; use `-Clean` para do zero.
+- ⚠️ **`Reco.exe` aberto trava o build**: o PyInstaller falha limpando `dist\Reco\_internal`
+  (`PermissionError: [WinError 5]` em `av\audio\codeccontext.pyd`) e o script sai com
+  `ERROR: build failed`. Medido em 11/10/2026 (app do Gabriel aberto desde 10/10). Fechar o app
+  antes; sessão de agente não mata o processo (é o app em uso dele).
 - O modelo Whisper fica em `models\whisper-small-int8-ov`
   ([README do modelo](../models/whisper-small-int8-ov/README.md), bundlado, offline);
   se já existir, o build não rebaixa nem rebaixa.

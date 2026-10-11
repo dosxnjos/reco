@@ -18,7 +18,7 @@ if (-not (Get-Command pip -ErrorAction SilentlyContinue)) {
 }
 
 # Core deps (recording + audio decoding)
-foreach ($p in @("soundcard", "lameenc", "numpy", "scipy", "av", "huggingface_hub")) {
+foreach ($p in @("soundcard==0.4.6", "lameenc", "numpy", "scipy", "av", "huggingface_hub")) {
     Write-Host "Installing $p..." -ForegroundColor Yellow
     pip install $p --quiet
 }

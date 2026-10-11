@@ -1,5 +1,5 @@
 # Core — required for recording
-soundcard        # WASAPI capture (mic + system loopback)
+soundcard==0.4.6 # WASAPI capture (mic + system loopback); pin: o Auto usa API privada (mediafoundation)
 numpy
 av               # MP3 encode/decode + resampling (bundles ffmpeg libs)
 Pillow           # tinge os ícones Lucide em runtime (ImageTk.PhotoImage)
