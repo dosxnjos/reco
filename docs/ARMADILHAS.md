@@ -425,6 +425,19 @@ mas os ~7 primeiros minutos deixam de ter eco separado.
 **O que fazer.** Enquanto o código não distinguir os dois casos, gravação com
 queixa de eco se conserta pós-fato com `tools/alinhar_gravacao.py <mp3> --aplicar`
 (escreve `_alinhado.mp3` ao lado; residual medido: 0,0 ms no pior trecho).
+
+⚠️ **O residual zero de 21/08 não é garantia (25/09/2026).** Na gravação de 23/09 11:02
+(call de 23 min, queixa de eco), o `varrer_acervo.py` deu salto de +87 a +491 ms, com
+100% dos trechos medíveis acima de 50 ms. Depois do `alinhar_gravacao.py --aplicar`, a
+mediana foi a 0 ms, mas **11% dos trechos seguiram acima de 50 ms** (pior +436 ms) e a
+faixa virou −404..+436 ms: só 18 de 47 janelas de 30 s correlacionavam, e a correção
+entre elas não pega salto curto. Transcrita com `--diarizar --aec`, a faixa `Eu:` ainda
+teve 12 de 72 falas com eco claro do outro lado e 14 de `"Tchau."`/vazio alucinado no
+silêncio. **O que fazer:** depois de alinhar, rodar o `varrer_acervo.py` no
+`_alinhado.mp3` e não prometer faixa limpa. A faixa `Interlocutor(es):` sai limpa. Na
+`Eu:`, descartar a fala que repete a linha vizinha do outro lado; o que sobra é a fala do
+dono da gravação.
+
 Direção proposta para a correção, **não decidida ainda**: duas reestimativas
 consecutivas concordando em magnitude alta (> ~100 ms) e com `q` acima do limiar
 não são estimativa ruim — são salto, e aí o offset deve ser aplicado inteiro
