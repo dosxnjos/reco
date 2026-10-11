@@ -207,7 +207,12 @@ def _migra_config(cfg: dict) -> bool:
     return True
 
 
-def load_config() -> dict:
+def load_config(persist: bool = False) -> dict:
+    """Lê o config (com a migração aplicada em memória). Só grava a migração no
+    disco com `persist=True`, que é só o `App.__init__`: importar o `reco` (idioma no
+    import-time, ferramentas, testes) não pode reescrever o `~/.reco_config.json`.
+    ⚠️ Persistir a migração 2 antes do exe novo existir arma o bug de novo: o exe
+    antigo abre, vê `_migracao: 2`, e o autosave dele regrava o id do padrão."""
     cfg = dict(_CFG_DEFAULTS)
     try:
         if CONFIG_PATH.exists():
@@ -219,7 +224,7 @@ def load_config() -> dict:
             pass
     except Exception:
         pass
-    if _migra_config(cfg):
+    if _migra_config(cfg) and persist:
         try:
             save_config(cfg)
         except Exception:
@@ -2857,7 +2862,7 @@ class App(tk.Tk):
             except Exception:
                 pass
 
-        self._cfg          = load_config()
+        self._cfg          = load_config(persist=True)
         self._out_dir      = (Path(self._cfg["output_dir"])
                               if self._cfg.get("output_dir") else default_output_dir())
         apply_theme(self._cfg.get("bg_color") or DEFAULT_BG,

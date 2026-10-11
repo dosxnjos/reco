@@ -309,5 +309,7 @@ escolha manual refaz com 1 clique.
   fria). O scan do botão "Atualizar dispositivos" roda fora do Tk.
 - `auto:comm` cuja chamada de API privada falhe cai no console só com um `print` no
   console de debug (a UI mostra o rótulo "comunicação" e grava o console).
-- `import reco` roda `load_config()` (para o idioma): **qualquer script que importe o
-  `reco` aplica a migração ao `~/.reco_config.json` real**.
+- `import reco` roda `load_config()` (para o idioma) mas **não grava**: a migração só é
+  persistida por `load_config(persist=True)`, que é só o `App.__init__`. Persistir antes
+  de o exe novo existir faz o exe antigo regravar o id do padrão (ver ARMADILHAS,
+  "Migração de config persistida antes do exe novo").

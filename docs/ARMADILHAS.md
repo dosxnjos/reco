@@ -765,3 +765,36 @@ manda como mp4), qualquer dispositivo dá `tuple index out of range` em
   (`reco.py`) segue sem a checagem: consertar lá pede recompilar.
 - Roadmap da medição:
   `C:\Dev\central\roadmap\2026-09-25-coletor-apaga-midia-transcrita-e-transcreve-leve.md`.
+
+## Migração de config persistida antes do exe novo re-arma o autosave do exe antigo (11/10/2026)
+
+**Sintoma.** (Evitado antes de acontecer.) `~/.reco_config.json` com `_migracao: 2`
+e `mic_device`/`sys_device` = `"auto:console"`, e o `Reco.exe` **antigo** aberto de
+novo: o dispositivo padrão do dia volta a ser gravado como escolha, e o Reco novo
+trata o id como manual para sempre (o bug do PDI de 29/09, sem migração que o conserte).
+
+**Causa.** `load_config()` rodava a migração e **gravava** no disco a cada
+`import reco` (o idioma é lido no import-time), então qualquer teste, ferramenta ou
+sessão migrava o JSON real do Gabriel antes do exe novo existir. O exe antigo vê
+`_migracao: 2 >= 1`, não migra, e o `trace_add` dele regrava o id pré-selecionado.
+
+**O que fazer.** `load_config(persist=False)` é o padrão; só `App.__init__` passa
+`persist=True`. O guard `tools/test_dispositivo_auto.py` falha se `import reco`
+mudar o JSON. Quem mexer em config novo (migração 3 do QCY, passo 4.3): mesma regra,
+e **só persista a migração a partir do exe que a entende**. Se o exe antigo abriu
+depois do build, trocar `_migracao` para `1` no JSON antes de abrir o novo.
+
+## Duas `def` de mesmo nome no `reco.py`: a 2ª esconde a 1ª sem erro (11/10/2026)
+
+**Sintoma.** `import reco` passa, o `check_i18n` passa, o guard novo passa, e toda
+transcrição levanta `TypeError: resolve_device() missing 1 required positional
+argument` ao montar o pipeline. Pego só pela revisão de contexto zero.
+
+**Causa.** `resolve_device(pref)` já era do acelerador OpenVINO (l.~1114); o roadmap
+do Auto mandou chamar a função nova de dispositivo de áudio pelo mesmo nome, e a 2ª
+`def` sobrescreveu a 1ª em silêncio.
+
+**O que fazer.** Antes de nomear função no `reco.py` (5 mil linhas, módulo único),
+`grep -n "def <nome>"`. A função do dispositivo de áudio é `resolve_audio_device`. O guard
+`tools/test_dispositivo_auto.py` confere def duplicada no nível do módulo (só dentro
+do `reco.py`: depois da modularização, colisão entre módulos pede checagem própria).
