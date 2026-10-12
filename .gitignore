@@ -29,3 +29,9 @@ logo/.claude/
 logo/*.png
 !logo/logo_symbol_1x1.png
 logo/ChatGPT*
+
+# Visões GERADAS de fragmentos (12/10/2026, Fase R4 de C:/Dev/roadmap/2026-10-01-paralelismo-e-blindagem.md):
+# recompiladas pelos hooks de tools/visoes.py instalar-hooks; o que se versiona é docs/armadilhas.d/
+# e os roadmap/*.md. Entrada nova: python tools/visoes.py novo "título".
+docs/ARMADILHAS.md
+roadmap/README.md

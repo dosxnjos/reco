@@ -51,3 +51,26 @@ repos:
         files: '\.py$|^tools/tamanho\.json$'
         pass_filenames: false
         verbose: true
+
+  # Visões geradas de fragmentos (12/10/2026, Fase R4 de
+  # C:/Dev/roadmap/2026-10-01-paralelismo-e-blindagem.md): docs/ARMADILHAS.md e
+  # roadmap/README.md saíram do git e se recompilam pelos hooks de
+  # `python tools/visoes.py instalar-hooks` (formato: C:/Dev/cerebro/scripts/visoes_projeto.py).
+  # - visoes-fragmento: nome <AAAA-MM-DD>-<slug>.md, frontmatter fechado, titulo:, data: válida.
+  # - gate-md-de-card-em-curso (gate D1 da central): recusa commit que toque roadmap/*.md de
+  #   card em curso no maestro rodando em OUTRO tree; o executor do próprio card (jaula
+  #   sem-manifesto, aqui) passa. Erro de leitura do estado nunca bloqueia.
+  # Mesmo caminho absoluto e a mesma ressalva do gate-claude-md acima.
+  - repo: local
+    hooks:
+      - id: visoes-fragmento
+        name: fragmento de ARMADILHAS bem formado
+        entry: python tools/visoes.py validar
+        language: system
+        files: '^docs/armadilhas\.d/[^/]+\.md$'
+      - id: gate-md-de-card-em-curso
+        name: roadmap de card em curso (gate D1 da central)
+        entry: python C:/Dev/central/tools/gate_md_de_card_em_curso.py
+        language: system
+        files: '^roadmap/[^/]+\.md$'
+        pass_filenames: false

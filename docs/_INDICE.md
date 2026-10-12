@@ -12,7 +12,8 @@ Um link por doc, com o que tem dentro e quando ler. A regra que vale sempre est�
 
 - [ARMADILHAS.md](ARMADILHAS.md): o que **parece** funcionar e não funciona (sintoma → causa →
   o que fazer), uma entrada por caso datado. Leia antes de mexer em transcrição, AEC, captura,
-  alinhamento dos canais ou benchmark.
+  alinhamento dos canais ou benchmark. **Gerado** de `armadilhas.d/` (um arquivo por entrada, fora
+  do git): entrada nova é `python tools/visoes.py novo "título"`, nunca `Edit` na página.
 - [ARQUITETURA.md](ARQUITETURA.md): como cada peça funciona por dentro e o que **não** é
   acidente (build, MP3 por container, `_pump`, AEC só na transcrição, anti-loop, biblioteca e
   resumo IA, ícones, config). Leia antes de mudar comportamento do app ou recompilar.
@@ -24,7 +25,7 @@ Um link por doc, com o que tem dentro e quando ler. A regra que vale sempre est�
 ## Planos e decisões
 
 - [roadmap/README.md](../roadmap/README.md): índice gerado dos roadmaps (ativos, sem passos,
-  fechados). Leia para saber por que decidimos X, o que foi descartado e o que está em voo.
+  fechados; fora do git desde 12/10, os hooks de `tools/visoes.py` o recompilam). Leia para saber por que decidimos X, o que foi descartado e o que está em voo.
 
 ## Ainda não existe
 

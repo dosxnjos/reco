@@ -10,7 +10,8 @@ Código em modularização desde 02/10/2026: quase tudo ainda em `reco.py` +
 **Rota:** [hub](../cerebro/projetos/reco.md) (estado, roadmaps em voo,
 pendências) antes de editar; o hook `guarda-escrita` cobra (desde 03/10/2026).
 [docs/ARMADILHAS.md](docs/ARMADILHAS.md) antes de mexer em transcrição, AEC ou
-benchmark. Mapa dos docs: [docs/_INDICE.md](docs/_INDICE.md).
+benchmark; é **gerada** de `docs/armadilhas.d/`: entrada nova = `python tools/visoes.py
+novo`, nunca `Edit`. Mapa dos docs: [docs/_INDICE.md](docs/_INDICE.md).
 
 ## REGRA: sempre compilar após alterar o código
 
