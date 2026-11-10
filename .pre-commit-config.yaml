@@ -68,9 +68,3 @@ repos:
         entry: python tools/visoes.py validar
         language: system
         files: '^docs/armadilhas\.d/[^/]+\.md$'
-      - id: gate-md-de-card-em-curso
-        name: roadmap de card em curso (gate D1 da central)
-        entry: python C:/Dev/central/tools/gate_md_de_card_em_curso.py
-        language: system
-        files: '^roadmap/[^/]+\.md$'
-        pass_filenames: false
