@@ -75,15 +75,30 @@ def env_limpo(conta_padrao):
     return env
 
 
+RE_DIARIZADA = re.compile(r"^(Eu|Interlocutor\(es\)|Me|Speaker\(s\)): ", re.M)
+
+
+def diarizada(p):
+    """A transcrição separa quem falou? (linhas `Eu:`/`Interlocutor(es):` do `_merge`)."""
+    try:
+        return bool(RE_DIARIZADA.search(p.read_text(encoding="utf-8", errors="replace")))
+    except OSError:
+        return False
+
+
 def agrupar(pasta):
-    """radical -> [arquivos], a versão que vale primeiro: _alinhado, .mp3/.m4a.txt, .txt."""
+    """radical -> [arquivos], a versão que vale primeiro: _alinhado, depois a diarizada
+    (`Eu:`/`Interlocutor(es):`), depois `x.txt` (nome do app) antes de `x.mp3.txt`.
+    Até 11/11/2026 era `.mp3.txt` na frente, o que escolhia o texto corrido do
+    `tools/transcrever.py` antigo em vez do `x.txt` diarizado do app. Pelo conteúdo e não
+    pela data: em 21/08 o `.mp3.txt` bruto é o mais novo, e mtime muda ao copiar a pasta."""
     grupos = {}
     for p in pasta.glob("*.txt"):
         grupos.setdefault(RE_RADICAL.sub("", p.name), []).append(p)
 
     def prioridade(p):
-        return (0 if "_alinhado" in p.name else 1 if re.search(r"\.(mp3|m4a)\.txt$", p.name) else 2,
-                p.name)
+        return (0 if "_alinhado" in p.name else 1, 0 if diarizada(p) else 1,
+                1 if re.search(r"\.(mp3|m4a)\.txt$", p.name) else 0, p.name)
     return {r: sorted(v, key=prioridade) for r, v in sorted(grupos.items())}
 
 

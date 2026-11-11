@@ -31,8 +31,9 @@ transcrição inteira" sem ter conferido a contagem — é afirmação de verifi
 o Gabriel decide em cima dela.
 
 **Áudio/vídeo que chega ao chat em qualquer projeto de `C:\Dev` se transcreve
-aqui:** `python tools/transcrever.py <arquivo...>` (gera `<arquivo>.txt`, sem UI;
-`--forcar` refaz). O caso que gerou a regra:
+aqui:** `python tools/transcrever.py <arquivo...>` (sem UI; `--forcar` refaz).
+Gravação do Reco sai igual ao app, sem flag: diarizada em `x.txt`; outro áudio,
+texto corrido em `<arquivo>.<ext>.txt` ([TOOLS](docs/TOOLS.md)). O caso que gerou a regra:
 [docs/ARMADILHAS.md](docs/ARMADILHAS.md) § "Ler 200 de 287 linhas"; régua
 transversal: [metodo.md § evidência](../cerebro/temas/harness/metodo.md).
 

@@ -201,10 +201,13 @@ Medições e alternativas descartadas:
   widget (`ttk.Treeview` só aceita imagem na coluna `#0`; célula de coluna
   comum é texto), não escolha de escopo. **O filesystem é o banco** (mp3 +
   .txt + .resumo.md lado a lado) — sem SQLite, de propósito.
-- ⚠️ **A biblioteca lê só `x.txt`; o `tools/transcrever.py` escreve `x.mp3.txt`**
-  — 14 dos 47 `.txt` da pasta são invisíveis para a view (sem ✓, fora da busca por
-  conteúdo). Ler as duas convenções, escrever uma: [ARMADILHAS.md](ARMADILHAS.md) §
-  "A biblioteca não enxerga as transcrições do `tools/transcrever.py`".
+- ⚠️ **A biblioteca lê só `x.txt`; o `tools/transcrever.py` escrevia `x.mp3.txt`**
+  — 43 `.mp3.txt` antigos (texto corrido) são invisíveis para a view (sem ✓, fora da
+  busca por conteúdo). Desde 11/11/2026 o script grava gravação do Reco em `x.txt`,
+  diarizada como o app; os antigos ficam no disco até serem retranscritos. Ler as duas
+  convenções continua sendo o conserto do leitor (E3a): [ARMADILHAS.md](ARMADILHAS.md) §
+  "A biblioteca não enxerga as transcrições do `tools/transcrever.py`" e §
+  "`transcrever.py` sem flag gravava texto corrido".
 - ⚠️ **Áudio corrigido não apaga texto velho:** existindo `x_alinhado.mp3`, ele é a
   fonte canônica da transcrição do par; o `.txt` do original sobrevive, só deixa de
   ser o mostrado. Regra completa em
