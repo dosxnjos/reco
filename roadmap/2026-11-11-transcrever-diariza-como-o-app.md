@@ -62,7 +62,10 @@ Causa (verificada no código e nas sessões locais):
 - Não mexido: o `planejar()` do `pretriar` reaproveita a sugestão s/n da linha antiga
   quando a versão escolhida troca (mesma gravação, mesmo assunto; reler custaria cota).
   O idioma segue `--lang pt` (o app usa o idioma da config; o Gabriel usa pt).
-- Acervo final: 27 gravações (12 h de áudio), tirando as 4 que já eram diarizadas.
+- Acervo: 27 gravações (12 h de áudio) chegaram a entrar na fila, mas o Gabriel mandou
+  parar (já trabalhou em cima dos `.mp3.txt`). Parado antes do 1º arquivo; o passo 6
+  está cancelado. Os antigos não são sobrescritos: rodar o script num deles cria
+  `x.txt` ao lado.
 
 ## Passos
 
