@@ -300,6 +300,7 @@ _TR_EN = {
     "Transcrever + excluir": "Transcribe + delete",
     "Reproduzir": "Play",
     "Salvar + Transcrever": "Save + Transcribe",
+    "Salvar e copiar caminho": "Save and copy path",
     "Tema:": "Theme:",
     "Fundo": "Background",
     "Destaque": "Accent",
@@ -376,6 +377,8 @@ _TR_EN = {
         "No audio captured — check the selected sources.",
     "Salvo: {n}  —  Escolha o que fazer:": "Saved: {n}  —  Choose what to do:",
     "Gravação salva: {n}": "Recording saved: {n}",
+    "Salvo — caminho copiado: {n}": "Saved — path copied: {n}",
+    "Gravação salva: {n} (falha ao copiar o caminho)": "Recording saved: {n} (failed to copy the path)",
     "Gravação descartada.": "Recording discarded.",
     "Não foi possível excluir: {e}": "Couldn't delete: {e}",
     "Não foi possível excluir.": "Couldn't delete.",
@@ -3233,14 +3236,16 @@ class App(tk.Tk):
         # STOPPED state: compact icons. The icon itself performs the action;
         # hovering reveals a floating menu/caption over the interface (the window
         # never grows).
-        self._ic_save = self._btn(self._btn_row, "⚡", self._conclude_and_transcribe,
-                                  primary=True, icon="transcrever")
+        self._ic_save = self._btn(self._btn_row, "↓", self._conclude_save_and_copy,
+                                  primary=True, icon="salvar")
         self._ic_del  = self._btn(self._btn_row, "✕", self._conclude_delete,
                                   danger=True, icon="excluir")
         self._ic_play = self._btn(self._btn_row, "▶", self._play_recording,
                                   icon="reproduzir")
-        # ⚡ : clickable menu (debounced hide so the mouse can move into it)
+        # Salvar: o clique salva e copia o caminho do MP3 entre aspas; o hover abre
+        # o menu clicável com as outras saídas (hide com debounce p/ o mouse entrar)
         self._ic_save.bind("<Enter>", lambda e: self._show_menu(self._ic_save, [
+            ("Salvar e copiar caminho", self._conclude_save_and_copy, "salvar"),
             ("Salvar + Transcrever", self._conclude_and_transcribe, "transcrever"),
             ("Salvar", self._conclude_save, "salvar"),
             ("Transcrever + excluir", self._conclude_transcribe_and_delete, "transcrever")]), add="+")
@@ -3923,10 +3928,7 @@ class App(tk.Tk):
         self._vu_mic.reset()
         self._vu_sys.reset()
         self._set_combos_enabled(True)
-        self._state = IDLE
-        self._set_rec_state(IDLE)
-        self._timer_var.set("00:00:00")
-        self._status(msg)
+        self._to_idle(msg)
 
     def _stop_rec(self):
         if self._state == RECORDING:            # bank the running segment first
@@ -3968,10 +3970,7 @@ class App(tk.Tk):
         self._set_combos_enabled(True)
         self._vu_mic.reset()
         self._vu_sys.reset()
-        self._state = IDLE
-        self._set_rec_state(IDLE)
-        self._timer_var.set("00:00:00")
-        self._status(msg[:110])
+        self._to_idle(msg[:110])
 
     def _after_stop(self, path: Path):
         self._last_rec = path
@@ -4033,11 +4032,8 @@ class App(tk.Tk):
         def done(text, err):
             self._nota = False
             if err:
-                self._state = IDLE
-                self._set_rec_state(IDLE)
-                self._timer_var.set("00:00:00")
                 erro = tf("Nota preservada: {n}  —  {e}", n=path.name, e=str(err)[:80])
-                self._status(erro)
+                self._to_idle(erro)
                 self._balloon_if_hidden(erro)
                 return
 
@@ -4048,49 +4044,56 @@ class App(tk.Tk):
                 md = dest / f"{path.stem}.md"
                 md.write_text(text or "(no content recognized)", encoding="utf-8")
             except Exception as e:
-                self._state = IDLE
-                self._set_rec_state(IDLE)
-                self._timer_var.set("00:00:00")
                 erro = tf("Nota preservada: {n}  —  falha ao salvar: {e}",
                           n=path.name, e=str(e)[:80])
-                self._status(erro)
+                self._to_idle(erro)
                 self._balloon_if_hidden(erro)
                 return
 
-            try:
-                self.clipboard_clear()
-                self.clipboard_append(f'"{md}"')
-            except Exception:
-                pass          # sem clipboard, a nota ainda existe em disco
+            self._copiar_caminho(md)    # sem clipboard, a nota ainda existe em disco
             try:
                 _excluir_gravacao(path)
             except Exception:
                 pass
 
             self._last_rec = None
-            self._state = IDLE
-            self._set_rec_state(IDLE)
-            self._timer_var.set("00:00:00")
             ok = t("Nota pronta — caminho copiado")
-            self._status(ok)
+            self._to_idle(ok)
             self._balloon_if_hidden(ok)
 
         self._run_transcriber(path, self._status, done)
 
-    def _conclude_save(self):
+    def _to_idle(self, status: str | None = None):
         self._state = IDLE
         self._set_rec_state(IDLE)
         self._timer_var.set("00:00:00")
-        if self._last_rec:
-            self._status(tf("Gravação salva: {n}", n=self._last_rec.name))
-        else:
-            self._status(t("Pronto para gravar."))
+        if status is not None:
+            self._status(status)
+
+    def _copiar_caminho(self, p: Path) -> bool:
+        """Caminho entre aspas duplas no clipboard (cola mesmo com espaço). False se falhar."""
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(f'"{p}"')
+            return True
+        except Exception:
+            return False
+
+    def _conclude_save(self):
+        self._to_idle(tf("Gravação salva: {n}", n=self._last_rec.name) if self._last_rec
+                      else t("Pronto para gravar."))
+
+    def _conclude_save_and_copy(self):
+        """Clique padrão do botão Salvar: encerra e copia o caminho do MP3."""
+        p = self._last_rec
+        self._conclude_save()
+        if p and p.exists():
+            self._status(tf("Salvo — caminho copiado: {n}", n=p.name) if self._copiar_caminho(p)
+                         else tf("Gravação salva: {n} (falha ao copiar o caminho)", n=p.name))
 
     def _conclude_and_transcribe(self):
         if self._transcribe_recording(delete_after=False):
-            self._state = IDLE
-            self._set_rec_state(IDLE)
-            self._timer_var.set("00:00:00")
+            self._to_idle()
 
     def _conclude_delete(self):
         if self._last_rec and self._last_rec.exists():
@@ -4100,16 +4103,11 @@ class App(tk.Tk):
             except Exception as e:
                 self._status(tf("Não foi possível excluir: {e}", e=e)); return
         self._last_rec = None
-        self._state = IDLE
-        self._set_rec_state(IDLE)
-        self._timer_var.set("00:00:00")
-        self._status(t("Gravação descartada."))
+        self._to_idle(t("Gravação descartada."))
 
     def _conclude_transcribe_and_delete(self):
         if self._transcribe_recording(delete_after=True):
-            self._state = IDLE
-            self._set_rec_state(IDLE)
-            self._timer_var.set("00:00:00")
+            self._to_idle()
 
     # ── timer / VU ──────────────────────────────────────────────────────────────
     def _elapsed(self) -> int:

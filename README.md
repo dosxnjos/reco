@@ -43,6 +43,9 @@ the bundled app is fully self-contained (no Python, no ffmpeg).
   Pause/Resume, Open and Quit. Quitting mid-recording saves the MP3 first.
 - 🎧 Saves a compact **MP3** (16 kHz stereo, 96 kbps — small, plenty for speech),
   encoded *while* recording, so stopping is instant no matter how long the meeting was.
+- 📋 **Save and copy the path** — after stopping, the main button saves the recording
+  and copies its full path, already in double quotes, ready to paste into a terminal
+  or chat. Hover it for the other choices (save + transcribe, save only, transcribe + delete).
 - 📝 **Local transcription** that auto-saves a `.txt` next to your recordings. No
   cloud, fully private.
 - 🔴 **Live transcription (draft)** — optional, off by default (Options): shows
@@ -152,6 +155,10 @@ app empacotado é autossuficiente (sem Python, sem ffmpeg).
   de uma gravação salva o MP3 antes de encerrar.
 - 🎧 Salva um **MP3** compacto (16 kHz estéreo, 96 kbps — pequeno e ótimo para fala),
   codificado *durante* a gravação: parar é instantâneo, não importa o tamanho da reunião.
+- 📋 **Salvar e copiar o caminho** — depois de parar, o botão principal salva a gravação
+  e copia o caminho completo, já entre aspas duplas, pronto para colar no terminal ou
+  no chat. Passe o mouse nele para as outras saídas (salvar + transcrever, só salvar,
+  transcrever + excluir).
 - 📝 **Transcrição local** que salva um `.txt` automaticamente junto das gravações.
   Sem nuvem, 100% privado.
 - 🔴 **Transcrição ao vivo (rascunho)** — opcional, desligada por padrão (Opções):
