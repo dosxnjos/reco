@@ -274,7 +274,7 @@ Convenções dos passos:
       Ouvir no app velho (Gravações…, tocar, conferir duração e os dois lados) é do Gabriel: ver "Pendente".
     - `+` Lados por dado, não por escuta (regra da casa de 11/11: teste real é da sessão): o envelope do canal R
       correlaciona com o do clipe tocado acima de 0,5 e o do L fica abaixo do R. Com isso a escuta vira opcional.
-    - Depois que o Gabriel disser que ouviu, o executor manda a gravação de teste à Lixeira, para não ficar na biblioteca real:
+    - Com os lados provados por dado (escuta opcional), o executor manda a gravação de teste à Lixeira, para não ficar na biblioteca real (feito em 12/11, 00:00: `gravacao_reco_2026-11-11_23-59-35.mp3`; se o Gabriel quiser ouvir, restaura de lá):
       `python -c "import sys, reco; sys.exit(0 if reco._excluir_gravacao(sys.argv[1]) else 1)" "<caminho>"` na raiz (`reco.py:599-631`), conferido pelo comando da Lixeira do passo 9.
     - O app velho regrava o próprio config ao abrir (`load_config(persist=True)`, `reco.py:2868`); o teste já terminou e conferiu o sha256 antes disso.
 16. [x] Fechar a fase — **prova:** `git diff --quiet <SHA-INICIO> -- reco.py tray.py tools/transcrever.py reco.spec build.ps1 && grep -lE 'engine/|engine_protocol|PROTOCOL\.md|reco-em-rust' docs/{ARQUITETURA,TOOLS,_INDICE}.md CLAUDE.md ../cerebro/projetos/reco.md | wc -l` → `5`
@@ -334,14 +334,10 @@ Convenções dos passos:
 
 ## Pendente (dono: gabriel)
 
-- **Fechar o Reco pela bandeja (Sair) antes dos passos 6, 7, 9 e 15**, e não estar em chamada: o clipe sai no alto-falante. `dono: gabriel`.
-  O app velho fica aberto na bandeja o dia todo (na auditoria de 11/11 o `Reco.exe` estava rodando), e com ele aberto o teste aborta de propósito.
-  O executor **nunca** mata o `Reco.exe` (`taskkill /F` perde uma gravação em curso): sem o app fechado, faz os passos sem gravação e deixa estes para depois.
-  Com o app fechado, as gravações rodam sem ninguém por perto (o teste toca o clipe).
-- Ouvir a gravação de 30 s do passo 15 no app velho e dizer se a voz e o som do PC estão nos lados certos. `dono: gabriel`.
-  É a única prova de que mic e sistema não saíram trocados (RMS > 0 nos dois lados não distingue): fecha o primeiro critério de aceite, mas não bloqueia o começo da Fase 3.
-  Depois da escuta, a gravação de teste vai à Lixeira (passo 15); se ele quiser guardá-la, basta dizer.
-  Se a escuta vier depois do fim da sessão, o relatório anota o caminho e a pendência, e a sessão seguinte roda o comando do passo 15.
+Nada pendente. Os dois itens abaixo fecharam em 11/11 e 12/11 (relatório § Provas que gravam):
+
+- ~~Fechar o Reco pela bandeja (Sair) antes dos passos 6, 7, 9 e 15~~ feito por ele (~23:18 de 11/11); as provas que gravam rodaram de 23:56 a 00:00, e o app dele reabriu às 00:24 de 12/11. O executor nunca mata o `Reco.exe`.
+- ~~Ouvir a gravação de 30 s do passo 15~~ virou opcional: os lados L/R foram provados por dado (o envelope do canal R correlaciona com o clipe tocado acima de 0,5 e o L fica abaixo), pela regra da casa de 11/11 (teste real é da sessão). A gravação foi à Lixeira em 12/11, 00:00; se ele quiser ouvir, restaura de lá.
 
 ## O que esta fase NÃO faz
 
@@ -357,7 +353,7 @@ Convenções dos passos:
 ## Gatilho que fecha
 
 - `python tools/test_engine_protocol.py` verde do fonte e com `--exe` (checagens padrão), com o config real igual byte a byte.
-- As provas com gravação dos passos 6, 7, 9 e 15 anotadas no relatório, com o caminho da gravação de 30 s para o Gabriel ouvir.
+- As provas com gravação dos passos 6, 7, 9 e 15 anotadas no relatório, com os lados L/R provados por dado (a escuta do Gabriel virou opcional; a gravação de 30 s foi à Lixeira em 12/11).
 - O `.txt` do motor igual byte a byte ao do app velho no mesmo MP3 (passos 8 e 12), e o `--selftest` do motor igual ao do `reco.py` (passo 12).
 - `docs/PROTOCOL.md` commitado e conferido contra o registro (passo 13); a Fase 3 começa por ele.
 - Smoke com `hello` abaixo de 3 s nas 3 rodadas, pasta sem pyarrow/duckdb e tamanho anotado (passo 15).

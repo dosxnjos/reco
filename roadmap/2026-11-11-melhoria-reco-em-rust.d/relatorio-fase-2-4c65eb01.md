@@ -235,5 +235,13 @@ Alterados: `docs/ARQUITETURA.md` (seção "Motor (`engine/`)"), `docs/TOOLS.md` 
 linhas; 5432 B de 6144).
 
 Fora do git (gerados): `engine/dist/`, `engine/build/`, `docs/ARMADILHAS.md`, `roadmap/README.md`.
+
+### Fecho (12/11/2026)
+
+- **Fase fechada.** Commits: `045f341` (motor), `5f5cf70` (provas que gravam), `efc5da3` (relatório); o
+  "nenhum commit nesta execução" do topo vale só para a execução do subagente.
+- O md da fase deixou de dizer que a escuta do Gabriel é pendente: § "Pendente (dono: gabriel)" marcado como
+  fechado, o passo 15 e o "Gatilho que fecha" dizem que os lados foram provados por dado e que a gravação de
+  30 s foi à Lixeira (12/11, 00:00). Nenhum `[[DECISAO]]` em aberto.
 Não tocados: `reco.py`, `tray.py`, `tools/transcrever.py`, `reco.spec`, `build.ps1`, `design/`, o md
 da fase e o índice.
