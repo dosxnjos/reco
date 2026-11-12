@@ -49,13 +49,13 @@ Convenções dos passos:
 - `reco.py`, `tray.py` e `tools/transcrever.py` não mudam. O `build.ps1` do app velho não roda nesta fase: nada que entra no `Reco.exe` muda.
 - O motor reimplementa a orquestração que hoje mora em métodos do `App` (não importáveis); cada passo diz qual método e quais linhas espelha.
 
-1. [ ] Criar o esqueleto `engine/reco_engine/` (`__init__.py`, `errors.py`, `__main__.py`) — **prova:** `(cd engine && python -c "import reco_engine, reco_engine.errors as e; print(reco_engine.__version__, sorted(e.CODES)[:3])")` → `0.1.0 ['bad_args', 'busy', 'cancelled']`
+1. [x] Criar o esqueleto `engine/reco_engine/` (`__init__.py`, `errors.py`, `__main__.py`) — **prova:** `(cd engine && python -c "import reco_engine, reco_engine.errors as e; print(reco_engine.__version__, sorted(e.CODES)[:3])")` → `0.1.0 ['bad_args', 'busy', 'cancelled']`
    **reprova se:** `ModuleNotFoundError: reco_engine` ou versão diferente de `0.1.0`.
    - `__init__.py` com `__version__ = "0.1.0"`; `errors.py` com a classe `EngineError(code, detail)` e o conjunto `CODES`.
    - `__main__.py`: fora do PyInstaller (`not getattr(sys, "frozen", False)`), põe a raiz do repo (pai de `engine/`) no `sys.path` antes de importar `reco`.
    - Despacho do `argv`: `--transcribe` e `--selftest` vão para `cli.py` (passo 12); o resto chama `server.main()`.
    - Códigos de erro: `bad_args`, `busy`, `cancelled`, `claude_missing`, `internal`, `no_audio`, `no_audio_stream`, `no_device`, `not_found`, `refused`, `save_failed`, `unavailable`.
-2. [ ] Escrever `engine/reco_engine/server.py` (laço do protocolo) e criar `tools/test_engine_protocol.py` já com as checagens de protocolo — **prova:** `python tools/test_engine_protocol.py` → `OK protocolo: hello, linha inválida, cmd desconhecido, id não-string, shutdown (exit 0)`
+2. [x] Escrever `engine/reco_engine/server.py` (laço do protocolo) e criar `tools/test_engine_protocol.py` já com as checagens de protocolo — **prova:** `python tools/test_engine_protocol.py` → `OK protocolo: hello, linha inválida, cmd desconhecido, id não-string, shutdown (exit 0)`
    **reprova se:** o teste trava esperando linha, recebe texto que não é JSON no stdout, ou o processo não sai em até 10 s após `shutdown`.
    - Protocolo do Lacre (`lacre/docs/PROTOCOL.md:14-40`): pedido `{"v":1,"id","cmd","args"}`, resposta `{"v":1,"id","ok","data"|"error":{code,detail}}`.
    - Evento: `{"v":1,"event":...}`; leva `"id"` só quando nasce de um pedido (progresso); os globais (`level`, `state`, `timer`, `live.text`, `ready`) vão sem `id`.
@@ -71,7 +71,7 @@ Convenções dos passos:
    - `shutdown` e EOF no stdin encerram; saída final com `os._exit` (como Lacre `server.py:343-350` e `reco.py:5124-5128`: threads nativas seguram o processo).
    - O teste sobe `[sys.executable, "-m", "reco_engine"]` com `cwd=engine/`, `creationflags=0x08000000` (CREATE_NO_WINDOW, como o casco) e as variáveis `PYTHONUNBUFFERED=1`, `PYTHONIOENCODING=utf-8`, `PYTHONUTF8=1` (`engine.rs:182-200`).
    - O teste aceita `--exe <caminho>` para rodar contra o motor congelado (passo 15) e sempre drena o stderr numa thread (senão o pipe enche e trava, Lacre `engine.rs:315`).
-3. [ ] Criar `engine/reco_engine/boot.py` (import de `reco` em segundo plano, evento `ready`, aquecimento) — **prova:** `python tools/test_engine_protocol.py` → linha extra `OK ready: import_s=<n> has={sc:True,np:True,av:True,ov:True} lang=pt` e `hello` em menos de 1 s
+3. [x] Criar `engine/reco_engine/boot.py` (import de `reco` em segundo plano, evento `ready`, aquecimento) — **prova:** `python tools/test_engine_protocol.py` → linha extra `OK ready: import_s=<n> has={sc:True,np:True,av:True,ov:True} lang=pt` e `hello` em menos de 1 s
    **reprova se:** `hello` leva o tempo do `import reco` (≈2,2 s medidos do fonte em 11/11), ou `ready` não chega em 60 s.
    - `boot.reco()` devolve o módulo esperando o `threading.Event` do import (teto de 60 s, senão `unavailable`); todo comando que usa `reco` passa por ele.
    - Medido nesta arquitetura (11/11): `import reco` não cria janela (`tkinter._default_root` fica `None`) e não carrega `openvino` nem `scipy`; só `soundcard` e `PIL` entram.
@@ -84,7 +84,7 @@ Convenções dos passos:
    - Aquecimento depois do `ready`, numa thread daemon (molde `_warm_imports`, Lacre `server.py:222-228`): `scipy.signal`, `av`, `openvino`, `openvino_genai`.
    - **Não** cria o `WhisperPipeline` (F2-D4): custa 14,6 s e 1,35 GB por processo (ARMADILHAS, citado em 2-restricoes §A) e ficaria preso num app que mora na bandeja.
    - Logar no stderr `aquecimento pronto em <n> s`; o executor anota o número no relatório da fase.
-4. [ ] Criar `engine/reco_engine/config_cmd.py` com `config.get` e `config.set`, e estender o teste com o roundtrip isolado — **prova:** `python tools/test_engine_protocol.py` → `OK config: get, set mic_gain=2.5, chave legada preservada, migração não persistida, config real intocado (sha256 igual)`
+4. [x] Criar `engine/reco_engine/config_cmd.py` com `config.get` e `config.set`, e estender o teste com o roundtrip isolado — **prova:** `python tools/test_engine_protocol.py` → `OK config: get, set mic_gain=2.5, chave legada preservada, migração não persistida, config real intocado (sha256 igual)`
    **reprova se:** o sha256 do `~/.reco_config.json` real muda, a chave legada some do arquivo temporário, ou `set` responde `ok` sem o valor estar no disco.
    - Isolamento: o teste põe `USERPROFILE=<pasta temporária>` no ambiente do filho. Provado nesta arquitetura: `reco.CONFIG_PATH` (`reco.py:102`) e `default_output_dir()` (`reco.py:98-99`) passam a apontar para lá.
    - O `_user_data_dir()` continua no `LOCALAPPDATA` real (`reco.py:578-582`): o modelo é achado normalmente, e isso é desejado.
@@ -104,7 +104,7 @@ Convenções dos passos:
      - `language` muda `reco.LANG`, como `_set_language` (`reco.py:3502-3509`), e é recusada com `busy` durante gravação ou transcrição. O `LANG` decide `_spk_me` (`reco.py:1325-1329`) e o prefixo do arquivo (`reco.py:1695`).
      - `mic_gain` e `sys_gain` vão ao gravador ativo por `set_gain` (`reco.py:1605-1609`), como `_on_gain` (`reco.py:3206-3212`), com `round(g, 4)` como `_on_gain_release` (`reco.py:3214-3216`).
    - `config.set` com `mic_device`/`sys_device` só grava; a resolução acontece no `rec.start` (o config é a única fonte, `reco.py:1377-1380`).
-5. [ ] Criar `engine/reco_engine/devices.py` com `devices.list` e `devices.refresh` (Auto incluído) e estender o teste — **prova:** `python tools/test_engine_protocol.py` → `OK dispositivos: <n> mics, <m> saídas, console mic=<nome>, console saída=<nome>`
+5. [x] Criar `engine/reco_engine/devices.py` com `devices.list` e `devices.refresh` (Auto incluído) e estender o teste — **prova:** `python tools/test_engine_protocol.py` → `OK dispositivos: <n> mics, <m> saídas, console mic=<nome>, console saída=<nome>`
    **reprova se:** listas vazias numa máquina com mic e saída, `console` nulo com dispositivo padrão no Windows, ou nome com `?` no lugar de acento (encoding).
    - Fonte: `reco.scan_device_state()` (`reco.py:1440-1448`), que já roda fora da thread da interface no app (`_scan_thread`, `reco.py:3702-3709`); no motor, roda na thread do pedido.
      Só funciona com a thread do import viva (passo 3): é este passo que reprova se ela morrer (listas vazias).
@@ -155,7 +155,7 @@ Convenções dos passos:
      O ao vivo para com `wait=False`, porque o casco mata o motor 8 s depois do `shutdown` (Lacre `src-tauri/src/lib.rs:82`; o laço de espera é `engine.rs:492-522`).
    - O teste grava 25 s, fecha o stdin do filho sem mandar `shutdown` e confere o arquivo; um segundo caso manda `shutdown` no meio da gravação.
    - Transcrição em andamento no `shutdown` é cancelada (`transcriber.cancel()`, `reco.py:2051-2052`); o `.txt` não nasce, e é o mesmo comportamento do app velho ao sair.
-8. [ ] Criar `engine/reco_engine/transcribe.py` (`transcribe.file` e `transcribe.cancel`) — **prova:** `python tools/test_engine_protocol.py --transcrever <mp3 do Reco>` → `OK transcrição: .txt igual ao do app, <n> progressos, pct crescente; cancel → cancelled; id repetido → internal`
+8. [x] Criar `engine/reco_engine/transcribe.py` (`transcribe.file` e `transcribe.cancel`) — **prova:** `python tools/test_engine_protocol.py --transcrever <mp3 do Reco>` → `OK transcrição: .txt igual ao do app, <n> progressos, pct crescente; cancel → cancelled; id repetido → internal`
    **reprova se:** o `.txt` difere do gerado pelo app velho no mesmo arquivo, nenhum evento traz `pct`, ou `transcribe.cancel` não faz o pedido responder `cancelled`.
    - O teste trabalha em cópias do MP3 numa pasta temporária. A referência é o `.txt` que `python reco.py --transcribe <cópia> --diarize` gera numa segunda cópia (`reco.py:5148-5179`; mesma pipeline do app para gravação do Reco).
    - A referência roda com o mesmo `USERPROFILE` temporário do motor: modelo, device, `aec` e idioma saem do mesmo config, e a comparação não falha por config.
@@ -197,7 +197,7 @@ Convenções dos passos:
    - `live.text`: `{"event":"live.text","channel":"mic|sys","speaker":<rótulo>,"text":...}`. O `on_text` entrega o rótulo traduzido (`reco.py:2614-2615`); o canal sai da comparação com `reco._spk_me()`.
    - O `on_warn` vira `{"event":"live.warn","text":...}`. A prova do ao vivo de verdade (GPU, 20 min) não é desta fase: fica para a Fase 5, como diz o índice.
    - O `final_pass` e o `live.text` precisam da GPU livre: rodar com o app velho fechado e sem outra transcrição.
-10. [ ] Criar `engine/reco_engine/library.py` (`library.list/search/delete`) com fixtures no teste — **prova:** `python tools/test_engine_protocol.py` → `OK biblioteca: 3 itens, duração 1 s, x.txt e x.mp3.txt achados, busca por conteúdo nas duas convenções, delete fora da pasta recusado`
+10. [x] Criar `engine/reco_engine/library.py` (`library.list/search/delete`) com fixtures no teste — **prova:** `python tools/test_engine_protocol.py` → `OK biblioteca: 3 itens, duração 1 s, x.txt e x.mp3.txt achados, busca por conteúdo nas duas convenções, delete fora da pasta recusado`
    **reprova se:** o item com `x.mp3.txt` aparece sem transcrição, a busca por palavra que só existe no `.mp3.txt` não acha, ou `library.delete` aceita caminho fora da pasta.
     - O teste cria na pasta temporária três MP3 de 1 s com `reco.MP3Writer` (`reco.py:749-830`; `feed` e `close`), um `x.txt` e um `y.mp3.txt` com palavras distintas.
     - `list` espelha `_lib_scan_thread` (`reco.py:4492-4512`): `AUDIO_EXTS`, ordem por `mtime` decrescente, duração do container com cache por `(path, mtime)` (`reco.py:4514-4529`).
@@ -207,7 +207,7 @@ Convenções dos passos:
     - `search {q}`: nome ou conteúdo do `.txt` (as duas convenções), em `casefold`, como `_lib_refilter` (`reco.py:4557-4578`; o texto vem de `_lib_txt_content`, `:4545`), com cache de texto por `(path, mtime)`.
     - `delete {path}` (F2-D15): só aceita arquivo de `AUDIO_EXTS` dentro da pasta da biblioteca, senão `refused`. Manda só o áudio à Lixeira; o `.txt` e o `.resumo.md` ficam (`reco.py:4638-4660`).
     - A exclusão real só roda no teste com `--lixeira`, para não encher a Lixeira a cada rodada.
-11. [ ] Criar `engine/reco_engine/extras.py` (conversão, resumo IA, checagens de atualização) — **prova:** `python tools/test_engine_protocol.py` → `OK extras: convert 16 kHz mono, sem trilha = no_audio_stream, app.update_check, claude_missing, claude falso recebeu --model sonnet`
+11. [x] Criar `engine/reco_engine/extras.py` (conversão, resumo IA, checagens de atualização) — **prova:** `python tools/test_engine_protocol.py` → `OK extras: convert 16 kHz mono, sem trilha = no_audio_stream, app.update_check, claude_missing, claude falso recebeu --model sonnet`
    **reprova se:** o MP3 convertido não é 16 kHz mono, o vídeo sem som derruba o motor em vez de responder `no_audio_stream`, ou o argv gravado pelo `claude` falso não tem `--model sonnet`.
     - Comandos: `convert.extract_mp3`, `resumo.ia`, `model.update_check`, `app.update_check`.
     - `convert.extract_mp3 {path}` espelha `_cv_convert` (`reco.py:4783-4824`) sobre `reco.extract_mp3` (`reco.py:836-882`): progresso inteiro, `NoAudioStream` vira `no_audio_stream`, resposta `{path, src_bytes, dst_bytes}`.
@@ -223,7 +223,7 @@ Convenções dos passos:
     - `model.update_check` chama `reco.update_model_if_newer(status_cb)` (`reco.py:1230-1266`), com o status como evento `{"id","event":"progress","pct":null,"text"}`.
       Recusa com `busy` durante transcrição, porque troca a pasta do modelo no lugar.
     - `app.update_check` responde `reco.check_app_update()` como `{tag, url}` ou `null` (`reco.py:1274-1289`). O casco abre a URL.
-12. [ ] Manter `--transcribe` e `--selftest` no motor (`engine/reco_engine/cli.py`, iguais a `reco.py:5148-5179` e `:5132-5146`) — **prova:** `python tools/test_engine_protocol.py --cli <mp3 curto do Reco, com fala>` → `OK cli: exit 0, stdout vazio, log OK, .txt igual; OK selftest igual`
+12. [x] Manter `--transcribe` e `--selftest` no motor (`engine/reco_engine/cli.py`, iguais a `reco.py:5148-5179` e `:5132-5146`) — **prova:** `python tools/test_engine_protocol.py --cli <mp3 curto do Reco, com fala>` → `OK cli: exit 0, stdout vazio, log OK, .txt igual; OK selftest igual`
    **reprova se:** o motor sai com código diferente de 0, escreve no stdout, o log não termina em `OK -> <caminho>`, o `.txt` difere do gerado pelo `reco.py`, ou o `reco_selftest.txt` do motor difere do gerado pelo `reco.py`.
     - A flag copia o MP3 duas vezes numa pasta temporária (`a_reco.mp3`, `b_reco.mp3`; nome com `reco`, para diarizar).
     - Roda `[sys.executable, "-m", "reco_engine", "--transcribe", a, "--diarize"]` com `cwd=engine/`, guarda o stdout e lê o log logo em seguida.
@@ -237,7 +237,7 @@ Convenções dos passos:
     - A flag `--cli` também roda `--selftest` no motor e no `reco.py` (os dois do fonte) e compara os bytes do arquivo; o mesmo arquivo serve aos dois, então lê-se logo depois de cada um.
     - Rio abaixo (D6): `Reco.exe --transcribe` segue no `dist\Reco` velho enquanto ele existir. Na Fase 3 o casco se chama "Reco Novo" (F3-D3) e a Fase 4 o renomeia para "Reco".
       Quem repassa `--transcribe` ao motor é o casco, num passo da Fase 3; o PROTOCOL.md registra o repasse. O `--selftest` se chama direto no motor (`reco-engine.exe --selftest`).
-13. [ ] Escrever `docs/PROTOCOL.md` do Reco (próprio, não cópia do Lacre) com todos os comandos, eventos, códigos e timeouts sugeridos — **prova:** `python tools/test_engine_protocol.py --conferir-doc` → `OK doc: <n> comandos no registro, <n> na tabela do PROTOCOL.md, nenhum faltando`
+13. [x] Escrever `docs/PROTOCOL.md` do Reco (próprio, não cópia do Lacre) com todos os comandos, eventos, códigos e timeouts sugeridos — **prova:** `python tools/test_engine_protocol.py --conferir-doc` → `OK doc: <n> comandos no registro, <n> na tabela do PROTOCOL.md, nenhum faltando`
    **reprova se:** algum comando do registro `COMMANDS` não aparece na tabela do doc, ou o doc cita comando que o motor não tem.
     - Conteúdo: regras invariáveis (stdout só protocolo, `"v":1`, `id` string, o motor é dono do config, o casco nunca grava `~/.reco_config.json`).
     - Tabela `cmd | args | data | eventos | timeout sugerido para o casco`, os eventos globais, os códigos de erro e a sequência `rec.stop` → `auto` → `rec.conclude`.
@@ -251,7 +251,7 @@ Convenções dos passos:
     - Seção das CLIs do motor (passo 12): `--transcribe <áudio> [--diarize]` e `--selftest`, os arquivos em `%TEMP%`, os códigos de saída (0 e 2) e a frase de que o casco repassa `--transcribe` ao motor.
     - Dívida declarada: o texto de progresso vem traduzido do `reco.py`; o motor emite códigos só no que ele mesmo cria.
     - `--conferir-doc` compara o registro `COMMANDS` (importado do pacote) com as linhas da tabela.
-14. [ ] Criar `engine/reco-engine.spec` (PyInstaller onedir) e `engine/build.py` (`build` e `--smoke`, no molde de `lacre/engine/build.py`) — **prova:** `python engine/build.py && ! ls engine/dist/reco-engine/_internal | grep -qiE 'pyarrow|duckdb' && echo LIMPO` → `built ... (<n> MB)` e `LIMPO`
+14. [x] Criar `engine/reco-engine.spec` (PyInstaller onedir) e `engine/build.py` (`build` e `--smoke`, no molde de `lacre/engine/build.py`) — **prova:** `python engine/build.py && ! ls engine/dist/reco-engine/_internal | grep -qiE 'pyarrow|duckdb' && echo LIMPO` → `built ... (<n> MB)` e `LIMPO`
    **reprova se:** o build falha, o tamanho passa de 700 MB, ou `LIMPO` não aparece (pyarrow ou duckdb entraram no bundle).
     - Spec: entrada `reco_engine/__main__.py`; `pathex` com a raiz do repo e `engine/`, para que `reco` e `tray` entrem.
     - Mesmo `collect_all` do `reco.spec` (soundcard, openvino, openvino_genai, openvino_tokenizers, av, huggingface_hub), mais `libs/cache.json` do openvino.
@@ -272,6 +272,8 @@ Convenções dos passos:
     - Fazer também uma gravação de 30 s pelo exe congelado (`--gravar 30 --saida-real --exe ...`), com as guardas do passo 6.
       O executor prova por dado: arquivo na pasta que a biblioteca lista, duração declarada = decodificada, RMS > 0 nos dois canais.
       Ouvir no app velho (Gravações…, tocar, conferir duração e os dois lados) é do Gabriel: ver "Pendente".
+    - `+` Lados por dado, não por escuta (regra da casa de 11/11: teste real é da sessão): o envelope do canal R
+      correlaciona com o do clipe tocado acima de 0,5 e o do L fica abaixo do R. Com isso a escuta vira opcional.
     - Depois que o Gabriel disser que ouviu, o executor manda a gravação de teste à Lixeira, para não ficar na biblioteca real:
       `python -c "import sys, reco; sys.exit(0 if reco._excluir_gravacao(sys.argv[1]) else 1)" "<caminho>"` na raiz (`reco.py:599-631`), conferido pelo comando da Lixeira do passo 9.
     - O app velho regrava o próprio config ao abrir (`load_config(persist=True)`, `reco.py:2868`); o teste já terminou e conferiu o sha256 antes disso.

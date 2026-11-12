@@ -17,6 +17,9 @@ Um link por doc, com o que tem dentro e quando ler. A regra que vale sempre est�
 - [ARQUITETURA.md](ARQUITETURA.md): como cada peça funciona por dentro e o que **não** é
   acidente (build, MP3 por container, `_pump`, AEC só na transcrição, anti-loop, biblioteca e
   resumo IA, ícones, config). Leia antes de mudar comportamento do app ou recompilar.
+- [PROTOCOL.md](PROTOCOL.md): contrato JSON Lines entre o motor sem janela (`engine/`) e a
+  interface nova (comandos, eventos, códigos de erro, timeouts, CLIs, contrato de falha). Leia antes
+  de mexer no motor ou de escrever o casco Tauri (Fase 3 do roadmap Reco em Rust).
 - [TOOLS.md](TOOLS.md): para que serve cada script de `tools/`, com o gate e o número medido.
   Leia antes de medir, transcrever em lote ou criar ferramenta nova.
 - [README.md](../README.md): vitrine do repo público (recursos, rodar do fonte, gerar o app), em

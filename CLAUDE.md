@@ -80,6 +80,11 @@ salvo vence. Para a mudança chegar aos atuais, subir `CFG_MIGRACAO` e tratar o
 caso em `_migra_config()`:
 [docs/ARQUITETURA.md § Config](docs/ARQUITETURA.md#config-e-persistência).
 
+## Motor `engine/` (interface nova)
+
+Importa o `reco.py` sem mudá-lo e é o dono do config; contrato em [docs/PROTOCOL.md](docs/PROTOCOL.md).
+Mudou o motor: `python tools/test_engine_protocol.py` antes de commitar.
+
 ## Onde está o resto
 
 [docs/_INDICE.md](docs/_INDICE.md): 1 linha por doc (ARMADILHAS, ARQUITETURA,

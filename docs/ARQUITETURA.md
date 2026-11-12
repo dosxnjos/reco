@@ -317,3 +317,38 @@ escolha manual refaz com 1 clique.
   persistida por `load_config(persist=True)`, que é só o `App.__init__`. Persistir antes
   de o exe novo existir faz o exe antigo regravar o id do padrão (ver ARMADILHAS,
   "Migração de config persistida antes do exe novo").
+
+## Motor (`engine/`) (11/11/2026)
+
+Motor sem janela que a interface nova (Tauri, Fase 3 do
+[roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco-em-rust.md)) vai comandar. Contrato
+completo (comandos, eventos, códigos, timeouts, CLIs): [PROTOCOL.md](PROTOCOL.md). O app Tk segue
+sendo o que se usa; nada do motor entra no `Reco.exe`.
+
+- **Servidor** (`engine/reco_engine/server.py`): JSON Lines por stdin/stdout, uma thread lê o stdin,
+  uma thread por pedido, lock na escrita (F2-D1). O stdout é isolado no descritor (o canal é um
+  `os.dup(1)`; o fd 1 vira o stderr) e o pipe do stdin sai do fd 0, que vira NUL: com a leitora
+  presa no `readline`, carregar DLL em outra thread travava até a próxima linha (ARMADILHAS).
+- **`import reco` sem mudar uma linha**, em segundo plano (`boot.py`): o `hello` responde antes
+  (F2-D3), o evento `ready` sai quando o import termina, e um aquecimento importa `scipy.signal`,
+  `av`, `openvino`, `openvino_genai` (nunca o `WhisperPipeline`, F2-D4). A thread do import **nunca
+  termina**: é a dona do COM do `soundcard` (sem ela, enumerar dispositivos volta vazio).
+- **Orquestração reimplementada** (os métodos do `App` não são importáveis): `recording.py`
+  (`_start_rec`, `_stop_rec`, pausa, erro de canal, `_quit`), `conclude.py` (Salvar/Excluir/Transcrever,
+  passada final do ao vivo, modo nota), `transcribe.py` (`_run_transcriber`, `_autosave_txt`),
+  `library.py`, `extras.py`, `cli.py`. Estado comum em `core.py`.
+- **Transcritor único** por processo (`make_transcriber()` uma vez), compartilhado com o ao vivo e as
+  passadas finais; um `pipe.generate` por vez (`busy`).
+- **O motor é o dono do config** (D6): `config.set` relê o arquivo cru, faz merge, aceita só chaves de
+  `_CFG_DEFAULTS` ou `casco_*`, grava e relê; nunca `load_config(persist=True)`. O casco nunca grava
+  `~/.reco_config.json`.
+- **D11**: EOF no stdin ou `shutdown` no meio da gravação fecham o MP3 (header com a duração) antes do
+  `os._exit`.
+- **Biblioteca** acha `x.txt` e, se faltar, `x.mp3.txt` (o app só a primeira).
+- **Build do motor**: `python engine/build.py` (PyInstaller onedir, `engine/reco-engine.spec`) sai em
+  `engine/dist/reco-engine/` e `engine/build/` (fora do git, e longe do `dist/Reco` do app aberto);
+  `--smoke` mede spawn → `hello`/`ready`. Sem pyarrow e duckdb, sem o modelo `small`, com `tkinter` e
+  `PIL` (o `reco.py` os importa sem guarda), `console=True` escondido pelo `CREATE_NO_WINDOW` de quem
+  sobe.
+- **Teste**: `python tools/test_engine_protocol.py` (rodada padrão sem gravar; flags em
+  [TOOLS.md](TOOLS.md)). Rodar antes de commitar mudança no motor.

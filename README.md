@@ -111,6 +111,8 @@ and it uses `small` instead.
   is the better choice while you are on a video call: it barely notices
   concurrent load, where the iGPU competes with drawing the screen.
 - The model is downloaded once (or bundled in the `.exe`) and cached locally.
+- A windowless engine (`engine/`) runs the same recording and transcription code behind a JSON Lines
+  protocol ([docs/PROTOCOL.md](docs/PROTOCOL.md)), in preparation for a new interface.
 
 ### License
 [MIT](LICENSE) © 2026 Gabriel dos Anjos
@@ -223,6 +225,8 @@ sem download, e usa o `small` no lugar.
   melhor escolha durante uma videochamada: ela quase não sente carga concorrente,
   enquanto a iGPU disputa com o desenho da tela.
 - O modelo é baixado uma vez (ou embutido no `.exe`) e fica em cache local.
+- Um motor sem janela (`engine/`) roda o mesmo código de gravação e transcrição por trás de um
+  protocolo JSON Lines ([docs/PROTOCOL.md](docs/PROTOCOL.md)), em preparação para a interface nova.
 
 Scripts de apoio em `tools/` (rodam pelo fonte, não entram no executável): ver
 [docs/TOOLS.md](docs/TOOLS.md).
