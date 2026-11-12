@@ -1,5 +1,6 @@
 // Conversões do protocolo para a Vista (config, dispositivos, biblioteca) e as recargas que mais de uma tela pede.
 import type { App } from "../app";
+import { guardarAparencia } from "../aparencia";
 import { duracaoCurta } from "../dom";
 import type { ConfigProto, DevicesProto, ItemLib, ItemProto, Lingua, Skin, Tema } from "../tipos";
 
@@ -24,6 +25,7 @@ export function aplicarConfig(app: App, c: ConfigProto): void {
   v.g.ganhoMic = Number(cfg.mic_gain ?? 1); v.g.ganhoSis = Number(cfg.sys_gain ?? 1);
   if (cfg.casco_skin === "a" || cfg.casco_skin === "b" || cfg.casco_skin === "c") v.skin = cfg.casco_skin as Skin;
   if (cfg.casco_tema === "sistema" || cfg.casco_tema === "claro" || cfg.casco_tema === "escuro") v.tema = cfg.casco_tema as Tema;
+  guardarAparencia(v.skin, v.tema);
   v.o.selMic = String(cfg.mic_device ?? "auto:console"); v.o.selSis = String(cfg.sys_device ?? "auto:console");
 }
 

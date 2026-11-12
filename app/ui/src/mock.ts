@@ -15,7 +15,18 @@ export interface ControleMock {
   proximoArquivo: string | null; proximaPasta: string | null; atalhoOcupado: boolean; passosTranscricao: number;
   /** O condutor de estados assumiu: nenhuma resposta pendente volta mais (o controle não mexe na Vista dele). */
   congelado: boolean;
-  derrubar(): void; emitir(e: EngineEvent): void; estado(): string; config: Args;
+  /** Derruba o motor (engine-status running:false). `volta` em ms (null = não volta); `semAviso` não manda o
+   *  reco-gravacao-interrompida (o evento perdido: a tela tem de ressincronizar sozinha). */
+  derrubar(o?: { volta?: number | null; semAviso?: boolean }): void;
+  emitir(e: EngineEvent): void; estado(): string; config: Args;
+  /** Atraso extra (ms reais, sem a `velocidade`) antes de o motor falso atender cada comando: o motor real lento. */
+  atraso: Record<string, number>;
+  /** A conclusão encadeada chega antes da resposta do parar_gravacao (o Rust não garante a ordem). */
+  conclusaoAntes: boolean;
+  /** Menu da bandeja como o lib.rs faz: Gravar sempre no modo `rec`; Parar pelo mesmo `parar_gravacao`. */
+  bandeja(item: "gravar" | "parar"): Promise<unknown>;
+  /** Força o estado do motor sem evento (simula o `stopping` que o motor real mostra enquanto fecha o MP3). */
+  forcarEstado(s: string): void;
   /** Evento do casco como o Rust mandaria (reco-atalho, reco-versao-nova…). */
   casco(nome: EventoCasco, p?: unknown): void;
 }
@@ -94,6 +105,8 @@ class MotorFalso {
 
   async pedido(cmd: string, args: Args, id: string): Promise<unknown> {
     if (!this.ready && !["hello", "state"].includes(cmd)) await this.espera(700);
+    const extra = this.ctl.atraso[cmd];
+    if (extra) await new Promise<void>((ok) => setTimeout(ok, extra));
     const f = (this as unknown as Record<string, (a: Args, id: string) => unknown>)["c_" + cmd.replace(/\./g, "_")];
     if (!f) falha("internal", "comando desconhecido: " + cmd);
     return f.call(this, args, id);
@@ -202,23 +215,40 @@ export function criarMock(): Backend {
   };
   const ctl: ControleMock = {
     chamadas: [], area: "", velocidade: 1, versao: null, proximoArquivo: "C:\\Vídeos\\reuniao-fornecedor.mp4", proximaPasta: "C:\\Notas",
-    atalhoOcupado: false, passosTranscricao: 6, congelado: false,
-    derrubar: () => {
-      const gravando = motor.rec === "recording" || motor.rec === "paused";
+    atalhoOcupado: false, passosTranscricao: 6, congelado: false, atraso: {}, conclusaoAntes: false,
+    derrubar: (o = {}) => {
+      // como o estado.rs: `stopping` também tem arquivo aberto (o MP3 pode não ter fechado)
+      const gravando = ["recording", "paused", "starting", "stopping"].includes(motor.rec);
       motor.parar(); motor.rec = "idle"; motor.ready = false;
       avisar("engine-status", { running: false } satisfies EngineStatus);
-      if (gravando) avisar("reco-gravacao-interrompida", null);
-      setTimeout(() => { avisar("engine-status", { running: true }); void motor.ligar(); }, 400 / ctl.velocidade);
+      if (gravando && !o.semAviso) avisar("reco-gravacao-interrompida", null);
+      const volta = o.volta === undefined ? 400 / ctl.velocidade : o.volta;
+      if (volta != null) setTimeout(() => { avisar("engine-status", { running: true }); void motor.ligar(); }, volta);
     },
     emitir: (e) => avisar("engine-event", { v: 1, ...e }),
     casco: (nome, p) => avisar(nome, p ?? null),
     estado: () => motor.rec,
+    forcarEstado: (s) => { motor.rec = s; },
+    bandeja: (item) => (item === "gravar" ? motor.pedido("rec.start", { mode: "rec" }, `falso-${++n}`) : pararCasco()),
     get config() { return motor.config; },
   };
   const motor = new MotorFalso(ctl, ctl.emitir);
   (window as unknown as { __recoMock: ControleMock }).__recoMock = ctl;
   let n = 0, atalho = false, autostart = false;
   const anotar = (cmd: string, args: Args = {}) => { ctl.chamadas.push({ cmd, args }); };
+  /** O `parar_gravacao` do Rust: `rec.stop` e, com `auto`, a conclusão em segundo plano, anunciada por `reco-conclusao`. */
+  const pararCasco = async () => {
+    anotar("parar_gravacao");
+    const parou = await motor.pedido("rec.stop", {}, `falso-${++n}`) as { path: string; duration_s: number; auto: string | null };
+    if (parou.auto) {
+      const action = parou.auto;
+      const conclusao = motor.pedido("rec.conclude", { action }, `falso-${++n}`).then(
+        (data) => { if (action === "nota") ctl.area = `"${(data as { md: string }).md}"`; avisar("reco-conclusao", { action, ok: true, data } as Conclusao); },
+        (error: EngineError) => avisar("reco-conclusao", { action, ok: false, error } as Conclusao));
+      if (ctl.conclusaoAntes) await conclusao;
+    }
+    return parou;
+  };
   const nunca = () => new Promise<never>(() => undefined);
   const engine = async <T>(cmd: string, args: Args = {}, id?: string): Promise<T> => {
     anotar(cmd, args);
@@ -235,17 +265,7 @@ export function criarMock(): Backend {
     onEngineStatus: (h) => ouvir("engine-status", h as Ouvinte),
     onCasco: ((evento: EventoCasco, h: Ouvinte) => ouvir(evento, h)) as Backend["onCasco"],
     status: async () => ({ running: true }),
-    pararGravacao: async () => {
-      anotar("parar_gravacao");
-      const parou = await motor.pedido("rec.stop", {}, `falso-${++n}`) as { path: string; duration_s: number; auto: string | null };
-      if (parou.auto) {
-        const action = parou.auto;
-        void motor.pedido("rec.conclude", { action }, `falso-${++n}`).then(
-          (data) => { if (action === "nota") ctl.area = `"${(data as { md: string }).md}"`; avisar("reco-conclusao", { action, ok: true, data } as Conclusao); },
-          (error: EngineError) => avisar("reco-conclusao", { action, ok: false, error } as Conclusao));
-      }
-      return parou;
-    },
+    pararGravacao: pararCasco,
     versaoNova: () => casco("versao_nova", {}, ctl.versao),
     copyPath: async (path) => { anotar("copy_path", { path }); ctl.area = `"${path}"`; },
     openPath: (path) => casco("open_path", { path }, undefined),

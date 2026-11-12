@@ -4,6 +4,7 @@
 import type { App } from "../app";
 import { fmtGanho, fracParaGanho, ganhoParaFrac, ganhoPorTecla } from "../ganho";
 import { texto } from "../dom";
+import { principalTrocouEm } from "../render/gravar";
 import { acaoGravar } from "./gravar";
 import { acaoOpcoes, aoTrocarDispositivo } from "./opcoes";
 import { recarregarBiblioteca } from "./dados";
@@ -62,12 +63,22 @@ function ligarBusca(app: App): void {
   });
 }
 
+/** Clique que não vira ação (revisão adversarial da Fase 3, duplo clique no principal):
+ *  - o 2º clique de um duplo clique (`detail > 1`) em qualquer botão: nenhuma ação daqui é de duplo clique;
+ *  - no principal, um clique de ponteiro cujo aperto começou antes de o botão trocar de papel (o usuário mirou
+ *    Gravar e soltou em Parar). Teclado (`detail 0`) não tem aperto e passa. */
+function cliqueVelho(b: HTMLElement, ev: MouseEvent, apertou: number): boolean {
+  if (ev.detail > 1) return true;
+  return b.dataset.acao === "principal" && ev.detail === 1 && principalTrocouEm() > apertou;
+}
+
 export function ligarGestos(app: App): void {
   const raiz = app.raiz;
-  raiz.addEventListener("pointerdown", () => { void app.be.windowPin().catch(() => undefined); }, { capture: true });
+  let apertou = 0;
+  raiz.addEventListener("pointerdown", () => { apertou = performance.now(); void app.be.windowPin().catch(() => undefined); }, { capture: true });
   raiz.addEventListener("click", (ev) => {
     const b = (ev.target as HTMLElement).closest<HTMLElement>("[data-acao]");
-    if (!b || !raiz.contains(b) || (b as HTMLButtonElement).disabled) return;
+    if (!b || !raiz.contains(b) || (b as HTMLButtonElement).disabled || cliqueVelho(b, ev, apertou)) return;
     void despachar(app, b).catch((e) => app.falhou(e));
   });
   raiz.addEventListener("dblclick", (ev) => {

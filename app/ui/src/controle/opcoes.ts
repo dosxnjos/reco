@@ -1,6 +1,7 @@
 // Ações de Opções e da barra de título. Toda preferência vai ao motor por config.set (D6); as do casco têm o prefixo
 // casco_ (F2-D16): casco_skin, casco_tema, casco_atalho. Atalho e iniciar com o Windows são comandos do Rust.
 import { erroDe, type App } from "../app";
+import { guardarAparencia } from "../aparencia";
 import { recarregarBiblioteca, recarregarDispositivos, aplicarConfig } from "./dados";
 import type { ConfigProto, Lingua, Skin, Tema } from "../tipos";
 
@@ -58,8 +59,8 @@ async function atalho(app: App): Promise<void> {
 export async function acaoOpcoes(app: App, acao: string, el: HTMLElement): Promise<boolean> {
   const v = app.v;
   const tabela: Record<string, () => Promise<unknown> | void> = {
-    skin: () => { const s = el.dataset.skin as Skin; trocarSkin(app, s); return gravarConfig(app, { casco_skin: s }); },
-    aparencia: () => { v.tema = el.dataset.tema as Tema; app.desenhar(); return gravarConfig(app, { casco_tema: v.tema }); },
+    skin: () => { const s = el.dataset.skin as Skin; trocarSkin(app, s); guardarAparencia(v.skin, v.tema); return gravarConfig(app, { casco_skin: s }); },
+    aparencia: () => { v.tema = el.dataset.tema as Tema; app.desenhar(); guardarAparencia(v.skin, v.tema); return gravarConfig(app, { casco_tema: v.tema }); },
     idioma: () => idioma(app, el.dataset.idioma === "en" ? "en" : "pt"),
     "atualizar-disp": () => recarregarDispositivos(app, true),
     "op-pasta": () => escolherPasta(app, "output_dir"),

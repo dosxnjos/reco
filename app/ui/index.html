@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reco</title>
+    <script>
+      // Skin e tema do cache local (src/aparencia.ts, mesma chave) antes do primeiro desenho: o config do motor só
+      // chega depois do `ready`, e sem isto a janela nasceria em Fita e trocaria de cara em seguida.
+      try {
+        var a = JSON.parse(localStorage.getItem("reco.aparencia") || "{}"), h = document.documentElement;
+        if (a.skin === "b" || a.skin === "c") h.setAttribute("data-direcao", a.skin);
+        if (a.tema === "claro" || a.tema === "escuro") h.setAttribute("data-tema", a.tema);
+      } catch (e) { /* sem cache: padrão */ }
+    </script>
   </head>
   <body>
     <!-- Estrutura da janela (design/DESIGN.md, áreas data-area): nasce uma vez; o código só troca texto, atributo e
@@ -66,9 +75,9 @@
               <p class="painel-nota" data-t="g.pronto-nota"></p>
             </div>
             <div class="camada" data-variante="gravando">
-              <div class="linha-info"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><b data-t="g.pasta"></b><span class="corta" data-ref="grav-pasta"></span></div>
               <div class="linha-info"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><b data-t="g.entrada"></b><span class="corta" data-ref="grav-mic"></span></div>
               <div class="linha-info"><svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><b data-t="g.saida"></b><span class="corta" data-ref="grav-sis"></span></div>
+              <div class="linha-info"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><b data-t="g.pasta"></b><span class="corta" data-ref="grav-pasta"></span></div>
               <p class="painel-nota" data-t="g.gravando-nota"></p>
             </div>
             <div class="camada ao-vivo" data-variante="aovivo" data-ref="aovivo" data-paridade="ao-vivo"></div>

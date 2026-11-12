@@ -72,7 +72,7 @@ export function criarCondutor(app: App) {
     v.skin = s.direcao as Skin; v.tema = s.tema as Tema; v.lingua = s.texto === "longo-en" ? "en" : "pt";
     definirLingua(v.lingua);
     v.versao = s.versao === "sim" ? { tag: "2.0", url: "https://github.com/dosxnjos/reco/releases" } : null;
-    v.tela = s.tela; v.aviso = null;
+    v.tela = s.tela; v.aviso = null; v.motorFora = false;
     (Object.keys(porTela) as Tela[]).forEach((x) => { (v.estado as Record<Tela, string>)[x] = porTela[x]; });
     const eg = v.estado.gravar;
     v.ocupado = (s.tela === "gravar" && (GRAVANDO.has(eg) || eg === "transcrevendo")) || (s.tela === "opcoes" && s.estado === "durante-gravacao");

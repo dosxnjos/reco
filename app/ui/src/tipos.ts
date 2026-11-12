@@ -27,7 +27,11 @@ export interface ItemLib { nome: string; path: string; quando: string; duracao: 
 export interface Fala { quem: string; eu: boolean; texto: string }
 
 /** Erro mostrado na tela Gravar: título, nota, detalhe inteiro e a saída oferecida. */
-export interface ErroGravar { titulo: string; nota: string; linha: string; detalhe: string; saida: "opcoes" | "pasta" }
+export interface ErroGravar {
+  titulo: string; nota: string; linha: string; detalhe: string; saida: "opcoes" | "pasta";
+  /** Aviso de motor fora do ar ou lento: some sozinho quando o motor fica pronto (o alarme do D11 não some). */
+  doMotor?: boolean;
+}
 
 export interface Disp { id: string; nome: string }
 
@@ -54,6 +58,8 @@ export interface Vista {
   aviso: [Sinal, string] | null;
   /** Gravando, pausado ou transcrevendo: a aba Arquivo fica bloqueada com o motivo (F1-D7). */
   ocupado: boolean;
+  /** Motor fora do ar, sem `ready` ou com `ready` de erro: Gravar fica desabilitado e o status diz o motivo. */
+  motorFora: boolean;
   g: VistaGravar; b: VistaBiblioteca; a: VistaArquivo; o: VistaOpcoes;
 }
 

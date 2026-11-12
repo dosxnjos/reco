@@ -27,9 +27,17 @@ function principal(e: string, nota: boolean): [string, string, Chave, boolean] {
   return ["grava", "circle", nota ? "g.gravar-nota" : "g.gravar", false];
 }
 
+// Quando o botão principal trocou de papel (Gravar, Parar, Salvar…) pela última vez: um clique cujo aperto começou
+// antes disso foi mirado no papel antigo e é ignorado (controle/cliques.ts; revisão adversarial da Fase 3).
+let papel = "", papelDesde = 0;
+export const principalTrocouEm = (): number => papelDesde;
+
 function acoes(v: Vista, r: Refs, raiz: HTMLElement, e: string, nota: boolean): void {
   const [tom, icone, rotulo, travado] = principal(e, nota);
-  marcar(r.principal, "data-tom", tom); usar(r["principal-icone"], icone); texto(r["principal-texto"], t(rotulo)); desabilitar(r.principal, travado);
+  if (rotulo !== papel) { papel = rotulo; papelDesde = performance.now(); }
+  // motor fora do ar: Gravar (e Salvar, que também pede ao motor) desabilitado; o status diz o motivo
+  const semMotor = v.motorFora && !GRAVANDO.has(e);
+  marcar(r.principal, "data-tom", tom); usar(r["principal-icone"], icone); texto(r["principal-texto"], t(rotulo)); desabilitar(r.principal, travado || semMotor);
   const pausa = e === "pausado", parado = e === "parado";
   usar(r["secundario-icone"], pausa || parado ? "play" : "pause");
   texto(r["secundario-texto"], t(pausa ? "g.continuar" : parado ? "g.ouvir" : "g.pausar"));

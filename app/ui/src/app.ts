@@ -57,8 +57,9 @@ export function criarApp(be: Backend): App {
     },
     falhou(e) {
       const err = erroDe(e);
+      // o detalhe cru do motor fica no console e no engine.log; o status leva só a frase do código (revisão adversarial)
       console.warn("[reco] falhou:", err);
-      app.diz("erro", "av.erro", { erro: textoErro(err.code) + (err.detail ? ` (${err.detail})` : "") });
+      app.diz("erro", "av.erro", { erro: textoErro(err.code) });
     },
     async pedir<T>(cmd: string, args: Record<string, unknown> = {}, cb?: (ev: EngineEvent) => void): Promise<T> {
       const id = `ui-${++seq}`;
