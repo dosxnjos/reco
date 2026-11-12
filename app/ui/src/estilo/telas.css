@@ -1,0 +1,67 @@
+/* Telas Biblioteca, Arquivo e Opções (DESIGN.md, Áreas e estados). */
+
+/* Biblioteca */
+.busca { height: 36px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--linha); border-radius: var(--raio-m); background: var(--superficie); color: var(--tinta-2); }
+.busca input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; color: var(--tinta); outline: none; }
+.busca input::placeholder { color: var(--tinta-3); }
+.busca:focus-within { border-color: var(--foco); }
+.busca-conta { font-size: var(--tam-pequeno); color: var(--tinta-2); }
+.lista { flex: none; position: relative; height: calc(var(--altura-conteudo) - 2 * var(--pad-v) - 36px - (2 * 40px + 6px) - 2 * var(--gap-gr)); border: 1px solid var(--linha); border-radius: var(--raio-m); background: var(--superficie); overflow: hidden; }
+.lista-grade { display: grid; grid-template-columns: 1fr 64px 52px; column-gap: 8px; align-items: center; padding: 0 4px 0 10px; }
+.lista-cabeca { height: 28px; font-size: var(--tam-pequeno); color: var(--tinta-2); font-weight: 600; border-bottom: 1px solid var(--linha); padding-right: 14px; }
+.lista-corpo { position: absolute; top: 28px; left: 0; right: 0; bottom: 0; overflow-y: auto; scrollbar-gutter: stable; }
+.item { width: 100%; height: calc((var(--altura-conteudo) - 2 * var(--pad-v) - 36px - (2 * 40px + 6px) - 2 * var(--gap-gr) - 30px) / var(--lib-linhas)); border: 0; background: transparent; text-align: left; color: var(--tinta); transition: background-color var(--dur), color var(--dur); }
+.item:hover { background: var(--superficie-2); }
+.item[aria-selected="true"] { background: var(--selecao); }
+.item .item-dur, .lista-cabeca span:nth-child(2) { color: var(--tinta-2); font-size: var(--tam-pequeno); text-align: right; padding-right: 8px; }
+.item-texto { display: inline-flex; align-items: center; gap: 4px; font-size: var(--tam-pequeno); color: var(--tinta-2); }
+.item-texto .ic { width: 14px; height: 14px; }
+.lista .vazio { top: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px 24px; text-align: center; background: var(--superficie); color: var(--tinta-2); }
+.lista .vazio .ic { width: 22px; height: 22px; }
+.lista .vazio .botao { height: 34px; }
+.lista .sem-texto { max-width: 100%; }
+.acoes-lib { height: calc(2 * 40px + 6px); flex: none; display: grid; grid-template-rows: 40px 40px; gap: 6px; }
+.acoes-lib-linha { display: grid; gap: 6px; }
+.acoes-lib-linha:first-child { grid-template-columns: repeat(4, 1fr); }
+.acoes-lib-linha:last-child { grid-template-columns: repeat(3, 1fr); }
+.acoes-lib .botao { height: 40px; }
+
+/* Arquivo */
+.origem { height: 150px; flex: none; position: relative; border: 1px dashed var(--linha); border-radius: var(--raio-m); background: var(--superficie); }
+.origem .camada { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding: 14px 18px; text-align: center; }
+.origem .grande { width: 26px; height: 26px; color: var(--tinta-2); }
+.origem-nome { font-weight: 600; max-width: 100%; }
+.origem-meta { color: var(--tinta-2); font-size: var(--tam-pequeno); }
+.origem .botao { height: 34px; }
+.acoes-arq { height: calc(2 * var(--botao-altura) + var(--esp-2)); flex: none; display: grid; grid-template-rows: var(--botao-altura) var(--botao-altura); gap: var(--esp-2); }
+.acoes-arq-linha { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); }
+.progresso { flex: none; position: relative; height: calc(var(--altura-conteudo) - 2 * var(--pad-v) - 150px - (2 * var(--botao-altura) + var(--esp-2)) - 2 * var(--gap-gr)); border-radius: var(--raio-m); background: var(--superficie); }
+.progresso .camada { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.progresso .botao { height: 34px; }
+
+/* Opções: a lista rola desde a borda das abas; o que sobe some num degradê, como embaixo */
+[data-tela-painel="opcoes"] { padding-top: 0; }
+.opcoes-lista { height: calc(var(--altura-conteudo) - var(--pad-v)); flex: none; overflow-y: auto; scrollbar-gutter: stable; margin-right: calc(-1 * var(--pad-h) + 4px); padding-right: calc(var(--pad-h) - 8px); }
+.opcoes-lista { padding-top: var(--pad-v); padding-bottom: 24px; scroll-padding-block: calc(var(--pad-v) + 4px) 32px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0) var(--pad-v), rgb(0 0 0) calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0) var(--pad-v), rgb(0 0 0) calc(100% - 28px), transparent 100%); }
+.opcao { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.opcao:last-child { border-bottom: 0; }
+.opcao-nome { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--tinta); }
+.opcao-nome .ic { color: var(--tinta-2); }
+.opcao-ajuda { color: var(--tinta-2); font-size: var(--tam-pequeno); margin: 0; min-height: 17px; }
+.com-sinal { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.opcao-ajuda[data-sinal="aviso"] { color: var(--aviso); }
+.com-sinal .ic { width: 14px; height: 14px; }
+.opcao-ajuda .marcador { visibility: hidden; }
+.opcao-ajuda[data-sinal] .marcador { visibility: visible; }
+.campo { position: relative; display: block; }
+.campo select { width: 100%; height: 34px; appearance: none; border: 1px solid var(--linha); border-radius: var(--raio-s); background: var(--superficie); color: var(--tinta); font: inherit; padding: 0 30px 0 10px; text-overflow: ellipsis; }
+.campo select:disabled { color: var(--tinta-3); }
+.campo .ic { position: absolute; right: 9px; top: 9px; pointer-events: none; color: var(--tinta-2); }
+.segmentos button { height: 30px; }
+.par { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; min-width: 0; }
+.par .botao { height: 34px; padding: 0 12px; }
+.caminho { color: var(--tinta-2); font-size: var(--tam-pequeno); }
+.chave { min-width: 112px; }
+.chave[aria-checked="true"] { background: var(--acao); color: var(--acao-tinta); border-color: var(--acao); }

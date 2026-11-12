@@ -1,0 +1,113 @@
+/* Interface real do Reco: estrutura da janela (design/DESIGN.md R1 a R15). Toda cor, fonte, raio e densidade vem de
+   design/tokens.css (importado, nunca copiado); estas regras são as da vitrine (design/vitrine.modelo.html), com o
+   mínimo que a janela de verdade pede (sem moldura arredondada, borda de 1 px desenhada por cima). */
+@import "../../../../design/tokens.css";
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html { background: var(--fundo); }
+body { overflow: hidden; }
+
+.janela {
+  width: var(--janela-largura); height: var(--janela-altura); flex: none;
+  display: flex; flex-direction: column; overflow: hidden; position: relative;
+  background: var(--fundo); color: var(--tinta);
+  font-family: var(--fonte-ui); font-size: var(--tam-texto); line-height: 1.35;
+  outline: 1px solid var(--linha); outline-offset: -1px;
+  animation: surgir 220ms ease-out both;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+@keyframes surgir { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.janela ::selection { background: var(--selecao); color: var(--tinta); }
+.janela input, .janela pre, .janela select { user-select: text; }
+svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.janela svg.ic { width: 16px; height: 16px; flex: none; }
+.janela :where(button) { font: inherit; color: inherit; cursor: pointer; }
+.janela button:disabled { cursor: default; }
+.janela :focus-visible { outline: var(--foco-largura) solid var(--foco); outline-offset: -2px; }
+.janela [data-num] { font-variant-numeric: tabular-nums; }
+.corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* barra de título (arrastável pelo casco: data-tauri-drag-region) */
+.titulo { height: var(--altura-titulo); flex: none; display: flex; align-items: center; gap: 8px; padding: 0 4px 0 14px; background: var(--titulo-fundo); }
+.marca { width: 18px; height: 18px; color: var(--marca, var(--aba-marca)); flex: none; }
+.titulo-nome { font-family: var(--fonte-titulo); font-weight: 650; font-size: 14px; letter-spacing: -0.01em; }
+.versao {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; margin-left: 6px;
+  border: 1px solid var(--linha); border-radius: 999px; background: var(--superficie); color: var(--tinta-2); font-size: var(--tam-pequeno);
+  transition: opacity var(--dur), background-color var(--dur), color var(--dur);
+}
+.versao .ic { width: 14px; height: 14px; }
+.versao:hover { color: var(--tinta); }
+.versao[data-escondido] { visibility: hidden; opacity: 0; }
+.titulo-vao { flex: 1; align-self: stretch; }
+.janela-btn { width: 36px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--raio-s); background: transparent; color: var(--tinta-2); transition: background-color var(--dur), color var(--dur); }
+.janela-btn:hover { background: var(--superficie-2); color: var(--tinta); }
+
+/* abas */
+.abas { height: var(--altura-abas); flex: none; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--abas-fundo); border-bottom: 1px solid var(--linha); padding: 0 6px; }
+.aba {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0;
+  border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent;
+  color: var(--tinta-2); font-weight: 600; font-size: var(--tam-texto);
+  transition: color var(--dur), border-color var(--dur), background-color var(--dur);
+}
+.aba:hover { color: var(--tinta); }
+.aba[aria-selected="true"] { color: var(--aba-ativa); border-bottom-color: var(--aba-marca); }
+.aba[aria-disabled="true"] { color: var(--tinta-3); cursor: not-allowed; }
+
+/* conteúdo e telas: tudo empilhado e trocado por visibilidade (R7) */
+.conteudo { height: var(--altura-conteudo); flex: none; position: relative; overflow: hidden; }
+.tela { position: absolute; inset: 0; padding: var(--pad-v) var(--pad-h); display: flex; flex-direction: column; gap: var(--gap-gr); visibility: hidden; opacity: 0; transition: opacity var(--dur); }
+.tela[data-ativa] { visibility: visible; opacity: 1; }
+.camada { position: absolute; inset: 0; visibility: hidden; opacity: 0; transition: opacity var(--dur); }
+.camada[data-ativa] { visibility: visible; opacity: 1; }
+/* tela escondida esconde tudo dentro dela (senão uma camada ativa de outra tela roubava clique e roda do mouse) */
+.tela:not([data-ativa]) * { visibility: hidden !important; }
+
+/* status: uma linha só (R3) */
+.status {
+  height: var(--altura-status); flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 0 5px 0 14px; white-space: nowrap; overflow: hidden;
+  background: var(--status-fundo); color: var(--status-tinta, var(--tinta)); font-size: var(--tam-pequeno);
+}
+.status-texto { flex: 1; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.status[data-sinal="erro"] .status-icone { color: var(--status-erro, var(--erro)); }
+.status[data-sinal="aviso"] .status-icone { color: var(--status-aviso, var(--aviso)); }
+.status[data-sinal="rec"] .status-icone { fill: currentColor; color: var(--grava-texto); }
+[data-direcao="c"] .status[data-sinal="rec"] .status-icone { color: var(--marca); }
+.status[data-sinal="espera"] .status-icone { animation: pulso var(--dur-pulso) ease-in-out infinite; }
+.status-detalhes { height: 26px; padding: 0 10px; border: 1px solid currentColor; border-radius: var(--raio-s); background: transparent; font-size: var(--tam-pequeno); font-weight: 600; transition: opacity var(--dur), background-color var(--dur); }
+.status-detalhes[data-escondido] { visibility: hidden; opacity: 0; }
+
+/* botões: só cor muda no hover e no clique (R6) */
+.botao {
+  height: var(--botao-altura); min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px;
+  border: var(--borda-botao) solid var(--linha); border-radius: var(--raio-m);
+  background: var(--botao); color: var(--botao-tinta); font-weight: var(--peso-acao);
+  transition: background-color var(--dur), color var(--dur), border-color var(--dur);
+}
+.botao:hover:not(:disabled) { background: var(--botao-hover); }
+.botao:disabled, .botao[data-tom]:disabled { background: var(--superficie-2); border-color: var(--superficie-2); color: var(--tinta-3); box-shadow: none; }
+.botao[data-tom="acao"] { background: var(--acao); color: var(--acao-tinta); border-color: var(--acao); }
+.botao[data-tom="acao"]:hover:not(:disabled) { background: var(--acao-hover); border-color: var(--acao-hover); }
+.botao[data-tom="grava"] { background: var(--grava); color: var(--grava-tinta); border-color: var(--grava); }
+.botao[data-tom="grava"]:hover:not(:disabled) { background: var(--grava-hover); border-color: var(--grava-hover); }
+.botao[data-tom="perigo"] { color: var(--erro); }
+.botao[data-escondido] { visibility: hidden; opacity: 0; }
+.botao-pilha { flex-direction: column; gap: 3px; padding: 0 4px; font-size: var(--tam-pequeno); font-weight: 600; }
+.botao-pilha .ic { width: 16px; height: 16px; }
+.botao.baixo { height: 34px; }
+
+/* detalhe do erro, sobreposto ao conteúdo */
+.detalhe { position: absolute; inset: 0; z-index: 2; background: var(--sobre); padding: var(--pad-v) var(--pad-h); display: flex; flex-direction: column; gap: 10px; visibility: hidden; opacity: 0; transition: opacity var(--dur); }
+.detalhe[data-ativa] { visibility: visible; opacity: 1; }
+.detalhe pre { flex: 1; margin: 0; overflow: auto; scrollbar-gutter: stable; white-space: pre-wrap; word-break: break-word; font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; line-height: 1.5; color: var(--tinta); background: var(--superficie-2); border-radius: var(--raio-m); padding: 10px 12px; }
+.detalhe-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* movimento reduzido (R14): nada transiciona, nada pisca */
+@media (prefers-reduced-motion: reduce) {
+  .janela, .janela *, .janela *::before, .janela *::after { transition-duration: 0s !important; animation: none !important; }
+}

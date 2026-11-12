@@ -1,0 +1,121 @@
+/* Forma por skin (data-direcao no <html>, preferência casco_skin): só regras de forma; toda cor vem dos tokens.
+   Igual à vitrine (design/vitrine.modelo.html, "forma por direção"). */
+
+/* A "Fita": grafite em camadas, o contador é a peça grande, a lâmpada só no que grava */
+[data-direcao="a"] .titulo { padding-left: 16px; }
+[data-direcao="a"] .abas { padding: 5px 10px; gap: 4px; border-bottom: 0; }
+[data-direcao="a"] .aba { border: 0; margin: 0; border-radius: 999px; }
+[data-direcao="a"] .aba[aria-selected="true"] { background: var(--superficie); color: var(--aba-ativa); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+[data-direcao="a"] .cronometro { background: var(--visor); border-radius: var(--raio-l); padding: 0 16px 0 18px; box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.16); }
+[data-direcao="a"] .crono { color: var(--visor-tinta); }
+[data-direcao="a"] .rec { background: transparent; padding: 0; gap: 9px; font-size: 13px; }
+[data-direcao="a"] .rec .ic { width: 14px; height: 14px; }
+[data-direcao="a"] .rec[data-sinal="rec"] .ic { filter: drop-shadow(0 0 5px var(--grava)); }
+[data-direcao="a"] .medidor-barra { border-radius: 3px;
+  background: linear-gradient(to right, var(--medidor-fundo) 0 80%, var(--medidor-zona) 80%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.3); }
+[data-direcao="a"] .medidor-nivel { width: auto; right: 0;
+  background: linear-gradient(to right, var(--medidor-nivel) 0 80%, var(--grava) 80%);
+  clip-path: inset(0 calc(100% - var(--nivel, 0%)) 0 0); }
+[data-direcao="a"] .medidor-pico { top: -4px; bottom: -4px; width: 3px; border-radius: 2px; box-shadow: 0 0 6px var(--grava); }
+[data-direcao="a"] .ganho input { accent-color: var(--tinta-3); }
+[data-direcao="a"] .botao { border-radius: 999px; }
+[data-direcao="a"] .botao-pilha, [data-direcao="a"] .saidas .botao, [data-direcao="a"] .botoes-linha .botao { border-radius: var(--raio-m); }
+[data-direcao="a"] :is(.modo, .segmentos) { border: 0; border-radius: 999px; }
+[data-direcao="a"] :is(.modo-op, .segmentos button) { border-radius: 999px; }
+[data-direcao="a"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]) { box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+[data-direcao="a"] .painel, [data-direcao="a"] .progresso, [data-direcao="a"] .lista { border-radius: var(--raio-l); }
+[data-direcao="a"] .busca { border: 0; border-radius: 999px; background: var(--superficie-2); }
+
+/* B "Caderno": papel com pauta e margem; o texto em Sitka */
+[data-direcao="b"] .titulo { border-bottom: 1px solid var(--linha); }
+[data-direcao="b"] .abas { border-bottom: 1px solid var(--linha); }
+[data-direcao="b"] .aba[aria-selected="true"] { border-bottom-width: 2px; }
+[data-direcao="b"] .titulo-nome { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+[data-direcao="b"] .crono { color: var(--tinta); font-variant-numeric: lining-nums tabular-nums; }
+[data-direcao="b"] .cronometro { border-width: 0 0 2px; border-color: var(--linha); }
+[data-direcao="b"] .cronometro[data-gravando] { border-color: var(--grava); }
+[data-direcao="b"] .rec { background: transparent; padding: 0; font-family: var(--fonte-texto); font-size: 14px; font-style: italic; font-weight: 400; }
+[data-direcao="b"] .botao { box-shadow: none; }
+[data-direcao="b"] .botao[data-tom="grava"], [data-direcao="b"] .botao[data-tom="acao"] { font-family: var(--fonte-ui); }
+[data-direcao="b"] .ao-vivo .quem { font-style: italic; font-weight: 600; }
+[data-direcao="b"] .painel .camada:is([data-variante="parado"], [data-variante="erro"], [data-variante="pronta"], [data-variante="transcrevendo"]) { background: var(--superficie); border-radius: var(--raio-m); }
+[data-direcao="b"] .medidor-barra { border-radius: 0; }
+[data-direcao="b"] .progresso, [data-direcao="b"] .lista, [data-direcao="b"] .origem { border: 1px solid var(--linha); background: var(--superficie); }
+[data-direcao="b"] .origem { border-style: dashed; }
+[data-direcao="b"] .lista { background-image: linear-gradient(to right, transparent 30px, var(--margem) 30px, var(--margem) 31px, transparent 31px); }
+[data-direcao="b"] .painel {
+  border: 1px solid var(--linha);
+  background-color: var(--superficie);
+  background-image: linear-gradient(to right, transparent 30px, var(--margem) 30px, var(--margem) 31px, transparent 31px);
+}
+[data-direcao="b"] .painel .camada { padding: 18px 14px 12px 42px; gap: 0; line-height: var(--linha-painel);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--linha-painel) - 1px), var(--pauta) calc(var(--linha-painel) - 1px), var(--pauta) var(--linha-painel));
+  background-position: 0 12px; }
+[data-direcao="b"] .painel { --vivo-respiro: 18px; }
+[data-direcao="b"] .painel .ao-vivo { padding-top: var(--vivo-respiro); background-attachment: local; }
+[data-direcao="b"] .vivo-segue { left: 42px; }
+[data-direcao="b"] .vivo-segue .quem { font-style: italic; font-weight: 600; }
+[data-direcao="b"] .painel .camada:is([data-variante="erro"], [data-variante="pronta"], [data-variante="transcrevendo"]) { padding: 12px 14px; }
+[data-direcao="b"] .linha-info, [data-direcao="b"] .painel .painel-titulo, [data-direcao="b"] .painel .progresso-linha { height: var(--linha-painel); }
+[data-direcao="b"] .painel .barra { margin: 8px 0; }
+[data-direcao="b"] .painel .camada[data-variante="parado"] { padding: 10px; }
+[data-direcao="b"] .lista .vazio { background: var(--superficie); }
+[data-direcao="b"] .item { border-bottom: 1px solid var(--pauta); }
+[data-direcao="b"] .lista-grade { padding-left: 38px; }
+[data-direcao="b"] .lista-corpo { background: transparent; }
+[data-direcao="b"] .lista-cabeca { background: var(--superficie); }
+[data-direcao="b"] .painel-titulo { font-size: 16px; font-weight: 600; }
+[data-direcao="b"] .linha-info span, [data-direcao="b"] .painel-nota { font-family: var(--fonte-texto); font-size: 14px; }
+[data-direcao="b"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]) { color: var(--acao); box-shadow: inset 0 -2px 0 var(--acao); }
+[data-direcao="b"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]):disabled { color: var(--tinta-2); box-shadow: inset 0 -2px 0 var(--tinta-3); }
+[data-direcao="b"] .botao[data-tom="perigo"] { border-color: var(--linha); }
+[data-direcao="b"] .busca { border-width: 0 0 1px; border-radius: 0; background: transparent; }
+[data-direcao="b"] .opcao-nome { font-family: var(--fonte-titulo); font-size: 15px; font-weight: 600; }
+
+/* C "Instrumento": alumínio, visores escuros, teclas retas, escala à vista */
+[data-direcao="c"] .titulo { border-bottom: 1px solid var(--linha); }
+[data-direcao="c"] .titulo-nome { font-weight: 600; font-size: 15px; letter-spacing: 0.02em; }
+[data-direcao="c"] .abas { padding: 6px 8px 0; gap: 4px; border-bottom: 1px solid var(--linha); }
+[data-direcao="c"] .aba { border: 1px solid var(--linha); border-bottom: 0; margin-bottom: 0; background: var(--superficie-2); font-family: var(--fonte-rotulo); font-size: 13px; letter-spacing: 0.01em; position: relative; }
+[data-direcao="c"] .aba::after { content: ""; position: absolute; left: 10px; right: 10px; top: 4px; height: 2px; background: var(--linha); transition: background-color var(--dur); }
+[data-direcao="c"] .aba[aria-selected="true"] { background: var(--superficie); }
+[data-direcao="c"] .aba[aria-selected="true"]::after { background: var(--aba-marca); }
+[data-direcao="c"] .cronometro { background: var(--visor); color: var(--visor-tinta); padding: 0 14px; border-radius: var(--raio-m); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5); }
+[data-direcao="c"] .crono { color: var(--visor-tinta); }
+[data-direcao="c"] .rec { background: transparent; color: var(--visor-tinta-2); padding: 0; font-family: var(--fonte-rotulo); font-size: 13px; }
+[data-direcao="c"] .rec[data-sinal="rec"] { color: var(--medidor-pico); }
+[data-direcao="c"] .rec[data-sinal="erro"] { color: var(--visor-tinta); }
+[data-direcao="c"] .medidores { background: var(--visor); color: var(--visor-tinta); padding: 4px 12px 10px; border-radius: var(--raio-m); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5); }
+[data-direcao="c"] .medidor { color: var(--visor-tinta-2); grid-template-columns: 16px 64px 1fr 100px; }
+[data-direcao="c"] .medidor[data-fora] { color: var(--visor-tinta-2); }
+[data-direcao="c"] .medidor-nome { font-family: var(--fonte-rotulo); font-weight: 400; font-size: 13px; color: var(--visor-tinta); }
+[data-direcao="c"] .medidor-barra { border-radius: 0; margin-bottom: 12px;
+  background: repeating-linear-gradient(to right, var(--medidor-fundo) 0 5px, transparent 5px 7px); }
+[data-direcao="c"] .medidor-nivel { border-radius: 0;
+  background: repeating-linear-gradient(to right, var(--medidor-nivel) 0 5px, transparent 5px 7px); }
+[data-direcao="c"] .medidor-pico { top: 0; bottom: 0; width: 5px; }
+[data-direcao="c"] .medidor-escala { visibility: visible; }
+[data-direcao="c"] .ganho input { accent-color: var(--visor-tinta-2); }
+[data-direcao="c"] .cronometro[data-gravando] { border-color: var(--medidor-pico); }
+[data-direcao="c"] .botao[data-tom="grava"]:not(:disabled) { background: var(--acao); color: var(--acao-tinta); border-color: var(--acao); }
+[data-direcao="c"] .botao[data-tom="grava"]:hover:not(:disabled) { background: var(--acao-hover); border-color: var(--acao-hover); }
+[data-direcao="c"] .status { font-family: var(--fonte-ui); font-size: var(--tam-pequeno); letter-spacing: 0; border-top: 1px solid var(--linha); }
+[data-direcao="c"] .ganho output { color: var(--visor-tinta); font-weight: 400; }
+[data-direcao="c"] .botao { box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.14); font-family: var(--fonte-rotulo); font-weight: 600; font-size: 14px; letter-spacing: 0.01em; }
+[data-direcao="c"] .botao-pilha { font-size: 12.5px; }
+[data-direcao="c"] .botoes-linha .botao { font-size: 12.5px; }
+[data-direcao="c"] :is(.modo, .segmentos) { border-radius: 0; padding: 2px; }
+[data-direcao="c"] :is(.modo-op, .segmentos button) { border-radius: 0; font-family: var(--fonte-rotulo); font-size: 14px; font-weight: 400; }
+[data-direcao="c"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]) { box-shadow: inset 0 0 0 1px var(--linha), inset 0 3px 0 var(--aba-marca); }
+[data-direcao="c"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]):disabled { box-shadow: inset 0 0 0 1px var(--linha), inset 0 3px 0 var(--tinta-3); }
+[data-direcao="c"] .painel, [data-direcao="c"] .progresso, [data-direcao="c"] .lista, [data-direcao="c"] .origem { border: 1px solid var(--linha); background: var(--superficie); }
+[data-direcao="c"] .painel-titulo, [data-direcao="c"] .opcao-nome { font-family: var(--fonte-rotulo); font-size: 15px; font-weight: 600; }
+[data-direcao="c"] .lista-cabeca { font-family: var(--fonte-rotulo); font-weight: 400; font-size: 13px; background: var(--superficie-2); }
+[data-direcao="c"] .item { font-size: 12.5px; }
+[data-direcao="c"] .item[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--medidor-pico); }
+[data-direcao="c"] .barra { border-radius: 0; height: 10px; }
+[data-direcao="c"] .barra-cheia { border-radius: 0; background: repeating-linear-gradient(to right, var(--acao) 0 5px, transparent 5px 7px); }
+[data-direcao="c"] .progresso-linha [data-num] { font-size: 18px; font-weight: 400; }
+[data-direcao="c"] .versao { border-radius: 0; }
+[data-direcao="c"] .rec .ic { width: 10px; height: 10px; }

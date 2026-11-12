@@ -1,13 +1,260 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-direcao="a">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reco</title>
   </head>
   <body>
-    <!-- Esqueleto da Fase 3 (passo 3). A interface (passos 11 a 13) espera a direção visual da Fase 1. -->
-    <main id="app"></main>
+    <!-- Estrutura da janela (design/DESIGN.md, áreas data-area): nasce uma vez; o código só troca texto, atributo e
+         classe (atualização pontual). Textos por chave: data-t (texto), data-t-aria, data-t-title, data-t-ph. -->
+    <section class="janela" data-area="janela" aria-label="Reco">
+      <header class="titulo" data-area="titulo" data-tauri-drag-region data-paridade="janela">
+        <svg class="marca" data-marca viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 3.5a8.5 8.5 0 0 0 0 17z"/><path fill="currentColor" d="M13 3.5a8.5 8.5 0 0 1 0 17z"/></svg>
+        <span class="titulo-nome" data-tauri-drag-region>Reco</span>
+        <button type="button" class="versao" data-ref="versao" data-acao="versao" data-escondido><svg class="ic" data-lucide="circle-arrow-up"><use href="#i-circle-arrow-up"/></svg><span data-ref="versao-texto" data-num></span></button>
+        <span class="titulo-vao" data-tauri-drag-region></span>
+        <button type="button" class="janela-btn" data-acao="minimizar" data-t-aria="titulo.minimizar" data-t-title="titulo.minimizar"><svg class="ic" data-lucide="minus"><use href="#i-minus"/></svg></button>
+        <button type="button" class="janela-btn" data-acao="fechar" data-t-aria="titulo.fechar" data-t-title="titulo.fechar"><svg class="ic" data-lucide="x"><use href="#i-x"/></svg></button>
+      </header>
+
+      <nav class="abas" data-area="abas" role="tablist" data-t-aria="abas.rotulo" data-paridade="telas">
+        <button type="button" class="aba" role="tab" data-acao="aba" data-tela="gravar"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><span class="aba-rotulo" data-t="aba.gravar"></span></button>
+        <button type="button" class="aba" role="tab" data-acao="aba" data-tela="biblioteca"><svg class="ic" data-lucide="library"><use href="#i-library"/></svg><span class="aba-rotulo" data-t="aba.biblioteca"></span></button>
+        <button type="button" class="aba" role="tab" data-acao="aba" data-tela="arquivo"><svg class="ic" data-lucide="file-audio" data-ref="aba-arquivo-icone"><use href="#i-file-audio"/></svg><span class="aba-rotulo" data-t="aba.arquivo"></span></button>
+        <button type="button" class="aba" role="tab" data-acao="aba" data-tela="opcoes"><svg class="ic" data-lucide="settings-2"><use href="#i-settings-2"/></svg><span class="aba-rotulo" data-t="aba.opcoes"></span></button>
+      </nav>
+
+      <main class="conteudo" data-area="conteudo">
+        <!-- Gravar -->
+        <div class="tela" role="tabpanel" data-tela-painel="gravar">
+          <div class="cronometro" data-area="cronometro" data-ref="cronometro" data-paridade="estados">
+            <span class="crono" data-num data-ref="crono">00:00:00</span>
+            <span class="rec" data-ref="rec" data-sinal="info"><svg class="ic" data-lucide="circle" data-ref="rec-icone"><use href="#i-circle"/></svg><span data-ref="rec-texto"></span></span>
+          </div>
+          <div class="medidores" data-area="medidores" data-paridade="vu-ganho">
+            <div class="medidor" data-ref="medidor-mic">
+              <svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><span class="medidor-nome" data-t="g.microfone"></span>
+              <div class="medidor-barra" data-ref="barra-mic"><span class="medidor-nivel"></span><span class="medidor-pico"></span><span class="medidor-escala" aria-hidden="true"><span>-48</span><span>-24</span><span>-12</span><span>-6</span><span>0 dB</span></span></div>
+              <label class="ganho"><input type="range" min="0" max="1000" step="1" value="500" data-ref="ganho-mic" data-canal="mic" data-t-aria="g.ganho-mic"><output data-num data-ref="ganho-mic-valor">1,0×</output></label>
+            </div>
+            <div class="medidor" data-ref="medidor-sis">
+              <svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><span class="medidor-nome" data-t="g.sistema"></span>
+              <div class="medidor-barra" data-ref="barra-sis"><span class="medidor-nivel"></span><span class="medidor-pico"></span><span class="medidor-escala" aria-hidden="true"><span>-48</span><span>-24</span><span>-12</span><span>-6</span><span>0 dB</span></span></div>
+              <label class="ganho"><input type="range" min="0" max="1000" step="1" value="500" data-ref="ganho-sis" data-canal="sis" data-t-aria="g.ganho-sis"><output data-num data-ref="ganho-sis-valor">1,0×</output></label>
+            </div>
+          </div>
+          <div class="acoes" data-area="acoes" data-paridade="apos-parar">
+            <div class="acoes-linha">
+              <button type="button" class="botao" data-acao="principal" data-ref="principal" data-tom="grava"><svg class="ic" data-lucide="circle" data-ref="principal-icone"><use href="#i-circle"/></svg><span class="corta" data-ref="principal-texto"></span></button>
+              <button type="button" class="botao" data-acao="secundario" data-ref="secundario"><svg class="ic" data-lucide="pause" data-ref="secundario-icone"><use href="#i-pause"/></svg><span class="corta" data-ref="secundario-texto"></span></button>
+            </div>
+            <div class="modo" role="radiogroup" data-t-aria="g.modo" data-paridade="nota">
+              <button type="button" class="modo-op" role="radio" data-acao="modo" data-modo="gravacao" aria-checked="true"><svg class="ic" data-lucide="audio-lines"><use href="#i-audio-lines"/></svg><span data-t="g.modo-gravacao"></span></button>
+              <button type="button" class="modo-op" role="radio" data-acao="modo" data-modo="nota" aria-checked="false"><svg class="ic" data-lucide="notebook-pen"><use href="#i-notebook-pen"/></svg><span data-t="g.modo-nota"></span></button>
+            </div>
+          </div>
+          <div class="painel" data-area="painel">
+            <div class="camada" data-variante="motor">
+              <div class="painel-titulo"><span class="espera"></span><span data-t="g.motor-titulo"></span></div>
+              <p class="painel-nota" data-t="g.motor-nota"></p>
+            </div>
+            <div class="camada" data-variante="pronto">
+              <div class="linha-info"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><b data-t="g.entrada"></b><span class="corta" data-ref="info-mic"></span></div>
+              <div class="linha-info"><svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><b data-t="g.saida"></b><span class="corta" data-ref="info-sis"></span></div>
+              <div class="linha-info"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><b data-t="g.pasta"></b><span class="corta" data-ref="info-pasta"></span></div>
+              <p class="painel-nota" data-t="g.pronto-nota"></p>
+            </div>
+            <div class="camada" data-variante="gravando">
+              <div class="linha-info"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><b data-t="g.pasta"></b><span class="corta" data-ref="grav-pasta"></span></div>
+              <div class="linha-info"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><b data-t="g.entrada"></b><span class="corta" data-ref="grav-mic"></span></div>
+              <div class="linha-info"><svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><b data-t="g.saida"></b><span class="corta" data-ref="grav-sis"></span></div>
+              <p class="painel-nota" data-t="g.gravando-nota"></p>
+            </div>
+            <div class="camada ao-vivo" data-variante="aovivo" data-ref="aovivo" data-paridade="ao-vivo"></div>
+            <div class="vivo-segue" data-ref="vivo-segue" aria-hidden="true"><span class="quem" data-ref="vivo-segue-quem"></span><span>…</span></div>
+            <div class="camada" data-variante="nota">
+              <div class="painel-titulo"><svg class="ic" data-lucide="notebook-pen"><use href="#i-notebook-pen"/></svg><span data-t="g.nota-titulo"></span></div>
+              <p class="painel-nota" data-t="g.nota-nota"></p>
+            </div>
+            <div class="camada" data-variante="parado">
+              <div class="saidas">
+                <button type="button" class="botao" data-acao="salvar-transcrever"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-t="g.salvar-transcrever"></span></button>
+                <button type="button" class="botao" data-acao="so-salvar"><svg class="ic" data-lucide="save"><use href="#i-save"/></svg><span class="corta" data-t="g.so-salvar"></span></button>
+                <button type="button" class="botao" data-acao="transcrever-apagar"><svg class="ic" data-lucide="file-minus"><use href="#i-file-minus"/></svg><span class="corta" data-t="g.transcrever-apagar"></span></button>
+                <button type="button" class="botao" data-tom="perigo" data-acao="excluir"><svg class="ic" data-lucide="trash-2"><use href="#i-trash-2"/></svg><span class="corta" data-t="g.excluir"></span></button>
+              </div>
+            </div>
+            <div class="camada" data-variante="transcrevendo" data-paridade="parar-tr">
+              <div class="painel-titulo"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-ref="tr-arquivo"></span></div>
+              <div class="progresso-linha"><span class="corta" data-ref="tr-tarefa"></span><span data-num data-ref="tr-pct"></span></div>
+              <div class="barra" data-ref="tr-barra"><span class="barra-cheia"></span></div>
+              <div class="botoes-linha uma"><button type="button" class="botao" data-acao="parar-transcricao" data-ref="parar-transcricao"><svg class="ic" data-lucide="square"><use href="#i-square"/></svg><span class="corta" data-t="g.parar-transcricao"></span></button></div>
+            </div>
+            <div class="camada" data-variante="pronta">
+              <div class="painel-titulo"><svg class="ic" data-lucide="circle-check"><use href="#i-circle-check"/></svg><span class="corta" data-ref="pronta-titulo"></span></div>
+              <div class="linha-info"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><b data-t="g.texto"></b><span class="corta" data-ref="pronta-arquivo"></span></div>
+              <div class="botoes-linha">
+                <button type="button" class="botao" data-tom="acao" data-acao="abrir-transcricao" data-ref="g-abrir-transcricao"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-t="g.abrir-transcricao"></span></button>
+                <button type="button" class="botao" data-acao="copiar-caminho"><svg class="ic" data-lucide="copy"><use href="#i-copy"/></svg><span class="corta" data-t="g.copiar-caminho"></span></button>
+                <button type="button" class="botao" data-acao="abrir-pasta"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span class="corta" data-t="g.abrir-pasta"></span></button>
+              </div>
+            </div>
+            <div class="camada" data-variante="erro">
+              <div class="painel-titulo"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span class="corta" data-ref="erro-titulo"></span></div>
+              <p class="painel-nota" data-ref="erro-nota"></p>
+              <div class="botoes-linha uma">
+                <button type="button" class="botao" data-acao="erro-saida" data-ref="erro-botao"><svg class="ic" data-lucide="settings-2" data-ref="erro-botao-icone"><use href="#i-settings-2"/></svg><span class="corta" data-ref="erro-botao-texto"></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Biblioteca -->
+        <div class="tela" role="tabpanel" data-tela-painel="biblioteca" data-paridade="biblioteca">
+          <label class="busca" data-area="busca"><svg class="ic" data-lucide="search"><use href="#i-search"/></svg><input type="search" data-ref="busca" data-t-ph="b.buscar" data-t-aria="b.buscar-rotulo"><span class="busca-conta" data-num data-ref="busca-conta">0</span></label>
+          <div class="lista" data-area="lista">
+            <div class="lista-grade lista-cabeca"><span data-t="b.arquivo"></span><span data-t="b.duracao"></span><span data-t="b.texto"></span></div>
+            <div class="lista-corpo" data-ref="lista-corpo" role="listbox" data-t-aria="b.lista"></div>
+            <div class="camada vazio" data-variante="lib-vazia"><svg class="ic" data-lucide="library"><use href="#i-library"/></svg><span data-ref="vazia-texto"></span><button type="button" class="botao" data-tom="grava" data-acao="ir-gravar"><svg class="ic" data-lucide="circle"><use href="#i-circle"/></svg><span data-t="b.gravar-primeira"></span></button></div>
+            <div class="camada vazio" data-variante="lib-sem"><svg class="ic" data-lucide="search"><use href="#i-search"/></svg><span class="corta sem-texto" data-ref="sem-texto"></span><button type="button" class="botao" data-acao="limpar-busca"><svg class="ic" data-lucide="x"><use href="#i-x"/></svg><span data-t="b.limpar-busca"></span></button></div>
+            <div class="camada vazio" data-variante="lib-erro"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span data-t="b.erro-pasta"></span><button type="button" class="botao" data-acao="ir-opcoes"><svg class="ic" data-lucide="folder-input"><use href="#i-folder-input"/></svg><span data-t="b.escolher-outra"></span></button></div>
+          </div>
+          <div class="acoes-lib" data-area="acoes-lib" data-paridade="resumo-ia">
+            <div class="acoes-lib-linha">
+              <button type="button" class="botao botao-pilha" data-acao="lib-ouvir" data-precisa-item><svg class="ic" data-lucide="play"><use href="#i-play"/></svg><span class="corta" data-t="b.ouvir"></span></button>
+              <button type="button" class="botao botao-pilha" data-acao="lib-transcrever" data-precisa-item data-ref="lib-transcrever"><svg class="ic" data-lucide="file-text" data-ref="lib-transcrever-icone"><use href="#i-file-text"/></svg><span class="corta" data-ref="lib-transcrever-texto"></span></button>
+              <button type="button" class="botao botao-pilha" data-acao="lib-abrir" data-precisa-item data-ref="lib-abrir"><svg class="ic" data-lucide="file-check"><use href="#i-file-check"/></svg><span class="corta" data-t="b.abrir-texto"></span></button>
+              <button type="button" class="botao botao-pilha" data-acao="lib-resumo" data-precisa-item data-ref="lib-resumo"><svg class="ic" data-lucide="sparkles"><use href="#i-sparkles"/></svg><span class="corta" data-ref="lib-resumo-texto"></span></button>
+            </div>
+            <div class="acoes-lib-linha">
+              <button type="button" class="botao botao-pilha" data-tom="perigo" data-acao="lib-excluir" data-precisa-item><svg class="ic" data-lucide="trash-2"><use href="#i-trash-2"/></svg><span class="corta" data-t="b.excluir"></span></button>
+              <button type="button" class="botao botao-pilha" data-acao="lib-pasta"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span class="corta" data-t="b.abrir-pasta"></span></button>
+              <button type="button" class="botao botao-pilha" data-acao="lib-atualizar"><svg class="ic" data-lucide="refresh-cw"><use href="#i-refresh-cw"/></svg><span class="corta" data-t="b.atualizar"></span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arquivo: uma origem e duas ações (F1-D4) -->
+        <div class="tela" role="tabpanel" data-tela-painel="arquivo">
+          <div class="origem" data-area="origem" data-paridade="transcrever">
+            <div class="camada" data-variante="arq-nada">
+              <svg class="ic grande" data-lucide="file-music"><use href="#i-file-music"/></svg>
+              <span class="origem-nome" data-t="a.escolha"></span>
+              <span class="origem-meta" data-t="a.formatos"></span>
+              <button type="button" class="botao" data-tom="acao" data-acao="arq-escolher" data-ref="arq-escolher"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span data-t="a.escolher"></span></button>
+            </div>
+            <div class="camada" data-variante="arq-escolhido">
+              <svg class="ic grande" data-lucide="file-audio"><use href="#i-file-audio"/></svg>
+              <span class="origem-nome corta" data-ref="arq-nome"></span>
+              <span class="origem-meta" data-ref="arq-meta"></span>
+              <button type="button" class="botao" data-acao="arq-escolher" data-ref="arq-trocar"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span data-t="a.trocar"></span></button>
+            </div>
+          </div>
+          <div class="acoes-arq" data-area="acoes-arq" data-paridade="converter">
+            <div class="acoes-arq-linha">
+              <button type="button" class="botao" data-tom="acao" data-acao="arq-transcrever" data-ref="arq-transcrever"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-t="a.transcrever"></span></button>
+              <button type="button" class="botao" data-acao="arq-converter" data-ref="arq-converter"><svg class="ic" data-lucide="file-music"><use href="#i-file-music"/></svg><span class="corta" data-t="a.converter"></span></button>
+            </div>
+            <div class="acoes-arq-linha">
+              <button type="button" class="botao" data-acao="arq-parar" data-ref="arq-parar"><svg class="ic" data-lucide="square"><use href="#i-square"/></svg><span class="corta" data-t="a.parar"></span></button>
+              <button type="button" class="botao" data-acao="arq-pasta" data-ref="arq-pasta"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span class="corta" data-t="a.abrir-pasta"></span></button>
+            </div>
+          </div>
+          <div class="progresso" data-area="progresso">
+            <div class="camada" data-variante="arq-ocioso"><p class="painel-nota" data-t="a.ocioso"></p></div>
+            <div class="camada" data-variante="arq-andando">
+              <div class="progresso-linha"><span class="corta" data-ref="arq-tarefa"></span><span data-num data-ref="arq-pct"></span></div>
+              <div class="barra" data-ref="arq-barra"><span class="barra-cheia"></span></div>
+              <span class="painel-nota corta" data-ref="arq-falta"></span>
+            </div>
+            <div class="camada" data-variante="arq-pronto">
+              <div class="painel-titulo"><svg class="ic" data-lucide="circle-check"><use href="#i-circle-check"/></svg><span class="corta" data-ref="arq-saida"></span></div>
+              <div class="botoes-linha duas"><button type="button" class="botao" data-tom="acao" data-acao="arq-abrir" data-ref="arq-abrir"><svg class="ic" data-lucide="file-text" data-ref="arq-abrir-icone"><use href="#i-file-text"/></svg><span class="corta" data-ref="arq-abrir-texto"></span></button><button type="button" class="botao" data-acao="arq-copiar"><svg class="ic" data-lucide="copy"><use href="#i-copy"/></svg><span class="corta" data-t="a.copiar-caminho"></span></button></div>
+            </div>
+            <div class="camada" data-variante="arq-erro">
+              <div class="painel-titulo"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span class="corta" data-ref="arq-erro-titulo"></span></div>
+              <p class="painel-nota" data-ref="arq-erro-nota"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Opções: Visual e Aparência no topo (DESIGN.md, Telas § 9, decisão de 12/11) -->
+        <div class="tela" role="tabpanel" data-tela-painel="opcoes">
+          <div class="opcoes-lista" data-area="opcoes-lista" data-paridade="opcoes">
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="palette"><use href="#i-palette"/></svg><span data-t="o.visual"></span></span>
+              <div class="segmentos" data-grupo="skin" role="group" data-t-aria="o.visual">
+                <button type="button" data-acao="skin" data-skin="a" aria-pressed="true"><span data-t="o.fita"></span></button>
+                <button type="button" data-acao="skin" data-skin="b" aria-pressed="false"><span data-t="o.caderno"></span></button>
+                <button type="button" data-acao="skin" data-skin="c" aria-pressed="false"><span data-t="o.instrumento"></span></button>
+              </div>
+              <p class="opcao-ajuda" data-t="o.visual-ajuda"></p>
+            </div>
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="sun-moon"><use href="#i-sun-moon"/></svg><span data-t="o.aparencia"></span></span>
+              <div class="segmentos" data-grupo="aparencia" role="group" data-t-aria="o.aparencia"><button type="button" data-acao="aparencia" data-tema="sistema" aria-pressed="true"><span data-t="o.sistema"></span></button><button type="button" data-acao="aparencia" data-tema="claro" aria-pressed="false"><span data-t="o.claro"></span></button><button type="button" data-acao="aparencia" data-tema="escuro" aria-pressed="false"><span data-t="o.escuro"></span></button></div>
+            </div>
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><span data-t="o.entrada"></span></span>
+              <label class="campo"><select data-ref="sel-mic" data-campo="mic_device" data-t-aria="o.entrada"></select><svg class="ic" data-lucide="chevron-down"><use href="#i-chevron-down"/></svg></label>
+              <span class="opcao-nome"><svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><span data-t="o.saida"></span></span>
+              <label class="campo"><select data-ref="sel-sis" data-campo="sys_device" data-t-aria="o.saida"></select><svg class="ic" data-lucide="chevron-down"><use href="#i-chevron-down"/></svg></label>
+              <p class="opcao-ajuda com-sinal" data-ref="ajuda-dispositivo"><svg class="ic marcador" data-lucide="triangle-alert" data-ref="ajuda-dispositivo-icone"><use href="#i-triangle-alert"/></svg><span class="corta" data-ref="ajuda-dispositivo-texto"></span></p>
+              <div><button type="button" class="botao baixo" data-acao="atualizar-disp" data-ref="atualizar-disp"><svg class="ic" data-lucide="refresh-cw"><use href="#i-refresh-cw"/></svg><span data-t="o.atualizar-disp"></span></button></div>
+            </div>
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span data-t="o.pasta"></span></span>
+              <div class="par"><span class="caminho corta" data-ref="op-pasta"></span><button type="button" class="botao" data-acao="op-pasta" data-ref="op-pasta-btn"><span data-t="o.escolher"></span></button></div>
+            </div>
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="notebook-pen"><use href="#i-notebook-pen"/></svg><span data-t="o.nota-pasta"></span></span>
+              <div class="par"><span class="caminho corta" data-ref="op-nota"></span><button type="button" class="botao" data-acao="op-nota" data-ref="op-nota-btn"><span data-t="o.escolher"></span></button></div>
+            </div>
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="cpu"><use href="#i-cpu"/></svg><span data-t="o.processar"></span></span>
+              <div class="segmentos" data-grupo="processar" role="group" data-t-aria="o.processar"><button type="button" data-acao="processar" data-valor="AUTO" aria-pressed="true">Auto</button><button type="button" data-acao="processar" data-valor="GPU" aria-pressed="false">GPU</button><button type="button" data-acao="processar" data-valor="NPU" aria-pressed="false">NPU</button><button type="button" data-acao="processar" data-valor="CPU" aria-pressed="false">CPU</button></div>
+              <p class="opcao-ajuda" data-t="o.processar-ajuda"></p>
+            </div>
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="captions"><use href="#i-captions"/></svg><span data-t="o.ao-vivo"></span></span>
+              <div class="par"><span class="opcao-ajuda" data-t="o.ao-vivo-ajuda"></span><button type="button" class="botao chave" role="switch" aria-checked="false" data-acao="ao-vivo" data-ref="ao-vivo"><span data-ref="ao-vivo-texto"></span></button></div>
+            </div>
+            <div class="opcao" data-paridade="i18n">
+              <span class="opcao-nome"><svg class="ic" data-lucide="languages"><use href="#i-languages"/></svg><span data-t="o.idioma"></span></span>
+              <div class="segmentos" data-grupo="idioma" role="group" data-t-aria="o.idioma"><button type="button" data-acao="idioma" data-idioma="pt" aria-pressed="true">Português</button><button type="button" data-acao="idioma" data-idioma="en" aria-pressed="false">English</button></div>
+            </div>
+            <div class="opcao" data-paridade="atalho">
+              <span class="opcao-nome"><svg class="ic" data-lucide="keyboard"><use href="#i-keyboard"/></svg><span data-t="o.atalho"></span></span>
+              <div class="par"><span class="opcao-ajuda com-sinal" data-ref="ajuda-atalho"><svg class="ic marcador" data-lucide="triangle-alert"><use href="#i-triangle-alert"/></svg><span class="corta" data-num data-ref="ajuda-atalho-texto">Ctrl+Shift+R</span></span><button type="button" class="botao chave" role="switch" aria-checked="false" data-acao="atalho" data-ref="atalho"><span data-ref="atalho-texto"></span></button></div>
+            </div>
+            <div class="opcao">
+              <span class="opcao-nome"><svg class="ic" data-lucide="power"><use href="#i-power"/></svg><span data-t="o.autostart"></span></span>
+              <div class="par"><span class="opcao-ajuda" data-t="o.autostart-ajuda"></span><button type="button" class="botao chave" role="switch" aria-checked="false" data-acao="autostart" data-ref="autostart"><span data-ref="autostart-texto"></span></button></div>
+            </div>
+            <div class="opcao" data-paridade="atualizacoes">
+              <span class="opcao-nome"><svg class="ic" data-lucide="info"><use href="#i-info"/></svg><span data-t="o.versao"></span></span>
+              <div class="par"><span class="caminho corta" data-num data-ref="op-versao"></span><button type="button" class="botao" data-acao="versao" data-ref="op-versao-btn" data-escondido><span data-t="o.baixar-versao"></span></button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detalhe" data-ref="detalhe" role="dialog" data-t-aria="d.titulo">
+          <div class="painel-titulo"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span data-t="d.titulo"></span></div>
+          <pre data-ref="detalhe-texto"></pre>
+          <div class="detalhe-acoes">
+            <button type="button" class="botao" data-tom="acao" data-acao="copiar-erro"><svg class="ic" data-lucide="clipboard-copy"><use href="#i-clipboard-copy"/></svg><span data-t="d.copiar"></span></button>
+            <button type="button" class="botao" data-acao="fechar-detalhe"><svg class="ic" data-lucide="x"><use href="#i-x"/></svg><span data-t="d.fechar"></span></button>
+          </div>
+        </div>
+      </main>
+
+      <footer class="status" data-area="status" data-sinal="info" data-paridade="status">
+        <svg class="ic status-icone" data-lucide="info" data-ref="status-icone"><use href="#i-info"/></svg>
+        <span class="status-texto" data-ref="status-texto"></span>
+        <button type="button" class="status-detalhes" data-acao="detalhes" data-ref="status-detalhes" data-escondido><span data-t="st.detalhes"></span></button>
+      </footer>
+    </section>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

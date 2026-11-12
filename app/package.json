@@ -9,6 +9,7 @@
     "ui:dev": "vite",
     "ui:build": "tsc --noEmit && vite build",
     "ui:preview": "vite preview --port 1431 --strictPort",
+    "i18n:check": "node scripts/i18n-check.cjs",
     "tauri": "tauri",
     "dev": "tauri dev",
     "build": "tauri build"

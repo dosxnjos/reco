@@ -358,7 +358,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      Ctrl+Shift+R mostra a janela com o foreground nela; desligados os dois → o `reg query` não acha, o atalho
      não responde. Pendente: "foco no botão principal" (não há botão até o passo 12); a sobra no
      `StartupApproved\Run` foi apagada à mão (pegadinha nova). Detalhe no relatório da fase.
-11. [ ] Base da interface em `app/ui/src/`: `backend.ts`, `mock.ts`, i18n por códigos e o padrão de componente — **prova:** `npm --prefix app run ui:build` → `built in` sem erro de tipo, e `npm --prefix app run i18n:check` → `0 faltando`
+11. [x] Base da interface em `app/ui/src/`: `backend.ts`, `mock.ts`, i18n por códigos e o padrão de componente — **prova:** `npm --prefix app run ui:build` → `built in` sem erro de tipo, e `npm --prefix app run i18n:check` → `0 faltando`
    **reprova se:** o build passa com `any` implícito ou existe código sem par PT/EN.
    - `backend.ts`: molde `C:\Dev\lacre\ui\src\backend.ts:1-73`, com os comandos do passo 6 no lugar dos do Lacre.
    - `mock.ts`: molde `C:\Dev\lacre\ui\src\mock.ts`; simula `level {mic, sys}` a cada 50 ms, `timer`, `state`,
@@ -376,6 +376,13 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - Componente: monta os nós uma vez e expõe `atualizar(parte)` que só mexe em `textContent`, atributo ou
      classe. Proibido `replaceChildren` na raiz depois da montagem (`C:\Dev\lacre\ui\src\main.ts:158-171`).
    - CSS: `@import` de `design/tokens.css` e as regras do `DESIGN.md`; nenhum hexadecimal solto fora dos tokens.
+   - **Execução (12/11):** a estrutura da janela mora no `ui/index.html` (áreas `data-area` da vitrine, textos por
+     `data-t`); a tela é projeção de uma `Vista` (`tipos.ts`), redesenhada por `render/*.ts` só com texto, atributo e
+     variável CSS. O condutor (`condutor.ts`) monta a Vista do cenário e expõe `window.vitrine` com `direcoes`
+     (`casco_skin` vira `data-direcao` no `<html>`); ao assumir, congela o backend falso para nenhuma resposta
+     atrasada mexer na Vista. `i18n:check` (`app/scripts/i18n-check.cjs`) também barra hexadecimal em `app/ui/src`.
+     Desvio: o motor caído gravando (D11) usa o estado `erro` com título e saída próprios ("Abrir pasta"), sem estado
+     novo no `DESIGN.md` (fora dos arquivos desta frente).
 12. [ ] Tela Gravar completa, com áreas de altura reservada — **prova:** `node app/ui/tests/gravar.cjs` → `falhas 0`
    **reprova se:** algum fluxo do mock (gravar, pausar, continuar, parar, cada saída, nota) não chega ao estado esperado, ou a checagem de atualização pontual (abaixo) acusa nó criado.
    - O `gravar.cjs` também confere a atualização pontual: `MutationObserver` por 3 s gravando, com zero `childList` vindo

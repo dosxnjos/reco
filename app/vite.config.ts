@@ -15,6 +15,9 @@ export default defineConfig({
     watch: { ignored: ["**/src-tauri/**"] },
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), "../../design"] },
   },
+  // ui:preview serve app/ui/dist com o backend falso para os testes da Fase 1 (--url http://127.0.0.1:1431/):
+  // host explícito em IPv4, porque "localhost" pode subir só em ::1 e o 127.0.0.1 não responder.
+  preview: { host: "127.0.0.1", port: 1431, strictPort: true },
   envPrefix: ["VITE_", "TAURI_ENV_"],
   build: {
     outDir: "dist",
