@@ -296,6 +296,11 @@
       `HKCU\Software\RecoTeste` e reprovam sem o conserto. Instalador `96B45826…` pronto, não instalado. Na próxima
       reinstalação, refazer esta prova esperando o valor **com aspas** e o rc 1 também em
       `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run /v Reco` depois de desligar.
+    - Nota (2026-11-12, 18:35, reinstalação com o `96B45826`): prova refeita e verde. Ligado em Opções → `Reco REG_SZ
+      "%USERPROFILE%\AppData\Local\Reco\reco.exe" --oculto` (lido cru: começa com aspas, o trecho entre aspas é o `$exe`,
+      o resto é exatamente ` --oculto`), rc 0, e nenhuma marca no `StartupApproved`. Reaberto: Opções mostra ligado e a
+      partida não mexe no valor. Com a marca semeada (`02 00…`) para a limpeza não passar vazia, desligar → rc 1 no `Run`
+      e rc 1 no `StartupApproved`. Termina desligado. Detalhe no relatório, seção "Reinstalação com o conserto do autostart".
 14. [ ] Medir "pronto para gravar" no app instalado (D12), com método próprio. — **prova:** o laço do 1º sub-item em 3 aberturas a quente → mediana ≤ a mediana de `abrir_pronta_s` do relatório da Fase 0; Gravar clicado logo depois do `ready` põe o cronômetro a andar sem esperar `aquecimento pronto`
     **reprova se:** a mediana passa da de `abrir_pronta_s`, o laço sai pelo teto de 60 s (não achou janela ou `ready em`), ou Gravar espera o aquecimento da transcrição.
     - Laço (PowerShell, `$log` dos Nomes): `$n=@(Get-Content $log -EA 0).Count; $sw=[Diagnostics.Stopwatch]::StartNew(); $p=Start-Process $exe -PassThru;`

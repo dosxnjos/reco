@@ -548,3 +548,47 @@ nenhum mouse ou teclado; o registro real só lido (`reg query`).
 - **Diário:** a página `cerebro/pessoal/diario/2026-11-12.md` foi regenerada no disco com o fragmento desta rodada,
   mas ficou fora do commit. O gate do cofre a reprova por um link quebrado que vem do fragmento de outra sessão (o do
   painel pessoal). O fragmento, o hub e a linha do tempo foram commitados.
+
+### Reinstalação com o conserto do autostart (12/11/2026, a partir das 18:31)
+
+Condição: o dono autorizou instalar ("Já pode instalar sim") e está usando a máquina. Sem mouse e sem teclado (CDP com
+`el.click()` e `WM_COMMAND` na janela do ícone, como na seção "Passos 9 a 17"). Todo fechamento passou antes por
+`python tools/medir_partida.py --checar-gravando` duas vezes, com a CPU do motor medida nos 25 s entre elas.
+
+**Antes (18:31):** app `84EE1142` aberto (pid 38448, motor 46184, desde 17:42:58). Instalador
+`temp/instaladores/Reco_0.3.0_x64-setup.96B45826.exe` com SHA256
+`96B458263E862832E4FCD26F16BDAAFBEA8445505D1B9AD8D191B9A0EA42D901` conferido. Foto do config, da pasta `Documents\Reco`
+(214 arquivos) e do registro (`Run /v Reco` e `StartupApproved\Run /v Reco` com rc 1) em `temp/medicoes/reinst-96b/`.
+O clipboard não foi usado nesta rodada (nenhum "copiar caminho") e ficou intocado.
+
+**Fechar (18:34):** `--checar-gravando` → `nenhuma gravação em curso` às 18:34:15 e às 18:34:41, CPU do motor 0,0%
+nos 25 s entre elas; Sair por `WM_COMMAND 1003` → o casco saiu em 0,15 s e o motor também; mutex livre. Com os apps
+fechados, o config e a lista da pasta saíram iguais à foto das 18:31 (`cmp`), e essa virou a base.
+
+**Instalar (18:34:48), mesmo procedimento do passo 9:** guarda na mesma execução (mutex `False`, nenhum `reco*.exe`),
+`Start-Process $setup -ArgumentList '/S' -Wait` → exit 0 em 26,3 s; `Test-Path $exe` `True`.
+
+- Passo 10: soma dos modelos 828 098 952 antes e depois; `models` existe.
+- Área de Trabalho: nenhum `Reco.lnk`, nem na do usuário nem na pública, antes e depois. `Reco.lnk` do Menu Iniciar →
+  alvo `$exe`, `HotKey` vazio, sem argumentos.
+- `reco.exe` instalado `9D7BA7B69D1AD1F759505BB469503A22F621EB94E24B37AEF28A212182F585C9` (4 490 240 bytes). Não é o
+  `7633B68C…` do `C:\pt\release\reco.exe`, o mesmo caso do passo 9: o casco que vai no instalador não é byte a byte o
+  arquivo solto. Nos bytes ele leva `valor do Run regravado com aspas` (o módulo novo) e não leva `auto_launch` nem
+  `auto-launch`.
+- `reco-engine.exe` `281A0D76E3745159F6E67340E04455B1943D451763C73612D33882EBC4098A5F`, o mesmo do `84EE1142`.
+
+**Passo 13 refeito (18:35 a 18:37, verde):**
+
+- Ligar: app aberto por CDP com `--oculto`. Opções mostrou o autostart `aria-checked=false` e o atalho global `false`.
+  Clique no DOM → `true`. `Run /v Reco` → `Reco REG_SZ "%USERPROFILE%\AppData\Local\Reco\reco.exe" --oculto`, rc 0.
+  Lido cru por `winreg`: começa com aspas, o trecho entre aspas é o próprio `$exe` (`samefile`) e o resto é exatamente
+  ` --oculto`. O `StartupApproved` ficou sem a marca, porque ligar a apaga. Captura em
+  `temp/provas/2026-11-12/f4/p13-96b-ligado.png`. Fechado com a checagem.
+- Reabrir com o autostart ligado: Opções → `aria-checked=true` (a tela reconcilia pelo registro), e a partida não
+  mexeu no valor (igual ao certo antes e depois de abrir).
+- Desligar: como ligar já tinha tirado a marca, um rc 1 no `StartupApproved` não provaria nada. Por isso semeei a marca
+  `02 00 00 00 00 00 00 00 00 00 00 00`, a que o build antigo deixava, e só então desliguei no DOM → `false`;
+  `Run /v Reco` rc 1, `StartupApproved\Run /v Reco` rc 1 (a semente sumiu), `Run /v "Reco Novo"` rc 1. Fechado com a
+  checagem.
+- Config e pasta iguais à base depois do passo 13 (`cmp`). Pendente do dono: com o autostart ligado, reiniciar e ver o
+  ícone subir sem janela.
