@@ -73,18 +73,76 @@ traz `auto` e pode mostrar `starting`, `ready` pode vir com `error`, `final_pass
 | Rótulo sem ação = item desabilitado (o `tray.py` omitia o item) | o menu do Tauri troca texto e habilitado sem remontar | média | o Gabriel estranhar o item cinza |
 | `window_pin` (clique dentro da janela do hover) também dá `set_focus()` na primeira vez | com `focusable(false)` o clique não ativa a janela; sem isso ela fixaria sem foco de teclado | média | o teste manual mostrar que o foco roubado no clique incomoda (aí só fixar) |
 
+### Verificações manuais dos passos 7, 9 e 10 (12/11/2026, 00:08 a 00:15, mesma sessão)
+
+Condição: o Reco do dono fechado desde ~23:18 de 11/11 (Sair pela bandeja); antes de cada prova, a guarda
+(`Get-CimInstance Win32_Process`, por **caminho** do exe, porque o casco e o velho se chamam os dois `reco.exe`)
+não achou Reco que eu não tivesse aberto. Exe do casco recompilado antes (`C:\pt\debug\reco.exe`, 00:08, com o
+`c20ffd9`). Config do dono copiado para `temp/fase3-manual/reco_config.antes.json` antes da primeira prova.
+CPU total da máquina entre 53% e 78% no início de cada script (outras sessões: `claude`, `vmmemWSA`, `node`):
+nenhuma destas provas tem critério de tempo, então não esperei; os milissegundos abaixo são só referência.
+Scripts descartáveis em `temp/fase3-manual/` (fora do git): `comum.py`, `passo7.py`, `passo9.py`, `passo10.py`,
+`invocar.cjs`. Todos encerram por pid (árvore) só o que abriram.
+
+**Passo 7 — exclusão mútua nos dois sentidos** (`python passo7.py` → código 0; casco com motor inexistente de
+propósito, velho com `HF_HUB_OFFLINE=1`, sem `RECO_SEM_MUTEX`):
+
+- Casco primeiro (`--oculto`, janela escondida): `velho_codigo: 0`, `velho_saiu_em_ms: 704`,
+  `janela_casco_visivel_antes: false` → `janela_casco_apareceu: true`, `casco_no_foreground: true`. O
+  `Reco.Show` do velho chega à janela de topo escondida criada pelo Rust (a premissa do passo).
+- Velho primeiro (janela escondida por `WM_CLOSE`, que no velho só esconde): `casco_codigo: 0`,
+  `casco_saiu_em_ms: 33`, `casco_fez_janela: false`, `janela_velha_apareceu: true`, `velho_vivo: true`.
+- Fim: `reco_rodando_no_fim: []`.
+
+**Passo 9 — hover real com o Bloco de Notas focado** (`python passo9.py` → código 0; motor inexistente):
+
+- Ícone: a entrada `2799579577188804128` (`C:\pt\debug\reco.exe`) em `NotifyIconSettings` não tinha
+  `IsPromoted` (ícone escondido no "^"); gravei `1` antes de abrir o casco e apaguei o valor no fim. Rect pelo
+  `Shell_NotifyIconGetRect` (janela `tray_icon_app` do pid, `uID` 2): `2018,1020,2058,1080`, dentro da barra.
+- Alvo: arquivo próprio `temp/fase3-manual/alvo-hover.txt` aberto no Bloco de Notas (abriu como aba na janela
+  do Bloco de Notas que já estava aberta); cada tecla só saía com o foreground nessa janela e com esse título.
+- Resultado: `apareceu: true` (200 ms do harness, 12 passos de 15 ms incluídos), `acima_do_icone: true`,
+  `mostrou_fg_igual`, `mostrou_gui_igual`, `dentro_fg_igual`, `dentro_gui_igual`, `depois_fg_igual`,
+  `depois_gui_igual` todos `true`, `fica_com_cursor_dentro: true`, `some_ao_sair: true`, e o arquivo salvo
+  com `antes durante dentro depois` (o texto digitado com a janela à vista entrou no Bloco de Notas).
+- Controle negativo: o clique no ícone fixa e toma o foreground (`clique_fg_casco: true`) e a janela fica
+  visível com o cursor longe (`clique_fica_visivel_fora: true`); o X esconde (`x_esconde: true`). O teste vê o
+  roubo de foco quando ele existe.
+- A aba de teste foi salva e fechada (Ctrl+S, Ctrl+W); o processo do Bloco de Notas não foi tocado.
+- **Agora o `[x]` do passo 9 cobre a janela real**, não só as funções puras.
+
+**Passo 10 — atalho e iniciar com o Windows, ligados e desligados** (`python passo10.py`; motor real do fonte com
+`HF_HUB_OFFLINE=1`, Vite em 1430 aberto pelo script, comandos chamados pela webview real por CDP do WebView2
+com `window.__TAURI_INTERNALS__.invoke`, porque a tela de Opções é do passo 13):
+
+- Antes: `reg query …\Run /v "Reco Novo"` não acha; `autostart_ligado → false`, `atalho_registrado → false`,
+  `casco_atalho` ausente no config; Ctrl+Shift+R com o Bloco de Notas focado não mostra nada e o foco fica nele.
+- Ligado: `definir_autostart(true) → true`, `reg query` acha `Reco Novo REG_SZ C:\pt\debug\reco.exe --oculto`;
+  `definir_atalho(true) → true`, `casco_atalho: true` no config (gravado pelo motor); Ctrl+Shift+R mostra a
+  janela e o foreground vai para ela.
+- Desligado: `definir_atalho(false) → false`, `atalho_registrado → false`, `casco_atalho: false`; Ctrl+Shift+R não
+  mostra nada e o foco fica no Bloco de Notas; `definir_autostart(false) → false`, `reg query` não acha.
+- O texto digitado entre os passos (`a b c d`) está no arquivo salvo: nenhuma tecla do atalho vazou para o alvo.
+- O script terminou com código 1 só na limpeza: entre o último `digitar` e o Ctrl+S, o foreground foi para
+  janelas de outros programas (outras sessões abertas nesta área de trabalho; a guarda recusou mandar teclas).
+  Salvei e fechei a aba à mão, com a mesma guarda e `SetForegroundWindow`; o arquivo saiu `a b c d`, a aba
+  fechou e a janela voltou para a aba do dono, intocada. Nenhum critério da prova falhou.
+- **Sobra apagada:** o `disable()` do plugin deixa `Reco Novo` (`REG_BINARY 02 00 …`) em
+  `Explorer\StartupApproved\Run` (`auto-launch` 0.6.0 grava no `enable` e não apaga no `disable`). Apaguei com
+  `reg delete … /v "Reco Novo" /f`; pegadinha nova em `docs/armadilhas.d/`.
+- **Fica pendente:** "foco no botão principal" ao apertar o atalho (não há botão até o passo 12; o casco emite
+  `reco-atalho` para a tela focar). Conferir no passo 13 com a tela de Opções.
+
+**Estado da máquina no fim (00:15):** nenhum `reco.exe`, motor, WebView2 ou Vite meu rodando; portas 1430 e
+9333 livres; `Run` e `StartupApproved\Run` sem `Reco Novo`; `IsPromoted` da entrada do casco apagado (como
+estava). O config só diferia da cópia em `casco_atalho: false` (nenhuma outra chave mudou, inclusive pelo velho
+de teste do passo 7): a cópia voltou, `cmp` igual. **O Reco do dono continua fechado** (a tarefa manda fechar só o
+que abri; reabrir é com ele).
+
 ### Pendências (precisam do app velho fechado ou da interface)
 
-- **Passo 7, manual:** abrir o novo e rodar `dist\Reco\Reco.exe` (a janela nova aparece e o velho sai); o contrário
-  também. Confere a premissa de que o `HWND_BROADCAST` chega à janela escondida criada pelo Rust.
-- **Passo 9, manual:** Bloco de Notas focado e digitando, mouse de verdade sobre o ícone → a janela aparece e o
-  texto continua entrando. Pede também o ícone promovido na barra (pegadinha 1 da Fase 0) para o "Reco Novo".
-- **Passo 10, manual (PowerShell):** `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Reco Novo"`
-  ligando e desligando em Opções; Ctrl+Shift+R com o Bloco de Notas focado. Depende da tela de Opções (passo 13).
+- **Passo 10, foco no botão principal** pelo atalho: passo 13.
 - **D11 de ponta a ponta** (casco morto e motor morto gravando): passo 17, com o app instalado.
-- **O `[x]` do passo 9 cobre só as funções puras.** A janela real difere do spike (`focus:false` vindo do
-  `tauri.conf.json`, `always_on_top` trocado em tempo de execução, `set_focus()` no `window_pin`): a preservação
-  do foco no hover só fica provada na verificação manual acima.
 - **Minimizar sem botão na barra de tarefas:** `skipTaskbar: true` é acréscimo meu (o md não pedia); com ele,
   `window_minimize` deixa a janela sem lugar visível (só a bandeja a traz de volta, `mostrar_fixada` faz
   `unminimize`). Conferir no passo 12; se incomodar, tirar o `skipTaskbar` ao fixar.

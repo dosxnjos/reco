@@ -288,6 +288,10 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      2.5.5, `src/platform_impl/windows.rs:81-93`), por isso F3-D2.
    - Verificação manual (precisa de dois processos e da área de trabalho), com o app velho fechado no início:
      abrir o novo, rodar `dist\Reco\Reco.exe` → a janela nova aparece e o velho sai; o contrário também.
+   - **Verificação manual feita (12/11, 00:09):** `python temp/fase3-manual/passo7.py` com o exe de debug, sem
+     `RECO_SEM_MUTEX` → casco primeiro: velho sai com `0` em 704 ms e a janela do casco passa de escondida a
+     visível (o broadcast chega à janela do Rust); velho primeiro: casco sai com `0` em 33 ms, sem criar janela,
+     e a janela escondida do velho reaparece. Detalhe no relatório da fase.
 8. [x] Bandeja em `app/src-tauri/src/bandeja.rs`, dirigida pelo Rust a partir dos eventos do motor — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml bandeja` → `test result: ok`, 2 passed ou mais
    **reprova se:** `0 passed`, ou os rótulos por estado diferem de `reco.py:4938-4952` (ex.: "Parar" oferecido em `stopping`/`stopped`).
    - Molde `C:\Dev\albion\guarita\app\src-tauri\src\lib.rs:355-405`. Ícones `logo/tray_idle.ico` e `tray_rec.ico`
@@ -321,6 +325,11 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
        foco de verdade); a tela chama `window_pin` em todo clique dentro dela (passo 12).
    - Verificação manual da sensação (não dá para automatizar o foco de outro app): com o Bloco de Notas
      focado e digitando, passar o mouse no ícone → a janela aparece e o texto continua entrando no Bloco de Notas.
+   - **Verificação manual feita (12/11, 00:11):** `python temp/fase3-manual/passo9.py` (ícone promovido só na
+     entrada do exe do casco, desfeito no fim; hover por `SendInput` em passos) → o foreground e o
+     `GetGUIThreadInfo` continuam no Bloco de Notas ao mostrar, com o cursor dentro da janela e depois que ela
+     some; o arquivo salvo tem `antes durante dentro depois` (o texto digitado com a janela à vista entrou no
+     Bloco de Notas). Controle: o clique no ícone fixa e toma o foreground. Detalhe no relatório da fase.
 10. [x] Atalho global e iniciar com o Windows, os dois opt-in em Opções (`app/src-tauri/src/atalho.rs`) — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml atalho` → `test result: ok`, 2 passed ou mais
    **reprova se:** `0 passed`, ou o teste aceita registrar o atalho quando `casco_atalho` lido é `false` ou ausente.
    - Os testes cobrem a função pura `deve_registrar(pref_atalho)` (ausente → não registra) e a leitura de
@@ -341,6 +350,13 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - O atalho global não tem prova por comando (precisa de tecla física com outro app em foco): verificação
      manual, com o Bloco de Notas focado, Ctrl+Shift+R → a janela aparece com foco no botão principal.
    - Ao terminar: iniciar com o Windows **desligado**, app novo fechado, app velho reaberto (regras de execução).
+   - **Verificação manual feita (12/11, 00:12):** sem a tela de Opções, os comandos foram chamados pela webview
+     real (CDP do WebView2, `temp/fase3-manual/passo10.py`) → antes de ligar, `reg query … /v "Reco Novo"` não
+     acha e Ctrl+Shift+R com o Bloco de Notas focado não mostra nada; `definir_autostart(true)` → o `reg query`
+     acha `C:\pt\debug\reco.exe --oculto`; `definir_atalho(true)` → `casco_atalho: true` no config e
+     Ctrl+Shift+R mostra a janela com o foreground nela; desligados os dois → o `reg query` não acha, o atalho
+     não responde. Pendente: "foco no botão principal" (não há botão até o passo 12); a sobra no
+     `StartupApproved\Run` foi apagada à mão (pegadinha nova). Detalhe no relatório da fase.
 11. [ ] Base da interface em `app/ui/src/`: `backend.ts`, `mock.ts`, i18n por códigos e o padrão de componente — **prova:** `npm --prefix app run ui:build` → `built in` sem erro de tipo, e `npm --prefix app run i18n:check` → `0 faltando`
    **reprova se:** o build passa com `any` implícito ou existe código sem par PT/EN.
    - `backend.ts`: molde `C:\Dev\lacre\ui\src\backend.ts:1-73`, com os comandos do passo 6 no lugar dos do Lacre.
