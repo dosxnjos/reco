@@ -140,6 +140,8 @@
      **reprova se:** o `robocopy` sai com código 8 ou mais, ou as duas somas diferem. Aí não seguir para o passo 10.
      - Copiar (PowerShell): `robocopy "$env:LOCALAPPDATA\Reco\models" C:\Dev\Reco\temp\medicoes\models-reserva /E /NFL /NDL` (código < 8 = ok). Fica em `temp/`, ignorado pelo git, longe da `Reco-reserva` da Fase 4.
      - Somar (PowerShell): `(Get-ChildItem -Recurse <pasta> | Measure-Object Length -Sum).Sum` nas duas pastas; anotar o valor para o passo 14.
+   - Guardar também o config: toda instância de teste regrava o `~/.reco_config.json` ao abrir (`load_config(persist=True)`, `reco.py:2869`). **prova:** `cp ~/.reco_config.json C:/Dev/Reco/temp/medicoes/reco_config.antes.json && cmp ~/.reco_config.json C:/Dev/Reco/temp/medicoes/reco_config.antes.json && echo igual` → `igual`
+     **reprova se:** o `cp` falha ou o `cmp` acusa diferença. Aí não seguir para o passo 10.
 10. [ ] Acrescentar o modo `--descobrir` e conferir como achar os botões da janela Tk de fora — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --descobrir` → `janela=TkTopLevel botoes_visiveis=1 gravar=<x,y,w,h>` e o processo de teste encerrado no fim
     **reprova se:** `botoes_visiveis=0`, ou seja, o Tk não cria um HWND por botão. Aí reverter a F0-D2 para o caminho do menu da bandeja e reescrever o passo 11.
     - Toda instância de teste dos passos 10 a 13 (aqui, no passo 11 e no `mutex.py` do 13) abre com `HF_HUB_OFFLINE=1` só no ambiente do `Popen` (P8): a checagem de modelo novo falha calada e não troca a pasta. Nunca na máquina toda, nem na reabertura do passo 14.
@@ -182,6 +184,7 @@
     **reprova se:** "Reco não está aberto", ou a pasta de saída dele ainda tem algum MP3 com a hora de uma rodada dos passos 11 a 13 (comparar com `temp/medicoes/partida.jsonl`).
     - **Antes do `Start-Process`, reprova também se:** `ls "$LOCALAPPDATA/Reco/models/"` não lista `whisper-large-v3-turbo-int8-ov`, lista algo terminado em `.old`, ou a soma de `models` difere da anotada no passo 9 (uma instância de teste mexeu no modelo).
       Aí, ainda com nenhum `Reco.exe` aberto, repor (PowerShell): `robocopy C:\Dev\Reco\temp\medicoes\models-reserva "$env:LOCALAPPDATA\Reco\models" /MIR /NFL /NDL` e somar de novo.
+    - Config: ainda sem nenhum `Reco.exe` aberto, `cmp ~/.reco_config.json C:/Dev/Reco/temp/medicoes/reco_config.antes.json`. Se diferir, anotar o `diff` no relatório e repor a cópia (`cp` de volta): o app dele reabre com o config de antes.
     - Soma igual (de primeira ou depois de repor): só então o `Start-Process`, e depois dele apagar `temp/medicoes/models-reserva` (790 MB).
     - O app reabre com a janela centralizada, não escondida na bandeja (`reco.py:2930-2937`): é o comportamento normal ao abrir.
     - Conferir também que `tasklist` não lista nenhum `reco-spike-bandeja.exe`.

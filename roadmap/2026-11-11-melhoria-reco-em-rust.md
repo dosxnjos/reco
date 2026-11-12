@@ -30,7 +30,10 @@ Pedido: reco-rust | Reco em Rust, com interface bonita e que não fica pulando |
 | 6 Transcrição em Rust (spike com portão) | [fase-6](2026-11-11-melhoria-reco-em-rust-fase-6.md) | 5 |
 | 7 Aposentar a interface Tk e propagar | [fase-7](2026-11-11-melhoria-reco-em-rust-fase-7.md) | 4 e 6 (o veredito do portão, aberto ou fechado) |
 
-As Fases 1 e 2 podem andar em paralelo depois da 0.
+As Fases 1 e 2 podem andar em paralelo depois da 0. O **spike** da Fase 6 (até o portão) só precisa da
+Fase 2, não da captura em Rust: pode rodar cedo e dar ao Gabriel o número para decidir "híbrido × tudo em
+Rust"; o **porte** da Fase 6 (depois do portão) continua dependendo da 5. Antes de antecipar, reauditar o md
+da Fase 6 (item 5 de "Como retomar").
 
 ## Contexto e motivação
 
@@ -122,7 +125,7 @@ instalável até a Fase 4 fechar; o portão da Fase 6 pode fechar sem custo para
 
 | id | decisão | motivo | quem | confiança | reverte se |
 | --- | --- | --- | --- | --- | --- |
-| D1 | Híbrido em fases: interface em Tauri 2 + Rust primeiro, motor Python atual como processo filho; captura e MP3 em Rust depois; transcrição em Rust só se o spike passar | entrega o que o Gabriel sente sem tocar no que está medido; cada passo é reversível | opus (advisor indisponível por cota nesta sessão; ver Crítica) | alta | o Gabriel declarar que quer zero Python mesmo sem ganho (vira escopo dele) |
+| D1 | Híbrido em fases: interface em Tauri 2 + Rust primeiro, motor Python atual como processo filho; captura e MP3 em Rust depois; transcrição em Rust só se o spike passar | entrega o que o Gabriel sente sem tocar no que está medido; cada passo é reversível | opus + advisor | alta | o Gabriel declarar que quer zero Python mesmo sem ganho (vira escopo dele) |
 | D2 | Tauri 2 com front em TypeScript + Vite sem framework, como o Lacre | reaproveita build, CI e `engine.rs`; HTML/CSS é o caminho mais maduro para interface bonita; Slint só ganhou bandeja em 24/06/2026, iced é pré-1.0, egui tem cara de ferramenta | opus | alta | a Fase 0 provar que o Tauri não mostra a janela da bandeja sem roubar o foco (aí avaliar Slint 1.17) |
 | D3 | Tudo no mesmo repo `dosxnjos/reco`: `engine/` (servidor Python) e `app/` (Tauri: `app/src-tauri` + `app/ui`) | histórico, docs, `tools/` e regras num lugar só; a trava de 500 linhas vale para os arquivos novos (hoje o `tools/tamanho.json` só olha `.py .js .ps1…`: a Fase 3 inclui `.rs` e `.ts` em commit próprio) | opus | média | o repo ficar confuso para quem chega (aí separar `app/` em repo próprio) |
 | D4 | Contrato anti-pulo: janela de tamanho fixo, cada área com altura reservada, números com `tabular-nums`, status em uma linha com reticências, transição só de opacidade e cor; botão não se move no clique (nada de `translate`/`scale`) | é a queixa nº 1; Tauri não impede layout que pula | opus | alta | o Gabriel pedir movimento no clique depois de ver a vitrine |
@@ -206,7 +209,16 @@ troca de app não o afeta, mas a etiqueta `RECO_TAG` no nome é contrato (D6).
   - Fases 5 a 7 envelhecem → **aplicado**: item 5 de "Como retomar".
   - Expectativa "em Rust" → **aplicado**: segundo item de Pendente.
   - Repo público × relatórios do sidecar → **aplicado no commit**: limpeza dos caminhos locais antes do push.
-- **3ª consulta (pendente):** revisão dos 8 md-fase depois do crítico de coerência.
+- **3ª consulta (11/11/2026; alcance: relatos dos auditores, crítica de coerência e conferência, não o texto
+  inteiro das 8 fases):**
+  - D11 nas Fases 2 a 4 → **conferido**: Fase 2 passo 7 (EOF do stdin), Fase 3 (casco e motor mortos), Fase 4
+    passo 15 e P26.
+  - Fase 0 sem rede do config → **aplicado**: cópia no passo 9 e conferência/reposição no passo 14 (as gravações
+    de teste já iam para `temp/medicoes/`).
+  - `testar-contrato.cjs --url` na Fase 3 → **conferido** (2 ocorrências).
+  - D1 com "advisor indisponível" → **corrigido**.
+  - Spike da Fase 6 cedo → **aplicado** como nota abaixo da tabela das fases.
+  - Textos "fora do git" nas fases → **conferido**: falam de `temp/` e build, não do md.
 
 ## Sidecar
 
