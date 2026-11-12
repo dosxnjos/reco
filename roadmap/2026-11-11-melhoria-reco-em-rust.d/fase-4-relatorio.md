@@ -592,3 +592,46 @@ fechados, o config e a lista da pasta saíram iguais à foto das 18:31 (`cmp`), 
   checagem.
 - Config e pasta iguais à base depois do passo 13 (`cmp`). Pendente do dono: com o autostart ligado, reiniciar e ver o
   ícone subir sem janela.
+
+**Passo 14 a quente (18:38 a 18:59, `[x]`):** o app do dono foi reaberto limpo às 18:37 (pid 34248) enquanto a carga
+não baixava. A carga foi medida por `Win32_Processor.LoadPercentage`, mediana de 5 amostras com 2 s entre elas (o
+`Get-Counter` falha nesta máquina pelo nome localizado). Resultados: 34% às 18:38, 37% às 18:43 e 13% às 18:48. Às 18:49
+o app fechou com a checagem, mas a carga já tinha subido para 39%, então ele foi reaberto (pid 31544) e a espera
+continuou: 17% às 18:54. A partir daí as rodadas foram seguidas:
+
+- fechar com a checagem;
+- antes de cada abertura, esperar a carga ficar abaixo de 30%, com até 3 min de espera em passos de 20 s (antes da 1ª:
+  62, 35, 32 e 20%);
+- abrir uma vez pelo laço do md;
+- fechar com a checagem.
+
+O app do dono ficou fechado de 18:55:20 a 18:59:43.
+
+| rodada | carga (mediana antes / amostra no lançamento) | aberturas (s) | `ready em` | `aquecimento pronto em` |
+| --- | --- | --- | --- | --- |
+| 1 | 20% / 14% | 0,773 | 0,12 s | 0,63 s |
+| 2 | 28% / 12% | 0,677 | 0,12 s | 0,61 s |
+| 3 | 11% / 22% | 0,896 | 0,24 s | 0,90 s |
+
+Mediana **0,773 s** contra 1,515 s do velho (Fase 0, máquina livre), então o 14 vira `[x]`. Condições: o laço do md
+com a janela visível, sem CDP, `HF_HUB_OFFLINE=1`, `live=False`, `device=AUTO` e nenhum `cargo`/`rustc` rodando. Antes
+de cada Sair, `--checar-gravando` → `nenhuma gravação em curso` duas vezes, com CPU do motor 0,0% nos 25 s entre elas.
+Junto com as linhas antigas: 0,982 s no `76C890E8` (CPU 23–46%) e 1,986 s no `84EE1142` com a máquina a 79–85%. O tempo
+sobe com a carga, e o motor fica abaixo de 0,5 s em todas. A cláusula do Gravar (cronômetro andando antes do
+`aquecimento pronto`) segue provada só no `76C890E8`, e o "a frio" (3 reinícios) segue com o dono.
+
+**Máquina no fim (19:00):**
+
+- O app novo **"Reco" `96B45826` instalado e aberto na bandeja**: casco pid 5508 (desde 18:59:34, `--oculto`) e motor
+  pid 40956. Foi aberto pelo `Start-Process` sem `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` e sem `HF_HUB_OFFLINE`.
+  Nenhum `msedgewebview2` com `remote-debugging`, 9351/9361 fechadas, mutex `True`.
+- Hashes instalados: `reco.exe` `9D7BA7B6…2182F585C9` e `reco-engine.exe` `281A0D76…4098A5F`.
+- Autostart desligado: `Run /v Reco` e `StartupApproved\Run /v Reco` com rc 1.
+- Atalho global desligado: o config não tem `casco_atalho`, e Opções mostrou `aria-checked=false` nas duas aberturas
+  do passo 13 (só lido, nunca clicado).
+- `~/.reco_config.json` igual à foto das 18:31 (`cmp`), com o app aberto.
+- `Documents\Reco`: 214 arquivos, iguais à foto (nome, tamanho e data); nenhuma gravação de teste nesta rodada.
+- Clipboard não usado. `Reco.lnk` aponta para o exe novo, sem tecla, e não há atalho na Área de Trabalho.
+- Modelos: 828 098 952 bytes.
+- Os ajudantes desta rodada (`fechar_seguro.py`, `instalar.ps1`, `passo13.py`, `passo14_rodada.ps1`, `carga.ps1`,
+  `p14_tudo.sh`) ficaram no rascunho da sessão. As fotos e a captura ficaram em `temp/` (fora do git).

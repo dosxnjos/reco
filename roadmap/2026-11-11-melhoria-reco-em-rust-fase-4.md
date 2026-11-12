@@ -301,7 +301,7 @@
       o resto é exatamente ` --oculto`), rc 0, e nenhuma marca no `StartupApproved`. Reaberto: Opções mostra ligado e a
       partida não mexe no valor. Com a marca semeada (`02 00…`) para a limpeza não passar vazia, desligar → rc 1 no `Run`
       e rc 1 no `StartupApproved`. Termina desligado. Detalhe no relatório, seção "Reinstalação com o conserto do autostart".
-14. [ ] Medir "pronto para gravar" no app instalado (D12), com método próprio. — **prova:** o laço do 1º sub-item em 3 aberturas a quente → mediana ≤ a mediana de `abrir_pronta_s` do relatório da Fase 0; Gravar clicado logo depois do `ready` põe o cronômetro a andar sem esperar `aquecimento pronto`
+14. [x] Medir "pronto para gravar" no app instalado (D12), com método próprio. — **prova:** o laço do 1º sub-item em 3 aberturas a quente → mediana ≤ a mediana de `abrir_pronta_s` do relatório da Fase 0; Gravar clicado logo depois do `ready` põe o cronômetro a andar sem esperar `aquecimento pronto`
     **reprova se:** a mediana passa da de `abrir_pronta_s`, o laço sai pelo teto de 60 s (não achou janela ou `ready em`), ou Gravar espera o aquecimento da transcrição.
     - Laço (PowerShell, `$log` dos Nomes): `$n=@(Get-Content $log -EA 0).Count; $sw=[Diagnostics.Stopwatch]::StartNew(); $p=Start-Process $exe -PassThru;`
       `do { Start-Sleep -m 50; $w=(Get-Process -Id $p.Id -EA 0).MainWindowHandle -ne 0; $r=@(Get-Content $log -EA 0 | Select -Skip $n) -match 'reco_engine.boot: ready em ' }`
@@ -325,6 +325,12 @@
       Cláusula do Gravar (só no `76C890E8`; CDP, clique no mesmo `eval` que vê o botão habilitar):
       `ready` 45,093 → clique 45,193 → "Parar" 45,454 → cronômetro 00:00:01 às 46,476, antes de `aquecimento pronto`
       (46,854). "A frio" pendente do dono (reiniciar).
+    - Nota (2026-11-12, 18:57 a 18:59, build `96B45826`, o instalado agora): remedido a quente com a carga da máquina
+      abaixo de 30% (`Win32_Processor.LoadPercentage`, mediana de 5 amostras antes de cada abertura: 20 / 28 / 11%), o
+      laço do md, janela visível, sem CDP, `HF_HUB_OFFLINE=1`, `live=False`, `device=AUTO`, e cada fechamento depois de
+      `--checar-gravando` duas vezes → 0,773 / 0,677 / 0,896 s, mediana **0,773 s** ≤ 1,515 s. O motor deu `ready em`
+      0,12 / 0,12 / 0,24 s. A cláusula do Gravar segue provada só no `76C890E8` (depois dele vieram a versão do motor,
+      `9b6294b`, e o autostart, `be4664c`/`880c446`), e o "a frio" segue com o dono.
 15. [x] Contrato de falha (D11) no build instalado, não só no de desenvolvimento. — **prova:** gravar 40 s, `Get-Process | ? Path -eq $exe | Stop-Process -Force`, depois `python tools/paridade.py <esse mp3>` → `xing=ok` e `dur` ≈ 40
     **reprova se:** o MP3 fica sem cabeçalho (o motor não fechou o arquivo ao ver o stdin fechar) ou some.
     - Segundo caso: gravar 40 s e matar só o processo do motor → a tela mostra alarme em até 2 s e nunca exibe
