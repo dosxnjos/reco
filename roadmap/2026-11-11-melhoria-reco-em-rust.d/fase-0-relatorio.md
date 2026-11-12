@@ -1,7 +1,7 @@
 ## Relatório de execução — Fase 0 (2026-11-11, sessão 4c65eb01)
 
-> **Parcial:** Bloco A feito; Bloco B medido (passos 9 a 13) com o app do Gabriel fechado; o passo 14
-> (reabertura) fechou em 12/11, 00:24. Este arquivo cresce até o fecho.
+> **Fechada em 12/11/2026.** Bloco A (passos 1 a 8) com o app do Gabriel aberto; Bloco B (9 a 14) com ele
+> fechado de ~23:18 a 00:24; Bloco C (15 a 18) registra. Veredito da D2: **confirmada no modo `tao`**.
 
 Frescor: ok (0 dias, 0 commits em `reco.py`, `tray.py` e `tools/` desde `7c5c1a1`).
 
@@ -161,8 +161,9 @@ arquivo nasce no `start()`"). Consequências:
   checagem única como guarda antes de encerrar processo precisa repetir a checagem depois de 25 s; a
   premissa "a trava cobre a retenção" (passo 4) caiu;
 - um crash nos primeiros ~20 s não deixa MP3 parcial.
-Nenhuma mudança no `reco.py` nesta fase (fora do escopo); vai para as Fases 2 e 5 e para a ARMADILHAS no
-passo 17.
+Nenhuma mudança no `reco.py` nesta fase (fora do escopo); vai para as Fases 2 e 5. Registrado no passo 17:
+`docs/armadilhas.d/2026-11-12-0034-o-mp3-so-nasce-no-1o-pedaco-de-audio-nao-no-gravar.md`, regra 3 do
+`CLAUDE.md` e `docs/ARQUITETURA.md` (§ Encode em streaming) corrigidos.
 
 **Achado 2 — sem som, o MP3 não cresce depois de nascer.** Com o loopback mudo, o pareamento não avança
 (relatório 6 § 1.3): o arquivo recebe o bloco de ~20 s de uma vez e não cresce mais até o Parar.
@@ -188,7 +189,13 @@ Rodadas válidas, `python tools/medir_partida.py --rodadas 2 --segundos 35 --toc
   (dentro de 9–14 s; 2 de 5 rodadas com som) e 20,7 s quando não foi (o eco não chegou ao mic). O
   `clique_mp3_cresce_s` de 26–33 s não é o tempo de alinhamento (provado: o arquivo já existia de 10 a 22 s
   antes). Por que ele demora tanto a crescer depois de nascer **não está explicado**: o buffer de escrita do
-  FFmpeg é uma hipótese, não medida, e não fecha bem com o pareamento parado do Achado 2. Passo 12 fica `[ ]` com esta nota: o md precisa trocar a chave da prova.
+  FFmpeg é uma hipótese, não medida, e não fecha bem com o pareamento parado do Achado 2.
+- **12/11, 00:35 — prova trocada e verde.** O md passou a pedir `clique_arquivo_criado_s` (ver a decisão
+  abaixo). Checagem só de leitura sobre `temp/medicoes/partida.jsonl`, nas 5 linhas com `tocou=true`
+  (nenhuma rodada nova: o app do Gabriel está aberto) → `5 [11.029, 11.195] [20.719, 20.852, 20.74] PASSA`:
+  nenhuma abaixo de 9 s, **2 de 5** entre 9 e 14 s (eco detectado) e 3 a ~20,7 s (eco não chegou ao mic).
+  No par oficial das 23:46, 1 de 2. Condição: ruído −6 dBFS no alto-falante padrão, escala 125%, `live=false`,
+  `device=AUTO`, checagem de modelo desligada.
 - `ram_gravando_mb` por condição: com som e alinhamento fechado em ~10 s, 226–228 MB; sem som (desistiu a
   20 s), 246–247 MB; com som e alinhamento que desistiu, 316–317 MB.
 - Outras rodadas com som, guardadas no `partida.jsonl` e fora da tabela:
@@ -270,12 +277,64 @@ Só então `temp/medicoes/models-reserva` foi apagada (790 MB).
 - **A Fase 1 começa com este relatório parcial.** Ela só precisa do `exe_selftest` (estado "motor subindo"),
   já medido; `abrir_pronta_s` é régua da D12 para a Fase 4 e chega com o Bloco B. Confiança alta; reverteria
   se o Bloco B mudasse alguma premissa de desenho (não há nenhuma prevista).
+- **Passo 12: a prova passa a ler `clique_arquivo_criado_s`, não `clique_mp3_cresce_s`.** O que a prova queria
+  era "o áudio chega ao disco quando o alinhamento fecha"; pelo Achado 1 esse instante é o nascimento do
+  arquivo (o PyAV só o cria no 1º pacote), e o `clique_mp3_cresce_s` mede uma segunda escrita, 10 a 22 s
+  depois, sem explicação. Faixa: pelo menos 2 rodadas com som entre 9 e 14 s e o resto a ~20 s (a cláusula
+  "perto de 20 s não reprova" já existia no md). Confiança média: 2 de 5 é pouca amostra e o eco depende da
+  caixa e do volume. Reverteria se um FFmpeg com buffer explicado mostrasse que o arquivo nasce antes do 1º
+  pacote do `_pump`, ou se uma rodada com eco desse abaixo de 9 s.
+- **Regra 3 do `CLAUDE.md` e `docs/ARQUITETURA.md` corrigidos agora, o comentário do `reco.py` não.** Texto de
+  doc errado engana a próxima sessão; o comentário só muda com recompilar, e esta fase não toca o exe.
+  Confiança alta; o `reco.py` muda quando alguém mexer nele (Fase 5 tira a captura de lá).
+
+## O que isso diz às próximas fases
+
+- **Fase 1 (estado "motor subindo"):** o piso medido do motor congelado é o `exe_selftest`: **~1,0 s com a
+  máquina livre** (Bloco B: 1,065 / 1,087 e 1,348 / 0,960) e **5,4 s com ela carregada** (Bloco A, mediana;
+  7,4 s na 1ª). A tela não pode depender do motor para aparecer: abre com "motor subindo" e o texto diz "só
+  um instante" (a Fase 1 trocou o "uns 5 segundos" por isso). A bandeja (D2) não muda o desenho, só a âncora.
+- **Fase 2 (motor):** o `reco-engine.exe` congelado ficou `ready` em **0,79 a 0,88 s** (relatório da Fase 2 §
+  Números, máquina ocupada; 0,61 a 0,67 s menos ocupada). O `pipeline_gpu` custa **1,6 a 3,3 s** com a máquina
+  livre e **48 s** com o app do Gabriel segurando ~1 GB: Gravar nunca espera a GPU (D12, F2-D4). Gravar pode
+  esperar o `ready` (< 1 s), não a GPU.
+- **Fase 2 e 5 (contrato de falha):** pelo Achado 1, um crash nos primeiros ~11 s (com eco) a ~21 s (sem) não
+  deixa MP3; a D11 vale do 1º pacote em diante. A Fase 5 decide se cria o arquivo no Gravar.
+- **Fase 4 (régua D12):** o app novo tem de ficar pronto para gravar em tempo **≤ `abrir_pronta_s` do app
+  velho: mediana 1,515 s** (3 rodadas sem som, 1,330 a 1,718 s; com som 1,548 e 1,579 s), medido com escala
+  125%, `live=false`, `device=AUTO`, checagem de modelo desligada e cache de disco quente (P3). Outras réguas
+  para comparar: `clique_ui_gravando_s` ≤ 0,25 s, `parar_arquivo_fechado_s` ≤ 0,5 s, `ram_repouso_mb` ~113 MB e
+  `ram_gravando_mb` 226 a 317 MB (conforme o alinhamento fechou, desistiu sem som ou desistiu com som).
+- **Fase 3 (bandeja e instância única):** `focusable(false)` + `show()` e `set_focusable(true)` antes do clique
+  que fixa (D2 no modo `tao`); mutex `Local\Reco.SingleInstance` por `CreateMutexW` à mão (F0-D5), provado nos
+  dois sentidos em 445 ms e 20 ms.
+
+## Bloco C — registrar e propagar (12/11)
+
+- **Passo 15:** `grep -cE "abrir_pronta_s|clique_mp3_cresce_s|parar_arquivo_fechado_s|ram_gravando_mb|pipeline_gpu|D2"`
+  → `29`; `grep -c exe_selftest` → `7` (neste arquivo, 12/11). Cada número tem a condição.
+- **Passo 16:** linha no índice depois da nota do `is_reco_recording` (veredito da D2, link deste relatório,
+  F0-D5) e link em § Sidecar.
+- **Passo 17:** `docs/TOOLS.md` já tinha a linha do `medir_partida.py` (escrita no Bloco A); hub com a linha da
+  Fase 0. Armadilhas: a do MP3 que nasce no 1º pacote, nova; as pegadinhas do spike já estão em
+  `2026-11-11-2135-bandeja-no-tauri-2-no-windows-…`; a do StartupApproved (Fase 3) já existia e não foi duplicada.
+- **Passo 18:** commit por pathspec (hash no fecho da sessão).
+
+## Desvios do md (Bloco C)
+
+- **O `CLAUDE.md` e o `docs/ARQUITETURA.md` mudaram**, contra o passo 17 ("não mudam: a fase não cria regra"):
+  a fase não criou regra, mas mediu que uma regra escrita estava errada (Achado 1). Uma linha na regra 3 e um
+  parágrafo na ARQUITETURA, com link para a armadilha. README não muda.
+- O `medir_partida` não entrou no commit desta etapa: já estava commitado (`9fd4f95`, Bloco A; `2db36b6` e
+  `d6ea784`, Bloco B), então a prova `git log -1 --stat` lista `tools/medir_partida.py` não vale literalmente.
 
 ## Pendências e decisões pendentes
 
 - ~~Bloco B: o Gabriel fecha o Reco pela bandeja~~ feito (~23:18 de 11/11).
 - ~~Passo 14: reabrir o Reco do Gabriel~~ feito (12/11, 00:24, pid 24220; reserva apagada).
-- Passo 12: o md da fase precisa trocar a chave da prova (`clique_mp3_cresce_s` → `clique_arquivo_criado_s`),
-  pelo Achado 1. `dono: agente` (quem fecha a fase).
-- Achado 1 (o MP3 nasce no 1º pacote, não no `start()`): entrada na ARMADILHAS no passo 17; o comentário de
-  `reco.py:1660-1662` e a regra 3 do `CLAUDE.md` ficam para quem mexer no `reco.py` (fora desta fase).
+- ~~Passo 12: trocar a chave da prova~~ feito (12/11, 00:35; verde).
+- O comentário de `reco.py:1660-1662` ("a crash mid-meeting leaves a playable partial MP3") segue errado:
+  muda quando alguém mexer no `reco.py` (exige recompilar). `dono: agente` (Fase 5 ou quem tocar o arquivo).
+- Verificação manual da bandeja com o mouse de verdade (a P5 caiu; o hover físico não foi exercitado): fica
+  para a Fase 3, que roda o casco real. `dono: agente`.
+- Por que o MP3 demora 10 a 22 s para crescer depois de nascer: não explicado; não bloqueia nada.

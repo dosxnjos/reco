@@ -159,6 +159,10 @@ processo filho (reabre a F5-D1).
 `is_reco_recording` (`reco.py:136-138`) só olha a etiqueta `reco` no nome do arquivo, não processo nem mutex: a
 troca de app não o afeta, mas a etiqueta `RECO_TAG` no nome é contrato (D6).
 
+**Fase 0 fechada (12/11/2026):** D2 **confirmada no modo `tao`** (bandeja sem roubar o foco com `focusable(false)` +
+`show()`; `ShowWindow(4)` de reserva) e D7 provada nos dois sentidos com `CreateMutexW` à mão (F0-D5: o plugin de
+instância única cria outro mutex). Régua da D12: `abrir_pronta_s` mediana 1,515 s · [relatório](2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md).
+
 ## O que NÃO fazer
 
 - **Não reescrever tudo de uma vez.** Seis meses sem app novo e o velho sem manutenção é o pior dos mundos;
@@ -237,4 +241,5 @@ troca de app não o afeta, mas a etiqueta `RECO_TAG` no nome é contrato (D6).
 ## Sidecar
 
 `2026-11-11-melhoria-reco-em-rust.d/`: `diagnostico/` (as 5 frentes e a crítica de completude, 11/11/2026)
-e, depois, um relatório por fase executada.
+e um relatório por fase executada: [fase-0-relatorio](2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md),
+`fase-1-relatorio.md`, `relatorio-fase-2-4c65eb01.md`, `fase-3-relatorio.md`.

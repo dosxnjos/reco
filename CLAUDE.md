@@ -53,8 +53,9 @@ Bug de origem, medições e descartes:
    ABR é exatamente o que transcrição + diarização por canal + AEC precisam.
 2. **O `_pump` alinha os canais em runtime** (`estimar_offset`): por isso o MP3 só
    começa a crescer ~10 s depois do start, e sem eco medível ele não alinha.
-3. **Encode em streaming** — o arquivo nasce no `start()`, o ganho por canal não é
-   retroativo e `stop()` só drena e fecha. Nada disso deve ser "consertado".
+3. **Encode em streaming** — o nome sai no `start()`, mas o arquivo só aparece no disco
+   no 1º pacote (~11 s com eco, ~20,7 s sem: [ARMADILHAS](docs/armadilhas.d/2026-11-12-0034-o-mp3-so-nasce-no-1o-pedaco-de-audio-nao-no-gravar.md)),
+   o ganho por canal não é retroativo e `stop()` só drena e fecha. Nada disso deve ser "consertado".
 4. **AEC roda só na transcrição**, o MP3 é gravado cru — e **ERLE sozinho é
    métrica proibida**: sempre o par (ERLE, dano na voz), por `tools/medir_aec.py`.
 5. **A defesa anti-loop é nossa** (`_degenerado`/`_generate_sem_loop`): o

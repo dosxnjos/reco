@@ -73,6 +73,7 @@
    - Para cada `*.mp3` da pasta modificado nas últimas 6 h, tentar `CreateFileW(caminho, GENERIC_READ, 0, None, OPEN_EXISTING, 0, None)`.
    - Falha com erro 32 (`ERROR_SHARING_VIOLATION`) = o app segura o arquivo aberto = gravação em curso (código 4). Isso cobre os 10 a 20 s de retenção (o arquivo nasce no `start()`, `reco.py:1660-1665`, `1689-1698`) e a pausa.
    - O handle de teste fecha na hora; nunca segurar o arquivo.
+   - 12/11: premissa caída. O arquivo só nasce no 1º pacote (~11 s com eco, ~20,7 s sem), então uma checagem única é cega nesse intervalo; o passo 9 cobre com duas checagens a 25 s (relatório § Achado 1, `docs/armadilhas.d/2026-11-12-0034-…`).
 5. [x] Propagar o índice aos 6 roadmaps em voo (§ Riscos): linha datada sob o título, por `Edit` ancorado — **prova:** `grep -l "Atualizado em 2026-11-11: ver roadmap/2026-11-11" C:/Dev/Reco/roadmap/2026-0*.md C:/Dev/Reco/roadmap/2026-10-*.md` → exatamente os 6 nomes abaixo
    **reprova se:** falta algum dos 6, ou aparece um sétimo arquivo (linha no roadmap errado).
    - `2026-10-02-melhoria-modularizacao.md`: `> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: superado; o reco.py não será cortado nas 4 fases, a lista de fronteiras vira o mapa do engine/ na Fase 2).`
@@ -168,13 +169,16 @@
       - `parar_arquivo_fechado_s` < 7 s (as joins têm timeout de 3 s, `reco.py:1746`, `1772-1781`);
       - sem som, `clique_mp3_cresce_s` perto de 20 s (teto da retenção, `reco.py:1491-1492`, `1865-1868`) ou `null`.
     - `null` sem som é achado, não erro: responde a dúvida "loopback mudo não entrega pacote" (relatório 6 § 1.3), porque com `buf_sys` vazio o pareamento não avança (`reco.py:1862-1868`, `1991-1993`).
-12. [ ] Rodar 2 vezes com som tocando (`--tocar`) — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --rodadas 2 --segundos 35 --tocar` → 2 linhas JSON com `tocou=true` e `clique_mp3_cresce_s` entre 9 e 14 s
-    **reprova se:** a chave falta, `tocou=false`, ou `clique_mp3_cresce_s` abaixo de 9 s (mede outra coisa, como no passo 11).
-    - `clique_mp3_cresce_s` perto de 20 s não reprova: significa que o eco não chegou ao mic (fone, ou caixa no mudo) e vai para o relatório como condição.
+12. [x] Rodar 2 vezes com som tocando (`--tocar`) — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --rodadas 2 --segundos 35 --tocar` → 2 linhas JSON com `tocou=true`; depois, sobre `temp/medicoes/partida.jsonl`, nas linhas com `tocou=true`: `clique_arquivo_criado_s` nunca abaixo de 9 s, pelo menos 2 entre 9 e 14 s (eco detectado) e as demais entre 19 e 22 s (eco não chegou ao mic)
+    **reprova se:** a chave falta, `tocou=false` em todas, `clique_arquivo_criado_s` abaixo de 9 s (mede outra coisa, como no passo 11), menos de 2 linhas entre 9 e 14 s, ou alguma fora das duas faixas.
+    - Chave trocada em 12/11 (antes: `clique_mp3_cresce_s`): o PyAV só cria o arquivo no 1º pacote, então quem marca a chegada do áudio ao disco é o `clique_arquivo_criado_s`; o `clique_mp3_cresce_s` mede outra coisa (26–33 s, não explicado). Decisão no relatório § Passo 12.
+    - `clique_arquivo_criado_s` perto de 20 s não reprova: significa que o eco não chegou ao mic (fone, ou caixa no mudo) e vai para o relatório como condição.
+    - Checagem (só leitura): `python -c "import json; s=[x['clique_arquivo_criado_s'] for x in map(json.loads, open('C:/Dev/Reco/temp/medicoes/partida.jsonl', encoding='utf-8')) if x.get('tocou')]; e=[v for v in s if 9<=v<=14]; f=[v for v in s if 19<=v<=22]; print(len(s), e, f, 'PASSA' if min(s)>=9 and len(e)>=2 and len(e)+len(f)==len(s) else 'REPROVA')"`
+    - 12/11, 00:35: `5 [11.029, 11.195] [20.719, 20.852, 20.74] PASSA` (2 de 5 rodadas com som tiveram o eco detectado; no par válido das 23:46, 1 de 2).
     - `--tocar` toca ruído a −6 dBFS pelo alto-falante padrão nos primeiros 15 s, numa thread, como o `toca()` do `tools/test_gravacao_alinhada.py:79-85` (soundcard a 48 kHz).
     - Com eco medível, o alinhamento fecha em `ALIGN_COLETA_S = 10` s (`reco.py:1491`, `1862-1864`).
     - Toca som na máquina do Gabriel: rodar só nesta janela, nunca com ele em chamada.
-    - 11/11, 23:46: `tocou=true` nas 2, mas `clique_mp3_cresce_s` = 33,5 e 31,4 s. O PyAV só cria o arquivo no 1º pacote, então o número que esta prova quer é `clique_arquivo_criado_s` (11,0–11,2 s com eco detectado). Trocar a chave da prova; detalhe no relatório § Bloco B.
+    - 11/11, 23:46: `tocou=true` nas 2, mas `clique_mp3_cresce_s` = 33,5 e 31,4 s. O PyAV só cria o arquivo no 1º pacote, então o número que esta prova quer é `clique_arquivo_criado_s` (11,0–11,2 s com eco detectado). Chave trocada em 12/11 (acima); detalhe no relatório § Bloco B.
 13. [x] Provar a exclusão mútua spike × Reco nos dois sentidos (D7) — **prova:** `python C:/Dev/Reco/temp/spike-bandeja/mutex.py` → `spike_primeiro: reco_saiu_em_ms=<N> reco_vivos=0` e `reco_primeiro: spike_saiu_em_ms=<N> mutex_existente_no_log=true`, com N < 3000
     **reprova se:** `reco_vivos=1` (o Reco abriu junto) ou o spike continua vivo depois de 3 s com o Reco aberto.
     - `mutex.py` (descartável, só `ctypes` e `subprocess`) faz os dois sentidos e abre o `Reco.exe` com `HF_HUB_OFFLINE=1` no ambiente (passo 10, P8).
@@ -194,7 +198,7 @@
 
 ### Bloco C — registrar e propagar
 
-15. [ ] Escrever o relatório `roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md` — **prova:** `grep -cE "abrir_pronta_s|clique_mp3_cresce_s|parar_arquivo_fechado_s|ram_gravando_mb|pipeline_gpu|D2" <rel>` → 6 ou mais e `grep -c exe_selftest <rel>` → 1 ou mais
+15. [x] Escrever o relatório `roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md` — **prova:** `grep -cE "abrir_pronta_s|clique_mp3_cresce_s|parar_arquivo_fechado_s|ram_gravando_mb|pipeline_gpu|D2" <rel>` → 6 ou mais e `grep -c exe_selftest <rel>` → 1 ou mais
     **reprova se:** o segundo grep dá 0 (a Fase 1 lê `exe_selftest`), algum número aparece sem a condição (som, `live`, `device`, escala de DPI, checagem de modelo desligada) ou "estimado" ocupa o lugar de um número medido.
     - Conteúdo:
       - tabela das rodadas (mediana e primeira) dos passos 11 e 12;
@@ -206,20 +210,23 @@
       - Fase 2: a partida do motor e se Gravar pode esperar por ele;
       - Fase 4: a régua de comparação.
     - Sem host, token nem caminho pessoal além de `C:\Dev\Reco` (o repo é público).
-16. [ ] Propagar ao índice por `Edit` ancorado: linha após as notas das Decisões (F5-D14, `is_reco_recording`) com o veredito da D2 e o link do relatório, e o link em § Sidecar — **prova:** `grep -n "fase-0-relatorio" C:/Dev/Reco/roadmap/2026-11-11-melhoria-reco-em-rust.md` → 2 linhas
+    - 12/11: `29` e `7`; seção "O que isso diz às próximas fases" escrita.
+16. [x] Propagar ao índice por `Edit` ancorado: linha após as notas das Decisões (F5-D14, `is_reco_recording`) com o veredito da D2 e o link do relatório, e o link em § Sidecar — **prova:** `grep -n "fase-0-relatorio" C:/Dev/Reco/roadmap/2026-11-11-melhoria-reco-em-rust.md` → 2 linhas
     **reprova se:** 0 linhas, ou a D2 foi reaberta e o índice não diz que a Fase 3 espera o spike de Slint.
     - Se a D2 confirmou com remendo (`showwindow`), a linha diz "Fase 3: mostrar pela `hwnd()` com `ShowWindow(4)`". O md da Fase 3 é de outra sessão: deixar a linha no índice, não editar a fase.
     - A mesma linha registra a F0-D5: a D7 (mesmo mutex `Local\Reco.SingleInstance`) se cumpre com `CreateMutexW` à mão, porque o plugin de instância única de "Caminho escolhido" cria outro mutex. **prova:** `grep -c "F0-D5" C:/Dev/Reco/roadmap/2026-11-11-melhoria-reco-em-rust.md` → 1 ou mais
     - **reprova se:** dá 0 (a F3-D2 da Fase 3, que já dispensa o plugin, fica sem a prova dos dois sentidos registrada no índice, e "Caminho escolhido" segue sugerindo o plugin).
     - Se a D7 tiver revertido para mutex próprio (cláusula "reverte se" dela, Fase 4 com os dois apps abertos), a linha diz que o passo 13 provou o nome antigo e que o nome novo pede nova prova.
-17. [ ] Atualizar a documentação: linha do `medir_partida.py` em `docs/TOOLS.md` e o hub — **prova:** `grep -c "medir_partida.py" C:/Dev/Reco/docs/TOOLS.md` → 1 e `grep -c "Reco em Rust" C:/Dev/cerebro/projetos/reco.md` → 1 ou mais
+    - 12/11: `2` linhas e `F0-D5` → `2` (a D2 confirmou no modo `tao`; nada de Slint).
+17. [x] Atualizar a documentação: linha do `medir_partida.py` em `docs/TOOLS.md` e o hub — **prova:** `grep -c "medir_partida.py" C:/Dev/Reco/docs/TOOLS.md` → 1 e `grep -c "Reco em Rust" C:/Dev/cerebro/projetos/reco.md` → 1 ou mais
     **reprova se:** algum dá 0.
     - `docs/TOOLS.md`: uma linha na tabela com os modos e o aviso "nunca fecha o Reco do usuário: `--esperar-fechado` só checa a gravação e espera o Sair pela bandeja; move os MP3 de teste para temp/medicoes".
     - Hub `cerebro/projetos/reco.md`, por `Edit` ancorado: em "Estado agora", uma linha 11/11 com os 3 números principais e o link do índice; em "Roadmaps em voo", a entrada "Reco em Rust · 1/8".
     - O spike revelou pegadinha (ícone escondido no Windows 11, posicionador errado, `Enter` que não chega)? Entrada nova só por `python tools/visoes.py novo "título"`, nunca editando `docs/ARMADILHAS.md`.
     - README, `docs/ARQUITETURA.md` e o `CLAUDE.md` do projeto não mudam: a fase não muda comportamento nem cria regra. Dizer isso no relatório.
     - Fragmento do diário em `C:\Dev\cerebro\pessoal\diario\2026-11-11\` (template `diario/_TEMPLATE.md`) e `cerebro/scripts/compilar_fragmentos.py`, pelo ritual.
-18. [ ] Commitar por pathspec nos dois repos — **prova:** `git -C C:/Dev/Reco status --short tools docs roadmap` → nada dos arquivos desta fase; `git -C C:/Dev/Reco log -1 --stat` lista `tools/medir_partida.py`
+    - 12/11: TOOLS `1`, hub `≥ 1`. Desvio: `CLAUDE.md` (regra 3) e `docs/ARQUITETURA.md` mudaram, porque a fase mediu que diziam errado quando o MP3 nasce (armadilha nova `2026-11-12-0034-…`); relatório § Desvios. Diário de 12/11, fragmento `4c65eb01-reco-em-rust-fecho`.
+18. [x] Commitar por pathspec nos dois repos — **prova:** `git -C C:/Dev/Reco status --short tools docs roadmap` → nada dos arquivos desta fase; `git -C C:/Dev/Reco log -1 --stat` lista `tools/medir_partida.py`
     **reprova se:** o pre-commit recusa (ruff, trava de tamanho, gitleaks). Corrigir e commitar de novo, nunca com `--no-verify`.
     - Antes do commit, o repo é público: tirar caminhos pessoais dos arquivos novos (em 11/11 havia em `fase-1.md`, `fase-6.md` e `diagnostico/6-critica-de-completude.md`). Trocar por `%USERPROFILE%` ou `%LOCALAPPDATA%`.
       - **prova:** `grep -rlE 'C:[\\/]Users|Gabriel dos Anjo[s]|App[D]ata' C:/Dev/Reco/roadmap/2026-11-11-melhoria-reco-em-rust* C:/Dev/Reco/tools/medir_partida.py C:/Dev/Reco/docs/TOOLS.md` → saída vazia
@@ -255,7 +262,7 @@
 
 ## Pendente (dono: gabriel)
 
-- **Sair do Reco pela bandeja quando a sessão pedir (passo 9)**, sem estar em chamada (o passo 12 toca ruído no alto-falante). `dono: gabriel`.
+- ~~Feito em 11/11 (~23:18); o app reabriu em 12/11, 00:24.~~ **Sair do Reco pela bandeja quando a sessão pedir (passo 9)**, sem estar em chamada (o passo 12 toca ruído no alto-falante). `dono: gabriel`.
   O executor **nunca** mata o `Reco.exe` dele. Sem o Sair, faz o Bloco A inteiro e o Bloco C no que der, e deixa os passos 9 a 14 para quando ele puder.
 
 ## O que esta fase NÃO faz

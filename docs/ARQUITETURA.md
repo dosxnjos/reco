@@ -84,8 +84,11 @@ Medições e alternativas descartadas:
   frente fica em `_buf_mic`/`_buf_sys` até o par chegar — é isso que mantém L/R
   em sincronia. Consequências que **não** são acidentes e não devem ser
   "consertadas":
-  - o **arquivo nasce no `start()`**, então o timestamp do nome é o do *início*
-    da gravação (era o do fim) e um crash no meio deixa um MP3 parcial válido;
+  - o **nome do arquivo sai no `start()`**, então o timestamp do nome é o do *início*
+    da gravação (era o do fim) e um crash no meio deixa um MP3 parcial válido. Mas o
+    arquivo só aparece no disco no 1º pacote, quando o `_pump` alinha ou desiste
+    (~11 s com eco, ~20,7 s sem, medido em 11/11/2026): um crash antes disso não deixa
+    MP3 ([armadilha](armadilhas.d/2026-11-12-0034-o-mp3-so-nasce-no-1o-pedaco-de-audio-nao-no-gravar.md));
   - o **ganho por canal deixou de ser retroativo** — vale do momento em que o
     slider é movido em diante (era aplicado ao arquivo inteiro no save, o que é
     impossível quando o áudio já foi encodado);
