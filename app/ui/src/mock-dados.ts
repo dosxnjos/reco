@@ -49,9 +49,13 @@ export function itensFalsos(pasta = PASTA): ItemProto[] {
   });
 }
 
+/** Mesma forma do motor real: `console`/`comm` são o NOME do padrão do Windows (`reco.scan_device_state`), não o id.
+ *  Com ids aqui, os testes passavam numa forma que o motor nunca manda (defeito 2 do passo 17). */
 export const DISPOSITIVOS = {
-  microphone: { devs: [{ id: "{mic-1}", name: "Microfone (Realtek(R) Audio)" }, { id: "{mic-2}", name: "Headset (QCY H3)" }], console: "{mic-1}", comm: "{mic-2}" },
-  speaker: { devs: [{ id: "{spk-1}", name: "Alto-falantes (Realtek(R) Audio)" }, { id: "{spk-2}", name: "Fones de ouvido (QCY H3)" }], console: "{spk-1}", comm: "{spk-2}" },
+  microphone: { devs: [{ id: "{mic-1}", name: "Microfone (Realtek(R) Audio)" }, { id: "{mic-2}", name: "Headset (QCY H3)" }],
+    console: "Microfone (Realtek(R) Audio)" as string | null, comm: "Headset (QCY H3)" as string | null },
+  speaker: { devs: [{ id: "{spk-1}", name: "Alto-falantes (Realtek(R) Audio)" }, { id: "{spk-2}", name: "Fones de ouvido (QCY H3)" }],
+    console: "Alto-falantes (Realtek(R) Audio)" as string | null, comm: "Fones de ouvido (QCY H3)" as string | null },
 };
 
 export const ERRO_DETALHE = (sis: string, pasta: string): string => [

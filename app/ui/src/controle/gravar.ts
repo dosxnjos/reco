@@ -10,7 +10,7 @@ import { GRAVANDO } from "../vista";
 import { zerarNiveis } from "../vu";
 import type { Conclusao, EngineEvent, ErroGravar } from "../tipos";
 
-interface Inicio { mic: { name: string; via: string }; sys: { name: string; via: string }; live: boolean }
+interface Inicio { mic: { name: string | null; via: string }; sys: { name: string | null; via: string }; live: boolean }
 interface Estado { rec_state: string; elapsed_s: number; live: boolean; last_rec: string | null; auto: string | null; transcribing: boolean }
 
 let parandoAgora = false;
@@ -77,7 +77,9 @@ async function comecar(app: App): Promise<void> {
   comecando = true;
   try {
     const r = await app.pedir<Inicio>("rec.start", { mode: g.modo === "nota" ? "nota" : "rec" });
-    g.mic = r.mic.name; g.sis = r.sys.via === "ausente" ? g.padraoSis : r.sys.name; g.sisAusente = r.sys.via === "ausente";
+    // o motor pode mandar `name: null` (sem dispositivo resolvido naquele canal): nunca deixar o painel vazio
+    g.mic = r.mic.name ?? t("o.auto-console"); g.sis = r.sys.via === "ausente" ? g.padraoSis : r.sys.name ?? t("o.auto-console");
+    g.sisAusente = r.sys.via === "ausente";
     g.aoVivo = r.live; g.segundos = 0; g.falas = []; app.v.ocupado = true; app.v.estado.opcoes = "durante-gravacao";
     app.ir("gravar", estadoGravando(app));
   } catch (e) {

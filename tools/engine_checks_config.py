@@ -45,6 +45,9 @@ def _dispositivos(eng: Engine) -> str:
     check(mics and spks, f"listas vazias: {len(mics)} mics, {len(spks)} saídas (thread do COM?)")
     cm, cs = d["microphone"]["console"], d["speaker"]["console"]
     check(cm and cs, f"console nulo: mic={cm} saída={cs}")
+    # contrato da tela (defeito 2 do passo 17): `console`/`comm` são o NOME do padrão, não o id
+    check(cm in [x["name"] for x in mics] and cs in [x["name"] for x in spks],
+          f"console não é um dos nomes da lista: mic={cm} saída={cs}")
     nomes = [x["name"] for x in mics + spks]
     check(not any("?" in n or "�" in n for n in nomes), f"nome com ? (encoding): {nomes}")
     check(set(d["missing"]) == {"mic", "sys"} and "selected" in d, f"formato: {list(d)}")

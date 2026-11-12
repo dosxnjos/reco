@@ -49,7 +49,7 @@ global (sem pedido) vai **sem** `id`; o casco testa `event` antes de `id`.
 | `state` | `{}` | `{ready, rec_state, elapsed_s, transcribing, live, last_rec\|null, auto\|null}`: retrato para ressincronizar | — | 60 s |
 | `config.get` | `{}` | `{config:{…com defaults e migração em memória}, output_dir_efetivo, lang_efetivo}` | — | 60 s |
 | `config.set` | `{changes:{chave:valor}}` | o mesmo de `config.get`, depois de gravar e reler | — | 60 s |
-| `devices.list` | `{}` | `{microphone:{devs:[{id,name}],console,comm}, speaker:{…}, selected:{mic_device,sys_device}, missing:{mic,sys}}` | — | 60 s |
+| `devices.list` | `{}` | `{microphone:{devs:[{id,name}],console,comm}, speaker:{…}, selected:{mic_device,sys_device}, missing:{mic,sys}}`; `console`/`comm` são o **nome** do padrão do Windows (ou `null`), não o id | — | 60 s |
 | `devices.refresh` | `{}` | igual a `devices.list` (a enumeração já é fresca, F2-D11) | — | 60 s |
 | `rec.start` | `{mode:"rec"\|"nota"}` | `{mic:{id,name,via}, sys:{id,name,via}, live, live_suprimido}`; `via:"ausente"` = o salvo sumiu e caiu no padrão | `state`, `level`, `timer`, `rec.error`, `live.text`, `live.warn` | 60 s |
 | `rec.pause` | `{}` | `{elapsed_s}` | `state` | 60 s |

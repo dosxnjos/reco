@@ -2,6 +2,7 @@
 import type { App } from "../app";
 import { guardarAparencia } from "../aparencia";
 import { duracaoCurta } from "../dom";
+import { t } from "../i18n";
 import type { ConfigProto, DevicesProto, ItemLib, ItemProto, Lingua, Skin, Tema } from "../tipos";
 
 const quando = (mtime: number): string => {
@@ -30,9 +31,13 @@ export function aplicarConfig(app: App, c: ConfigProto): void {
   v.o.selMic = String(cfg.mic_device ?? "auto:console"); v.o.selSis = String(cfg.sys_device ?? "auto:console");
 }
 
+/** Nome do que vai gravar, antes da 1ª gravação. ⚠️ `console`/`comm` do motor são o NOME do padrão do Windows
+ *  (`reco.scan_device_state`), não o id (defeito 2 do passo 17: a busca por id deixava Entrada e Saída vazias).
+ *  Sem padrão conhecido, "Automático (padrão do Windows)". */
 function nomeEscolhido(st: DevicesProto["microphone"], sel: string | null): string {
-  const id = sel === "auto:comm" ? st.comm : !sel || sel.startsWith("auto") ? st.console : sel;
-  return st.devs.find((d) => d.id === id)?.name ?? st.devs.find((d) => d.id === st.console)?.name ?? "";
+  if (sel === "auto:comm") return st.comm ?? st.console ?? t("o.auto-comm");
+  if (!sel || sel.startsWith("auto")) return st.console ?? t("o.auto-console");
+  return st.devs.find((d) => d.id === sel)?.name ?? st.console ?? t("o.auto-console"); // salvo que sumiu: cai no padrão
 }
 
 /** Dispositivos: listas de Opções, nomes do painel Pronto e o aviso de dispositivo ausente. */
@@ -41,7 +46,7 @@ export function aplicarDispositivos(app: App, d: DevicesProto): void {
   v.o.mics = d.microphone.devs.map((x) => ({ id: x.id, nome: x.name }));
   v.o.siss = d.speaker.devs.map((x) => ({ id: x.id, nome: x.name }));
   v.o.selMic = d.selected.mic_device ?? "auto:console"; v.o.selSis = d.selected.sys_device ?? "auto:console";
-  const padrao = d.speaker.devs.find((x) => x.id === d.speaker.console)?.name ?? "";
+  const padrao = d.speaker.console ?? t("o.auto-console");
   v.o.padraoSis = padrao; v.g.padraoSis = padrao;
   if (!v.ocupado) {
     v.g.mic = nomeEscolhido(d.microphone, d.selected.mic_device);

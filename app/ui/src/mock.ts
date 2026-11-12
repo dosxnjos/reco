@@ -27,6 +27,8 @@ export interface ControleMock {
   recusar: Record<string, string>;
   /** O `state` diz `transcribing: true` sem trabalho de verdade (a checagem do modelo ocupando a vaga). */
   vagaOcupada: boolean;
+  /** `devices.list` com `console`/`comm` nulos (o Windows sem padrão definido). */
+  semPadrao: boolean;
   /** Menu da bandeja como o lib.rs faz: Gravar sempre no modo `rec`; Parar pelo mesmo `parar_gravacao`. */
   bandeja(item: "gravar" | "parar"): Promise<unknown>;
   /** Força o estado do motor sem evento (simula o `stopping` que o motor real mostra enquanto fecha o MP3). */
@@ -57,8 +59,8 @@ class MotorFalso {
 
   private nomeDispositivo(kind: "microphone" | "speaker", chave: string) {
     const st = DISPOSITIVOS[kind], sel = String(this.config[chave]);
-    const id = sel === "auto:comm" ? st.comm : sel.startsWith("auto") ? st.console : sel;
-    const d = st.devs.find((x) => x.id === id) ?? st.devs[0];
+    const auto = sel === "auto:comm" ? st.comm : sel.startsWith("auto") ? st.console : null; // o padrão vem por nome
+    const d = (auto ? st.devs.find((x) => x.name === auto) : st.devs.find((x) => x.id === sel)) ?? st.devs[0];
     return { id: d.id, name: d.name, via: sel.startsWith("auto") ? sel.slice(5) : "manual" };
   }
 
@@ -132,7 +134,10 @@ class MotorFalso {
   c_devices_list() {
     const sel = { mic_device: String(this.config.mic_device), sys_device: String(this.config.sys_device) };
     const falta = (k: "microphone" | "speaker", s: string) => !s.startsWith("auto") && !DISPOSITIVOS[k].devs.some((d) => d.id === s);
-    return { ...DISPOSITIVOS, selected: sel, missing: { mic: falta("microphone", sel.mic_device), sys: falta("speaker", sel.sys_device) } };
+    const disp = this.ctl.semPadrao
+      ? { microphone: { ...DISPOSITIVOS.microphone, console: null, comm: null }, speaker: { ...DISPOSITIVOS.speaker, console: null, comm: null } }
+      : DISPOSITIVOS;
+    return { ...disp, selected: sel, missing: { mic: falta("microphone", sel.mic_device), sys: falta("speaker", sel.sys_device) } };
   }
   c_devices_refresh() { return this.c_devices_list(); }
   async c_rec_start(a: Args) {
@@ -221,7 +226,7 @@ export function criarMock(): Backend {
   };
   const ctl: ControleMock = {
     chamadas: [], area: "", velocidade: 1, versao: null, proximoArquivo: "C:\\Vídeos\\reuniao-fornecedor.mp4", proximaPasta: "C:\\Notas",
-    atalhoOcupado: false, passosTranscricao: 6, congelado: false, atraso: {}, conclusaoAntes: false, recusar: {}, vagaOcupada: false,
+    atalhoOcupado: false, passosTranscricao: 6, congelado: false, atraso: {}, conclusaoAntes: false, recusar: {}, vagaOcupada: false, semPadrao: false,
     derrubar: (o = {}) => {
       // como o estado.rs: `stopping` também tem arquivo aberto (o MP3 pode não ter fechado)
       const gravando = ["recording", "paused", "starting", "stopping"].includes(motor.rec);
