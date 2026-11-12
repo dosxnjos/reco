@@ -75,6 +75,32 @@ Os nomes abaixo vêm de `2026-11-11-melhoria-reco-em-rust-fase-2.md` (passos 2 a
 - **`ready` pode se perder:** o motor sobe no `setup`, antes de a tela escutar, e de novo a cada reinício. A tela
   pede `hello` ao montar e a cada `engine-status` com `running: true`; o evento `ready` é só o atalho rápido.
 
+### Conferido contra o `docs/PROTOCOL.md` real (passo 1, 11/11/2026, base `9fd4f95`)
+
+`--conferir-doc` → 22 comandos no registro e na tabela (os 21 acima mais `shutdown`, reservado ao casco). Os nomes
+batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima:
+
+- `hello` → `{engine_version, reco_version|null, protocol:1, platform, ready, uptime_s}` (teto sugerido 10 s).
+- `state` (comando) traz também `auto|null` e pode mostrar `starting` por milissegundos durante o `rec.start`;
+  o evento `state` nunca mostra `starting`.
+- `ready` → `{import_s, has:{sc,np,av,ov}, lang, reco_version}`, ou `{import_s, error}` se o `import reco` falhou
+  (aí os comandos respondem `unavailable`): com `error`, o casco **não** pede as checagens de versão.
+- `rec.start` → `{mic:{id,name,via}, sys:{…}, live, live_suprimido}`; `rec.pause`/`rec.resume` → `{elapsed_s}`.
+- `rec.stop` pode responder `no_audio` (volta a `idle`) ou `refused` (fora de gravação); o Sair segue para o
+  `shutdown` nos dois casos. Teto sugerido 30 s; o casco usa 120 s de folga (passo 4).
+- `rec.conclude`: `delete` → `{path, deleted}`; `final_pass` → `{txt, text}` e **continua em `stopped`** (a tela
+  ainda conclui com `save` ou `delete`); `nota` termina em `idle`. `parar_gravacao` não presume `idle` depois do auto.
+- `rec.set_gain` → `{applied}` (0 a 10); `transcribe.cancel` → `{found}`.
+- `config.get`/`config.set` → `{config:{…}, output_dir_efetivo, lang_efetivo}`: a preferência mora em
+  `data.config.casco_atalho` (passo 10). `casco_*` aceita qualquer valor (sem validação de tipo no motor).
+- `library.list` → `{folder, items:[{name, path, mtime, bytes, duration_s, txt, resumo}]}`; `library.search` →
+  `{q, items}`; `library.delete` → `{path, deleted}`.
+- `convert.extract_mp3` → `{path, src_bytes, dst_bytes}`, `progress` com `pct` inteiro e `text: null`.
+- `resumo.ia` → `{path, existia}`; `model.update_check` → `{}` e pode responder `busy` (o casco engole).
+- `rec.error.channel` é `mic|sys|save`. Códigos do próprio casco, fora da lista do motor: `timeout` (Router) e
+  `hotkey_taken` (passo 10).
+- Nenhum comando novo no motor foi preciso para os passos 2 a 10.
+
 ## Regras de execução desta fase
 
 - Prova que sobe o app real exige o **app velho fechado** (mesmo mutex, D7): com ele aberto, o novo só faz
@@ -122,6 +148,10 @@ Os nomes abaixo vêm de `2026-11-11-melhoria-reco-em-rust-fase-2.md` (passos 2 a
 1. [ ] Fases 0 a 2 fechadas e contrato reconciliado com o `engine/` real — **prova:** `test -f docs/PROTOCOL.md && python tools/test_engine_protocol.py --conferir-doc && node design/testar-anti-pulo.cjs && test "$(grep -c data-direcao design/tokens.css)" = 0; echo "s=$?"` → `s=0`
    **reprova se:** `s` diferente de 0: falta o `PROTOCOL.md`, um teste falha ou sobra `data-direcao` nos tokens (direção visual não escolhida). Parar: a fase depende das três.
    - Anotar aqui a base da fase: `git rev-parse --short HEAD` antes do primeiro commit desta fase (o passo 18 usa).
+     **Base: `9fd4f95`** (11/11/2026). Mecanismo do hover sem foco (Fase 0, D2 confirmada): modo `tao`,
+     `focused(false)` + `focusable(false)` na criação, `show()`, e `set_focusable(true)` + `set_focus()` no clique
+     que fixa. Prova rodada em 11/11: `s=1` só pelos 11 `data-direcao` (Fase 1 sem direção escolhida); os passos
+     2 a 10 andaram mesmo assim (decisão técnica no relatório), sem tocar em interface.
    - Ler o relatório da Fase 0 no sidecar e anotar aqui qual mecanismo provou o hover sem foco. Se o relatório
      diz que a escolha do Tauri ficou **reaberta** (D2), parar e devolver ao índice: esta fase não começa.
    - Conferir a tabela "Contrato com o motor" contra o `docs/PROTOCOL.md` e anotar cada divergência nela.
@@ -133,7 +163,7 @@ Os nomes abaixo vêm de `2026-11-11-melhoria-reco-em-rust-fase-2.md` (passos 2 a
      passo (arquivo novo até 500 linhas, teste do motor, protocolo atualizado). Propagar rio abaixo: o
      backend falso (passo 11) e a tabela de paridade usam o nome novo.
    - Depois de mexer no motor: `python tools/test_engine_protocol.py` e `--conferir-doc` de novo, verdes.
-2. [ ] Trava de tamanho ver `.rs` e `.ts` (`tools/tamanho.json` e `files:` do hook) — **prova:** `grep -o '"\.rs"\|"\.ts"' tools/tamanho.json | wc -l` → `2` e `grep -A4 'id: trava-tamanho' .pre-commit-config.yaml | grep 'files:' | grep -E '[|(]rs[|)]' | grep -cE '[|(]ts[|)]'` → `1`
+2. [x] Trava de tamanho ver `.rs` e `.ts` (`tools/tamanho.json` e `files:` do hook) — **prova:** `grep -o '"\.rs"\|"\.ts"' tools/tamanho.json | wc -l` → `2` e `grep -A4 'id: trava-tamanho' .pre-commit-config.yaml | grep 'files:' | grep -E '[|(]rs[|)]' | grep -cE '[|(]ts[|)]'` → `1`
    **reprova se:** o primeiro dá `0` ou `1`, ou o segundo dá `0` (o hook continuaria cego para o casco).
    - Depois, `python C:/Dev/cerebro/scripts/gate_tamanho.py --config tools/tamanho.json --medir` → só `reco.py`
      acima de 500 (o gate só olha o que está no stage, então `pre-commit run --all-files` passaria vazio).
@@ -142,7 +172,7 @@ Os nomes abaixo vêm de `2026-11-11-melhoria-reco-em-rust-fase-2.md` (passos 2 a
      de 500 linhas do D3 não alcançaria o casco. Mudança no json vai em **commit próprio** (regra do json).
    - No mesmo passo, `.gitignore` da raiz ganha `node_modules/` e `app/src-tauri/gen/` (commit separado do json).
      `dist/` e `build/` já valem para `app/ui/dist` e `engine/dist`.
-3. [ ] Esqueleto de `app/`: `package.json`, `vite.config.ts`, `tsconfig.json`, `ui/index.html`, `src-tauri/` (Cargo, `build.rs`, `tauri.conf.json`, capability, `main.rs`) — **prova:** `npm --prefix app run ui:build && cargo check --manifest-path app/src-tauri/Cargo.toml` → `Finished`
+3. [x] Esqueleto de `app/`: `package.json`, `vite.config.ts`, `tsconfig.json`, `ui/index.html`, `src-tauri/` (Cargo, `build.rs`, `tauri.conf.json`, capability, `main.rs`) — **prova:** `npm --prefix app run ui:build && cargo check --manifest-path app/src-tauri/Cargo.toml` → `Finished`
    **reprova se:** o `tauri-build` reclama da pasta de recurso do motor, do `frontendDist` ou de capability inválida.
    - Antes da prova: `npm --prefix app install`; o `app/package-lock.json` entra no commit (o `npm ci` do passo 16 depende dele).
    - O build da interface vem antes do `cargo check` porque o `generate_context!` procura `app/ui/dist` (premissa).
@@ -152,8 +182,14 @@ Os nomes abaixo vêm de `2026-11-11-melhoria-reco-em-rust-fase-2.md` (passos 2 a
    - Scripts do `app/package.json`: `ui:build`, `i18n:check` (passo 11) e `ui:preview` (`vite preview --port 1431
      --strictPort`, serve `app/ui/dist` com o backend falso para os testes da Fase 1 no passo 14).
    - `Cargo.toml`: `name = "reco"`, lib `reco_lib`, `tauri` com feature `tray-icon`; plugins `log`, `dialog`,
-     `opener`, `clipboard-manager`, `global-shortcut`, `positioner` (feature `tray-icon`), `autostart`,
-     `notification`; `windows-sys` (Foundation, System_Threading, UI_WindowsAndMessaging); release igual ao Lacre.
+     `opener`, `clipboard-manager`, `global-shortcut`, `autostart`, `notification`; `windows-sys` 0.59 (Foundation,
+     **Security**, System_Threading, UI_WindowsAndMessaging, mais Graphics_Gdi e System_LibraryLoader para a janela
+     do `Reco.Show`); release igual ao Lacre.
+     - **Sem `positioner`** (execução, 11/11): a Fase 0 provou que o `TrayBottomCenter` põe a janela em cima da barra
+       (pegadinha 3); o casco ancora pelo rect do ícone, como o spike e o `reco.py:4980-4997`.
+     - A janela nasce com `focus: false` e `focusable: false` (modo `tao` provado na Fase 0) e `skipTaskbar: true`.
+     - `tsconfig.json` só inclui `ui/src`: o `vite.config.ts` usa `process.cwd()` e o Vite o transpila sozinho
+       (sem `@types/node`). O script `i18n:check` entra no passo 11, com o arquivo dele.
    - **Sem** `tauri-plugin-single-instance` e **sem** `tauri-plugin-store` (F3-D2, F3-D5).
    - **Caminhos um nível acima do Lacre:** lá o `src-tauri` fica na raiz do repo; aqui fica em `app/src-tauri`.
      - `build.rs`: cópia do Lacre (`C:\Dev\lacre\src-tauri\build.rs:8-38`) com

@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Janela main: escutar os eventos do motor e arrastar pela barra de título própria. Os comandos do casco (engine_request, parar_gravacao, copy_path, open_path…) são do app e validam a própria entrada; dialog, opener, clipboard, notificação, atalho e autostart rodam só do Rust, então nenhuma permissão de plugin vai para a webview.",
+  "windows": ["main"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-start-dragging"
+  ]
+}

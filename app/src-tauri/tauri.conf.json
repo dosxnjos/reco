@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Reco Novo",
+  "version": "0.1.0",
+  "identifier": "io.github.dosxnjos.reco",
+  "build": {
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:1430",
+    "beforeDevCommand": "npm run ui:dev",
+    "beforeBuildCommand": "npm run ui:build"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Reco",
+        "width": 400,
+        "height": 560,
+        "resizable": false,
+        "maximizable": false,
+        "decorations": false,
+        "visible": false,
+        "focus": false,
+        "focusable": false,
+        "skipTaskbar": true,
+        "center": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Utility",
+    "shortDescription": "Grava microfone e som do PC e transcreve local",
+    "longDescription": "Reco grava o microfone e o som do PC num MP3 estéreo (esquerda = você, direita = o PC) e transcreve no próprio computador, com o Whisper no OpenVINO.",
+    "copyright": "MIT License",
+    "license": "MIT",
+    "icon": ["icons/icon.ico"],
+    "resources": {
+      "../../engine/dist/reco-engine/": "engine/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["PortugueseBR", "English"],
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

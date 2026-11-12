@@ -1,0 +1,24 @@
+{
+  "name": "reco-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Reco: casco Tauri 2 (interface nova) sobre o motor Python em engine/.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "ui:dev": "vite",
+    "ui:build": "tsc --noEmit && vite build",
+    "ui:preview": "vite preview --port 1431 --strictPort",
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.7"
+  }
+}

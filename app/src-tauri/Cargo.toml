@@ -1,0 +1,53 @@
+[package]
+name = "reco"
+version = "0.1.0"
+description = "Reco: grava microfone + som do PC e transcreve local (casco Tauri sobre o motor Python)"
+authors = ["dosxnjos"]
+license = "MIT"
+repository = "https://github.com/dosxnjos/reco"
+edition = "2021"
+rust-version = "1.90"
+
+[lib]
+name = "reco_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-log = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "time"] }
+log = "0.4"
+
+# Win32 direto: mutex Local\Reco.SingleInstance, mensagem Reco.Show (janela de topo escondida) e o vigia do hover.
+# Win32_Security: sem ela o windows-sys 0.59 esconde o CreateMutexW (E0432, pegadinha 8 da Fase 0).
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.59"
+features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Security",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Threading",
+  "Win32_UI_WindowsAndMessaging",
+]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros", "time"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
