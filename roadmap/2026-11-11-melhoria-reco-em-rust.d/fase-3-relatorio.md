@@ -390,10 +390,14 @@ o primeiro "Gravar nota" ~2 s depois de abrir não grava (abaixo).
 
 **D11, motor morre gravando (build final, 12:18):** 30 s, `Stop-Process -Id <reco-engine>` → a tela saiu de
 "Gravando" em 0,11 s para "Erro" com "A gravação foi interrompida" e "Abrir pasta", medidores zerados (no build
-anterior ficavam com o último nível, achado 5 corrigido); o ícone da bandeja cinza (captura `08-…png`); o motor
+anterior ficavam com o último nível, achado 5 corrigido); o motor
 voltou sozinho e **não** religou a gravação (8 s depois: principal "Gravar", status "O motor reiniciou; a tela
 foi atualizada."). O arquivo do motor morto: declarada 19,45 s × decodificada 20,88 s (sem a contagem final e
 sem os últimos ~9 s, que estavam no buffer do encode, como o md previa) → Lixeira; `reparar_duracao.py` não rodou.
+O ícone fora do vermelho depois da queda só está na captura do **build anterior** (`IsPromoted` ainda ligado:
+ícone de repouso, cinza); no build final o ícone já estava no "^" e a captura `08-…png` não o mostra. Pelo código,
+o mesmo evento que põe a tela no alarme põe o ícone em repouso (`estado.rs`, D11), mas no build final isso não foi
+visto.
 
 **Bandeja grava e Sair gravando (build final, 12:19):** `WM_COMMAND 1000` (Gravar do menu) → a tela foi a
 "Parar"; 30 s; `WM_COMMAND 1003` (Sair) → o casco saiu com código 0 em 0,51 s; log do casco `Sair com gravação
@@ -403,7 +407,8 @@ decodificada 30,016, 2 canais, 16000 Hz, lados R 0,719 > L 0,596.
 **Repasse `--transcribe` (build final, 12:21):** cópia `a_reco.mp3` em `temp/medicoes/p17/build-novo/repasse/`,
 `reco.exe --transcribe <cópia> --diarize` esperado até o fim → exit 0 em 19,1 s, `a_reco.txt` ao lado (2 linhas
 rotuladas), fim de `%TEMP%\reco_transcribe_log.txt` = `OK -> …\a_reco.txt`; nenhuma janela visível de nenhum
-processo Reco durante a execução; o `reco-engine.exe` rodou como filho; o mutex não foi pego.
+processo Reco durante a execução; o `reco-engine.exe` rodou como filho. (Se o repasse pega o mutex não foi
+medido: a única leitura foi depois de o processo sair.)
 
 **D12 — abrir até pronto para gravar (régua: velho `abrir_pronta_s` mediana 1,515 s):**
 
@@ -429,7 +434,8 @@ processo Reco durante a execução; o `reco-engine.exe` rodou como filho; o mute
    segundo clique grava. Com rede de verdade (sem `HF_HUB_OFFLINE`) a janela é maior, e com modelo novo para baixar
    a nota fica travada pelo download. Gravação comum não sofre. Armadilha nova; a correção é da frente do app.
    - Efeito no teste: no build anterior, meu roteiro esperava 2 min antes do 2º clique, e duas notas gravaram o
-     microfone com o dono falando (uma de ~5 min). Não li nem copiei o texto para cá; os `.md` foram à Lixeira.
+     microfone com o dono falando (uma de ~5 min). Não copiei o texto para cá; os `.md` foram à Lixeira, e os logs
+     que guardavam trechos da transcrição (`principal*.log`, `nota*.raw`) foram apagados (os números estão aqui).
 2. **Entrada e Saída vazias antes da primeira gravação** com `auto:console`: o painel mostra "Entrada"/"Saída" sem
    nome e o status sai "Pronto para gravar. Microfone:  · Sistema: " (os dois builds); os nomes aparecem quando a
    gravação começa (a resposta do `rec.start`).
