@@ -222,7 +222,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      sugeridos: é o prazo que segura o Sair, D11); `model.update_check` 2 h (baixa o modelo novo quando há, `reco.py:1230-1266`;
      em 60 s o Router daria timeout no meio do download); resto 60 s. Teste de `prazo("rec.conclude", {action})`.
    - O teste ignorado `fake_engine_end_to_end` vem junto: `cargo test ... -- --ignored fake_engine` → `1 passed`.
-5. [ ] `lib.rs`: plugins, partida do motor, `engine.log`, **saída segura** que fecha a gravação antes do `shutdown` e checagem de versão após o `ready` — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml -- --ignored sair_fecha_gravacao apos_ready_checa_versao` → `2 passed`
+5. [x] `lib.rs`: plugins, partida do motor, `engine.log`, **saída segura** que fecha a gravação antes do `shutdown` e checagem de versão após o `ready` — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml -- --ignored sair_fecha_gravacao apos_ready_checa_versao` → `2 passed`
    **reprova se:** menos de `2 passed`, o motor falso registra `shutdown` antes de `rec.stop` com estado gravando, ou não recebe `model.update_check` e `app.update_check` depois do `ready`.
    - Molde `C:\Dev\lacre\src-tauri\src\lib.rs:25-85` (`resolve_launch` em `:25-41`). Debug: `python -m reco_engine`
      em `engine/` (passo 4); `RECO_ENGINE=<exe>` em debug roda o congelado; release usa o recurso `engine/`.
@@ -236,6 +236,10 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      faz o Rust pôr o ícone em idle, mostrar a notificação "A gravação foi interrompida" (também com a janela
      escondida) e a interface mostrar o aviso com "Abrir pasta". Nunca religar a gravação sozinho.
    - Reinício do motor: `running: true` depois de `false` faz a interface pedir `state` e se redesenhar.
+   - **Execução (11/11):** `motor/saida.rs` (`sair_com_seguranca`, `PrimeiroReady`, `checar_versoes`). Conta como
+     gravando `recording`, `paused` e `starting`; o `state` da saída tem prazo de 5 s (motor travado não segura o
+     Sair). `ExitRequested` é barrado até a saída segura terminar; `RunEvent::Exit` ainda dá `shutdown` de rede.
+     O primeiro `ready` também aplica a preferência do atalho (passo 10). `ready` com `error` não checa versão.
    - Checagens de versão (paridade com `_kick_update_checks`, `reco.py:2940-2949`, que roda 1,5 s depois de abrir):
      no primeiro `ready` do processo do casco (não a cada reinício do motor), esperar 1,5 s e pedir `model.update_check`
      e depois `app.update_check`, em segundo plano. Funciona com a janela escondida (F3-D4, F3-D15).
@@ -244,7 +248,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      - Resposta `{tag, url}` do `app.update_check`: o Rust guarda e emite `reco-versao-nova {tag, url}`; a tela lê
        o guardado pelo comando `versao_nova` ao montar (o evento pode chegar antes de ela escutar). `null` não avisa nada.
      - O teste `apos_ready_checa_versao` usa o motor falso: emite `ready` e confere os dois pedidos, nessa ordem.
-6. [ ] Comandos do casco em `app/src-tauri/src/comandos/` (`motor.rs`, `arquivos.rs`, `janela.rs`) — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml comandos -- --include-ignored` → `test result: ok`, 4 passed ou mais
+6. [x] Comandos do casco em `app/src-tauri/src/comandos/` (`motor.rs`, `arquivos.rs`, `janela.rs`) — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml comandos -- --include-ignored` → `test result: ok`, 4 passed ou mais
    **reprova se:** `0 passed`, falta teste que recuse `file:`/`javascript:` e `.exe` e confira as aspas do caminho copiado, ou falta `parar_encadeia_auto`.
    - `engine_request` e `engine_status`: cópia de `commands.rs:16-58` (`shutdown` reservado ao casco), com um
      gancho: resposta de `rec.conclude`/`transcribe.file` com a janela escondida → notificação (passo 8).
@@ -258,8 +262,11 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      de `reco.py:153-154`) ou pasta; recusa `.exe`, `.bat`, `.lnk` e afins (F3-D9).
    - `pick_file(kind)`/`pick_folder()`: plugin dialog com a janela como pai. `open_external`: cópia de
      `commands.rs:214-229` (só http/https). `window_hide`, `window_minimize`, `window_pin`.
+   - **Execução (11/11):** também `definir_lingua(lingua)` (assíncrono: os setters da bandeja esperam a thread
+     principal). `pick_file(kind)` aceita `audio` ou `midia`. `parar_encadeando` escreve o `rec.conclude` no motor
+     antes de voltar (ordem garantida) e devolve a conclusão para o casco esperar em segundo plano.
    - `versao_nova()`: devolve o `{tag, url}` guardado pela checagem do passo 5, ou `null`.
-7. [ ] Em `app/src-tauri/src/instancia.rs`: repasse de `--transcribe` e mutex `Local\Reco.SingleInstance` antes do `Builder`, mensagem `Reco.Show` nos dois sentidos — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml instancia` → `test result: ok`, 2 passed ou mais
+7. [x] Em `app/src-tauri/src/instancia.rs`: repasse de `--transcribe` e mutex `Local\Reco.SingleInstance` antes do `Builder`, mensagem `Reco.Show` nos dois sentidos — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml instancia` → `test result: ok`, 2 passed ou mais
    **reprova se:** menos de `2 passed`, o teste de dupla aquisição (nome `Local\Reco.Teste.<pid>`) não detecta a segunda, ou falta o teste de `repasse_cli`.
    - Repasse de `--transcribe` (D6, F3-D14), **antes** do mutex, como o velho (`reco.py:5148-5179` roda antes de `:5197-5210`):
      a função pura `repasse_cli(args)` devolve os argumentos quando há `--transcribe` (com `--diarize` e o resto
@@ -270,6 +277,8 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
        `RECO_ENGINE=<exe>` ou `python -m reco_engine` em `engine/` (passo 5). Motor ausente → exit 2, como erro do velho.
      - Teste: `repasse_cli` com `["--transcribe", "a.mp3", "--diarize"]` devolve os três; sem a flag, nada.
      - A prova com o motor congelado de verdade fica no passo 17 (app instalado).
+     - **Execução (11/11):** em debug, `RECO_SEM_MUTEX=1` pula o mutex (só para provar o casco com o app velho
+       aberto; o release ignora a variável). Pegadinha: `CreateMutexW` no mesmo processo também devolve 183.
    - Igual ao velho (`reco.py:5197-5210`): `CreateMutexW`; se `GetLastError() == 183`, `PostMessageW(HWND_BROADCAST,
      RegisterWindowMessageW("Reco.Show"))` e sair com código 0.
    - Receber: janela de topo escondida (não message-only: essas não recebem broadcast) numa thread própria com
@@ -279,7 +288,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      2.5.5, `src/platform_impl/windows.rs:81-93`), por isso F3-D2.
    - Verificação manual (precisa de dois processos e da área de trabalho), com o app velho fechado no início:
      abrir o novo, rodar `dist\Reco\Reco.exe` → a janela nova aparece e o velho sai; o contrário também.
-8. [ ] Bandeja em `app/src-tauri/src/bandeja.rs`, dirigida pelo Rust a partir dos eventos do motor — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml bandeja` → `test result: ok`, 2 passed ou mais
+8. [x] Bandeja em `app/src-tauri/src/bandeja.rs`, dirigida pelo Rust a partir dos eventos do motor — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml bandeja` → `test result: ok`, 2 passed ou mais
    **reprova se:** `0 passed`, ou os rótulos por estado diferem de `reco.py:4938-4952` (ex.: "Parar" oferecido em `stopping`/`stopped`).
    - Molde `C:\Dev\albion\guarita\app\src-tauri\src\lib.rs:355-405`. Ícones `logo/tray_idle.ico` e `tray_rec.ico`
      copiados para `app/src-tauri/icons/`; vermelho também pausado (`reco.py:5064-5066`).
@@ -293,16 +302,26 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      janela escondida (`reco.py:4053`).
    - Fechar (X) esconde na bandeja e a gravação segue (`reco.py:5079-5086`; `on_window_event` da Guarita `:471-479`).
    - Testes cobrem as funções puras `rotulos(estado)` e `dica(estado, segundos)`.
-9. [ ] Hover que mostra sem foco e clique que fixa, em `app/src-tauri/src/hover.rs` — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml hover` → `test result: ok`, 3 passed ou mais
+   - **Execução (11/11):** `rotulos` devolve `None` em `starting`/`stopping`/`stopped` e o item fica desabilitado
+     (o menu do Tauri não some item como o `tray.py`). Os setters de menu e ícone esperam a thread principal: a
+     bandeja nunca os chama com uma trava do casco na mão (pegadinha registrada). Notificações em `avisos.rs`;
+     reações aos eventos em `estado.rs` (puras, com teste do D11: motor caído gravando → alarme e `idle`).
+     Evento do D11 para a tela: `reco-gravacao-interrompida`.
+9. [x] Hover que mostra sem foco e clique que fixa, em `app/src-tauri/src/hover.rs` — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml hover` → `test result: ok`, 3 passed ou mais
    **reprova se:** `0 passed`, ou `dentro_da_zona` falha para cursor parado sobre o ícone (o caso de `reco.py:5025-5028`), na borda de 6 px da janela ou fora das duas zonas.
    - Evento `TrayIconEvent::Enter`/`Move` com a janela escondida: posicionar acima do ícone (plugin positioner,
      preso à área de trabalho como `reco.py:4980-4997`) e mostrar **sem ativar**, pelo mecanismo da Fase 0
      (padrão se ela não disser outro: `ShowWindow(hwnd, SW_SHOWNOACTIVATE)`, como `tray.py:326-328`).
+     - **Execução (11/11):** sem positioner; `posicao_ancorada` (função pura, testada) ancora pelo rect do ícone
+       como o `reco.py`. Mecanismo da Fase 0: `show()` com `focusable(false)` e `always_on_top(true)` enquanto é
+       espiada (o spike passou assim); ao fixar, `set_focusable(true)` + `set_focus()` e volta a janela comum.
    - Vigia: 500 ms de carência, depois a cada 120 ms; zona = janela ±6 px ∪ ícone ±4 px (`reco.py:5007-5044`);
      fora da zona e não fixada → esconde. Clique no ícone, foco na janela ou `window_pin` fixam (`reco.py:5054`).
+     - **Execução:** foco na janela **não** fixa (pegadinha 5 da Fase 0: no modo `tao` o `Focused(true)` chega sem
+       foco de verdade); a tela chama `window_pin` em todo clique dentro dela (passo 12).
    - Verificação manual da sensação (não dá para automatizar o foco de outro app): com o Bloco de Notas
      focado e digitando, passar o mouse no ícone → a janela aparece e o texto continua entrando no Bloco de Notas.
-10. [ ] Atalho global e iniciar com o Windows, os dois opt-in em Opções (`app/src-tauri/src/atalho.rs`) — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml atalho` → `test result: ok`, 2 passed ou mais
+10. [x] Atalho global e iniciar com o Windows, os dois opt-in em Opções (`app/src-tauri/src/atalho.rs`) — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml atalho` → `test result: ok`, 2 passed ou mais
    **reprova se:** `0 passed`, ou o teste aceita registrar o atalho quando `casco_atalho` lido é `false` ou ausente.
    - Os testes cobrem a função pura `deve_registrar(pref_atalho)` (ausente → não registra) e a leitura de
      `casco_atalho` do `config.get`.
@@ -312,6 +331,10 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - Iniciar com o Windows: plugin autostart com `.app_name("Reco Novo")` explícito e o argumento `--oculto`
      (nasce na bandeja). Sem `app_name`, o plugin usa o nome do pacote (`tauri-plugin-autostart` 2.7.0,
      `lib.rs:207-229`). O estado é lido do próprio Windows (`is_enabled`), sem gravar em lugar nenhum.
+   - **Execução (11/11), comandos para a tela (passo 13):** `definir_atalho(ligar)` registra e grava `casco_atalho`
+     pelo motor (ligar que falha devolve `hotkey_taken` e não grava), `atalho_registrado()`, `autostart_ligado()`
+     e `definir_autostart(ligar)`. A preferência é lida de `data.config.casco_atalho` no primeiro `ready`.
+     Evento `reco-atalho` ao apertar (a tela foca o botão principal).
    - Verificação manual em PowerShell (a barra de `/v` quebra no Git Bash), app novo aberto:
      ligar em Opções → `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Reco Novo"` acha a
      entrada; desligar → o mesmo comando responde que não encontrou. Sem ligar, ela nunca aparece.
