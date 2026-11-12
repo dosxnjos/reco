@@ -24,6 +24,11 @@ desktop.ini
 *.log
 temp/
 
+# Casco Tauri (app/, Fase 3 do Reco em Rust): dependências do npm e esquemas gerados pelo tauri-build.
+# dist/ e build/ acima já cobrem app/ui/dist e engine/dist.
+node_modules/
+app/src-tauri/gen/
+
 # logo working files — keep only the app icon + 1x1 png
 logo/.claude/
 logo/*.png

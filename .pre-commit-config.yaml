@@ -41,7 +41,7 @@ repos:
         name: trava de tamanho (arquivo novo até 500 linhas; o grande não cresce)
         entry: python C:/Dev/cerebro/scripts/gate_tamanho.py --config tools/tamanho.json
         language: system
-        files: '\.(py|js|mjs|cjs|ps1|sh|cmd|bat)$|^tools/tamanho\.json$'
+        files: '\.(py|js|mjs|cjs|ps1|sh|cmd|bat|rs|ts)$|^tools/tamanho\.json$'
         pass_filenames: false
         verbose: true
       - id: trava-complexidade
