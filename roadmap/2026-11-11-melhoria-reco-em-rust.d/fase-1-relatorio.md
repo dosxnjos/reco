@@ -4,9 +4,10 @@
 > principal). Passos 12 em diante (publicar, esperar a escolha, podar, armadilha, docs) ficam com a sessão
 > principal.
 
-Link da vitrine: https://claude.ai/artifact/4RbkmhC4pTqQZCRtphg5Xv (publicada em 11/11/2026, privada; republicar
-pelo mesmo arquivo `temp/vitrine-publicar.html` gerado pelo `montar-vitrine.cjs`, ou pelo `url`). Passo 12: a sessão
-parou esperando a escolha do Gabriel (A, B, C ou mistura).
+Vitrine: `design/vitrine.html` (abrir no navegador; standalone). Foi publicada como Artifact em 11/11/2026 e o
+Gabriel escolheu por ela (A padrão, B e C como skins). Na mesma noite ele decidiu voltar a só HTML, sem Artifact
+(com duas contas do Claude, o navegador abre os artefatos de uma só e o link dava 404), e o artefato foi apagado
+a pedido dele. Daqui em diante a vitrine se entrega como o `.html` do repo.
 
 Frescor: 0 commits em `reco.py`/`tray.py` desde `7c5c1a1`. O `CLAUDE.md` subiu de 5210 para 5432 bytes
 durante a fase (outra frente acrescentou a seção do motor `engine/`); continua abaixo de 5900.
@@ -174,3 +175,29 @@ A escolha do Gabriel resolve a maior parte: o que não for escolhido sai na poda
 - Fora do git (`temp/`): `temp/vitrine-publicar.html`, `temp/vitrine-capturas/*.png` (21),
   `temp/ctx.txt`, `temp/contrato*.txt`, `temp/sab.txt`, `temp/detect.json`.
 - Não tocados: `reco.py`, `tray.py`, `engine/`, `tools/`, o md da fase e o índice.
+
+## Passos 13 e 14b (11/11 22:4x a 12/11 00:40)
+
+- Passo 13: escolha do Gabriel registrada ("opção A, mas gostei das outras duas. acho que dá pra ter opção de
+  skin pra implementá-las também"); `grep "Direção escolhida"` e `grep "decidido em"` → 1 linha cada.
+- Passo 14 (poda) superado; passo 14b (skins) feito por workflow (implementar → revisor visual + revisor de
+  testes → corrigir). A abre por padrão; Opções › Visual troca a skin (`data-acao="skin"`).
+- Revisão: 10 achados (2 altos: contraste do seletor Gravação · Nota no escuro; testes que não conferiam a skin
+  medida), todos corrigidos. Também: reset de botão com especificidade baixa (`:where`), pauta da B presa ao
+  texto, marcador "Eu/Outros" na 1ª linha do ao vivo, camada de tela escondida que roubava clique (bug antigo).
+- Provas finais (12/11 00:40, depois de trocar o texto do "motor subindo" de "uns 5 segundos" para "só um
+  instante", já que a Fase 0 mediu ≈ 1 s com a máquina livre): `anti-pulo: 0 diferenças em 23868 medições`,
+  `contrato: 0 falhas`, sabotagens `anti-pulo=1` e `contrato=1`, `grep -c data-acao="skin"` → 4.
+- Mutações da revisão (definir ignorando a direção; botão que se move no hover) reprovam no contrato.
+
+### Decisões técnicas — Fase 1 (14b)
+
+- Visual e Aparência sobem para o topo de Opções na interface real (Fase 3); a vitrine fica com a ordem antiga.
+  Motivo: é o que muda a cara do app e quem abre Opções vê sem rolar. Confiança média; reverte se o Gabriel
+  preferir os dispositivos no topo (uso mais frequente).
+- Sem Artifact (regra da casa desde 11/11): a vitrine se entrega como `design/vitrine.html`.
+
+### Pendências que vão para a Fase 3
+
+- Regra "1ª linha do ao vivo inteira" (`rolarAoVivo`) só existe na vitrine: levar para o app.
+- "Transcrição pronta": a fileira de 3 botões corta "Abrir trans…" e "Copiar ca…" nas três skins.

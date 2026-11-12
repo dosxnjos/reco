@@ -233,17 +233,22 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
    - Sinal, nunca pergunta (sessão aberta por IA não usa `AskUserQuestion`):
      - `[[DECISAO]] Direção visual do Reco: A "Fita", B "Caderno" ou C "Instrumento"? Vitrine: <link>. Dá para pedir mistura (ex.: cores da A com os medidores da C) | dono: gabriel`.
    - O relatório da fase nasce aqui: criar `roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-1-relatorio.md` com o link, a data e o resumo da crítica do passo 10. O link é privado e só o Gabriel libera.
-13. [ ] (Depois da resposta) Registrar a escolha em `design/DESIGN.md` e marcar o pendente do índice como decidido. — **prova:** `cd C:/Dev/Reco; grep -n "Direção escolhida" design/DESIGN.md; grep -n "decidido em" roadmap/2026-11-11-melhoria-reco-em-rust.md` → uma linha em cada
+13. [x] (Depois da resposta) Registrar a escolha em `design/DESIGN.md` e marcar o pendente do índice como decidido. — **prova:** `cd C:/Dev/Reco; grep -n "Direção escolhida" design/DESIGN.md; grep -n "decidido em" roadmap/2026-11-11-melhoria-reco-em-rust.md` → uma linha em cada
    **reprova se:** falta uma das duas linhas, ou a escolha registrada não é a que ele disse.
    - No DESIGN.md, § Direções: "Direção escolhida: <letra e nome> (<data>)", com as palavras dele.
    - No índice, seção "Pendente (decisão do Gabriel)": "decidido em <data>: <direção>".
    - Se ele pediu mistura ou ajuste, refazer os passos 5, 6 e 10 com o pedido e publicar de novo na mesma URL (o `url` anotado no relatório) antes de seguir.
-14. [ ] Podar: só a direção escolhida fica nos tokens, na vitrine e no teste. — **prova:** `cd C:/Dev/Reco/design; grep -c data-direcao tokens.css vitrine.html; cd ..; node design/montar-vitrine.cjs && node design/testar-anti-pulo.cjs; echo "a=$?"` → 0 e 0; `a=0`
-   **reprova se:** sobra `data-direcao`, o anti-pulo ou o contrato acusa falha, ou uma das sabotagens conferidas abaixo sai 0 (a poda quebrou o que o teste mede).
-   - Conferido à parte: `cd C:/Dev/Reco; node design/testar-contrato.cjs; echo "c=$?"; for t in anti-pulo contrato; do node design/testar-$t.cjs --sabotar >/dev/null; echo "$t=$?"; done` → `c=0`, `anti-pulo=1`, `contrato=1`.
-   - `tokens.css` fica com claro e escuro da direção escolhida, sem o seletor `data-direcao`.
-   - A vitrine perde o controle Direção; os dois testes perdem essa dimensão da matriz; o condutor no DESIGN.md perde o parâmetro `direcao`.
-   - Antes de podar, a vitrine de 3 direções fica no histórico do git (commit do passo 11): reverter é `git show <commit>:design/tokens.css`.
+> Atualizado em 2026-11-11: o Gabriel escolheu A como padrão e B e C como skins ("opção A, mas gostei das outras
+> duas. acho que dá pra ter opção de skin"). O passo 14 deixou de ser poda e virou o 14b abaixo.
+
+14. ~~Podar: só a direção escolhida fica nos tokens, na vitrine e no teste.~~ Superado pela decisão do Gabriel (skins).
+14b. [x] Skins: A padrão, B e C selecionáveis em Opções › Visual, e o acabamento que faltava em B e C. — **prova:** `cd C:/Dev/Reco; node design/montar-vitrine.cjs && node design/testar-anti-pulo.cjs; echo "a=$?"; node design/testar-contrato.cjs; echo "c=$?"; grep -c 'data-acao="skin"' design/vitrine.html` → as duas linhas de 0, `a=0`, `c=0` e ≥ 3
+   **reprova se:** o seletor de skin falta (0), algum teste acusa falha, ou uma das sabotagens conferidas abaixo sai 0.
+   - Conferido à parte: `for t in anti-pulo contrato; do node design/testar-$t.cjs --sabotar >/dev/null; echo "$t=$?"; done` → `anti-pulo=1`, `contrato=1`.
+   - Vitrine: a direção inicial é A ("Fita") e a aba Opções ganha "Visual" com Fita · Caderno · Instrumento; clicar troca a skin daquela janela pelo condutor (`definir({direcao})`).
+   - A matriz dos testes continua com as três direções (cada skin contra a própria linha de base).
+   - Acabamento das pendências do passo 10 (relatório da Fase 1): a calha da margem da B não pode deslocar botões; a primeira linha do texto ao vivo não pode sair cortada na B e na C; o medidor da A deixa de repetir o fio da B.
+   - Sem Artifact (decisão do Gabriel, 11/11: só HTML): entregar `design/vitrine.html` aberto no navegador dele e atualizar o relatório.
 15. [ ] Registrar a armadilha que gerou a fase, pelo gerador (nunca `Edit` na página gerada). — **prova:** `cd C:/Dev/Reco; python tools/visoes.py validar && ls docs/armadilhas.d | grep -c janela-sem; grep -c "(o que se vê\|(por que acontece" docs/armadilhas.d/*janela-sem*.md` → 1; depois 0
    **reprova se:** a contagem de arquivos não é 1 (nenhum, ou `novo` rodou duas vezes), o `validar` acusa fragmento malformado, ou o esqueleto continua sem preencher (segundo número ≥ 1).
    - Criar uma vez só (não é a prova): `python tools/visoes.py novo "Janela sem tamanho fixo pula a cada clique (Tk e WebView)"`.

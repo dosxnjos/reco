@@ -204,8 +204,9 @@ troca de app não o afeta, mas a etiqueta `RECO_TAG` no nome é contrato (D6).
 
 ## Pendente (decisão do Gabriel)
 
-- **Direção visual** (Fase 1): escolher uma das 2 ou 3 direções da vitrine. Não bloqueia as Fases 0 e 2.
-  `dono: gabriel`.
+- **Direção visual** (Fase 1): decidido em 11/11/2026: A "Fita" é o padrão e B "Caderno" e C "Instrumento"
+  ficam como skins em Opções (preferência `casco_skin`). O passo 14 da Fase 1 (poda) virou "seletor de skin";
+  a Fase 3 aplica `data-direcao` no `<html>` conforme a preferência.
 - **Híbrido × tudo em Rust** (não bloqueia nada): ao fim da Fase 4 ele recebe o casco e a tela em Rust, o
   motor em Python por dentro e a transcrição na mesma velocidade de hoje. Recomendação: seguir o híbrido
   (D1) e deixar a Fase 6 decidir com números se a transcrição também vai para Rust. Se ele quiser zero

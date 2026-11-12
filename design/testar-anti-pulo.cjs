@@ -3,6 +3,8 @@
 //   node design/testar-anti-pulo.cjs                 percorre a vitrine (design/vitrine.html servida por HTTP local)
 //   node design/testar-anti-pulo.cjs --url <endereço> outro alvo com o mesmo condutor de estados (Fase 3: a interface real)
 //   node design/testar-anti-pulo.cjs --sabotar       controle negativo: tira a linha única do status; tem de sair 1
+//                                                    (e acusar em cada skin; se uma não acusa, ela não foi medida: sai 2)
+// Cada medida confere que há uma janela visível só e que ela está na skin pedida (data-direcao).
 // Matriz: direção × escala (1; 1,25; 1,5) × tema × texto (normal, longo PT, longo EN) × versão nova × tela × estado.
 // Linha de base por direção e escala; tema, texto, versão e estado mudam conteúdo, nunca caixa. Saída 0 = nada pulou.
 'use strict';
@@ -50,8 +52,11 @@ function percorrer({ direcao, globais }) {
       const p = { tela, estado, tema, texto, versao };
       if (direcao) p.direcao = direcao;
       v.definir(p);
-      const janela = [...document.querySelectorAll('[data-area="janela"]')].find(visivel);
-      if (!janela) { falhas.push({ combo: p, area: 'janela', base: null, agora: null }); continue; }
+      const vistas = [...document.querySelectorAll('[data-area="janela"]')].filter(visivel), janela = vistas[0];
+      if (vistas.length !== 1) { falhas.push({ combo: p, area: `janela (${vistas.length} visíveis, o esperado é 1)`, base: null, agora: null }); continue; }
+      // a janela medida tem de estar na skin pedida (no atributo dela, na vitrine, ou no <html>, no app); senão B e C passariam medindo a A
+      const skin = (janela.closest('[data-direcao]') || document.documentElement).dataset.direcao;
+      if (direcao && skin !== direcao) { falhas.push({ combo: p, area: `skin (medida a ${skin || 'nenhuma'})`, base: null, agora: null }); continue; }
       const areas = [janela, ...[...janela.querySelectorAll('[data-area]')].filter(visivel)];
       for (const a of areas) {
         const nome = a.dataset.area;
@@ -73,7 +78,7 @@ function percorrer({ direcao, globais }) {
   const alvo = URL_ALVO || `http://127.0.0.1:${srv.address().port}/vitrine.html`;
   const browser = await playwright().chromium.launch();
   let total = 0;
-  const falhas = [];
+  const falhas = [], medidas = new Set();
   try {
     for (const escala of ESCALAS) {
       const ctx = await browser.newContext({ viewport: { width: 1400, height: 1200 }, deviceScaleFactor: escala });
@@ -85,6 +90,7 @@ function percorrer({ direcao, globais }) {
       if (SABOTAR) await page.addStyleTag({ content: SABOTAGEM });
       const direcoes = (await page.evaluate(() => window.vitrine.direcoes)) || [null];
       for (const direcao of direcoes) {
+        medidas.add(direcao);
         const r = await page.evaluate(percorrer, { direcao, globais: ['janela', 'titulo', 'abas', 'conteudo', 'status'] });
         total += r.n;
         r.falhas.forEach((f) => falhas.push({ ...f, escala }));
@@ -101,5 +107,8 @@ function percorrer({ direcao, globais }) {
   falhas.slice(0, 60).forEach((f) => console.log(`FALHA ${combo(f)} área=${f.area} base=${fmt(f.base)} agora=${fmt(f.agora)}`));
   if (falhas.length > 60) console.log(`… mais ${falhas.length - 60} falhas`);
   console.log(`anti-pulo: ${falhas.length} diferenças em ${total} medições`);
+  // controle negativo por skin: a sabotagem tem de aparecer em cada direção; se uma não acusa, ela não foi medida (saída 2)
+  const mudas = SABOTAR ? [...medidas].filter((d) => !falhas.some((f) => f.area === 'status' && (f.combo.direcao || null) === d)) : [];
+  if (mudas.length) { console.log(`sabotagem sem efeito na direção ${mudas.join(', ')}: o teste não mede essa skin`); process.exit(2); }
   process.exit(falhas.length ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

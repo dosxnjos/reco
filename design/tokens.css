@@ -88,7 +88,7 @@
   --gr-cronometro: 64px;
   --gr-medidores: 76px;
   --botao-altura: 44px;
-  --medidor-altura: 5px;
+  --medidor-altura: 10px;
   --lib-linhas: 8;
 
   --fundo: #e3e5e8;
@@ -124,10 +124,13 @@
   --medidor-fundo: #c2c6cc;
   --medidor-nivel: #43474d;
   --medidor-pico: #c13a1f;
+  --medidor-zona: #dcaa9c;
   --pauta: transparent;
   --margem: transparent;
   --selecao: #f2dcd4;
   --sobre: #f4f5f7;
+  --seg-trilho: #d5d8dc;
+  --seg-marcador: #f4f5f7;
   color-scheme: light;
 }
 
@@ -166,8 +169,11 @@
     --medidor-fundo: #3d3833;
     --medidor-nivel: #c7beb3;
     --medidor-pico: #ff7a57;
+    --medidor-zona: #5a3326;
     --selecao: #4a2c22;
     --sobre: #262320;
+    --seg-trilho: #141210;
+    --seg-marcador: #4a443e;
     color-scheme: dark;
   }
 }
@@ -206,8 +212,11 @@
   --medidor-fundo: #3d3833;
   --medidor-nivel: #c7beb3;
   --medidor-pico: #ff7a57;
+  --medidor-zona: #5a3326;
   --selecao: #4a2c22;
   --sobre: #262320;
+  --seg-trilho: #141210;
+  --seg-marcador: #4a443e;
   color-scheme: dark;
 }
 
@@ -277,6 +286,8 @@
   --margem: #e7a5ac;
   --selecao: #dfe6fb;
   --sobre: #ffffff;
+  --seg-trilho: #ffffff;
+  --seg-marcador: #dfe6fb;
   color-scheme: light;
 }
 
@@ -319,6 +330,8 @@
     --margem: #7a3a47;
     --selecao: #273763;
     --sobre: #18213a;
+    --seg-trilho: #18213a;
+    --seg-marcador: #273763;
     color-scheme: dark;
   }
 }
@@ -361,6 +374,8 @@
   --margem: #7a3a47;
   --selecao: #273763;
   --sobre: #18213a;
+  --seg-trilho: #18213a;
+  --seg-marcador: #273763;
   color-scheme: dark;
 }
 
@@ -436,6 +451,8 @@
   --margem: transparent;
   --selecao: #bfc3bd;
   --sobre: #e2e4e0;
+  --seg-trilho: #c6c9c4;
+  --seg-marcador: #e2e4e0;
   color-scheme: light;
 }
 
@@ -482,6 +499,8 @@
     --medidor-pico: #ffb238;
     --selecao: #3d423e;
     --sobre: #2a2d2b;
+    --seg-trilho: #1a1c1b;
+    --seg-marcador: #3f4340;
     color-scheme: dark;
   }
 }
@@ -528,5 +547,7 @@
   --medidor-pico: #ffb238;
   --selecao: #3d423e;
   --sobre: #2a2d2b;
+  --seg-trilho: #1a1c1b;
+  --seg-marcador: #3f4340;
   color-scheme: dark;
 }

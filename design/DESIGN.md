@@ -1,7 +1,7 @@
 ---
 name: Reco
 description: Gravador de mesa do Windows (mic + sistema, transcrição local); janela pequena ancorada à bandeja, usada de relance durante a chamada.
-status: proposta da Fase 1 (11/11/2026), três direções em escolha; nada aprovado pelo Gabriel ainda
+status: aprovado pelo Gabriel em 11/11/2026 (A "Fita" padrão; B "Caderno" e C "Instrumento" como skins)
 janela:
   largura: 400px
   altura: 560px
@@ -180,8 +180,9 @@ Estados por tela (o teste percorre todos):
 Variações globais: tema claro e escuro, texto normal e longo (PT e EN), versão nova sim e não.
 
 - **Motor subindo:** "Gravar" desabilitado com o motivo no status ("Preparando o motor…"). Nada gira: o
-  indicador pulsa por opacidade. Dura a partida do motor congelado, `exe_selftest` da Fase 0: ≈ 5,4 s
-  (7,4 s na primeira). A GPU nunca segura o Gravar (D12).
+  indicador pulsa por opacidade. Dura a partida do motor congelado: o motor da Fase 2 chega ao `ready` em
+  ≈ 0,8 s; o `exe_selftest` do app velho foi ≈ 1,0 s com a máquina livre (5,4 s com a máquina carregada, Bloco A
+  da Fase 0). Normalmente o estado mal aparece. A GPU nunca segura o Gravar (D12).
 - **Erro:** ícone + texto no status, cortado por reticências, e o botão "Detalhes" na própria faixa.
   "Detalhes" abre um painel sobreposto ao `conteudo`, do mesmo tamanho, com o texto inteiro e "Copiar".
   O erro de hoje é cortado em `[:80]`/`[:110]` no `reco.py`; no detalhe ele aparece inteiro.
@@ -194,7 +195,14 @@ Contrato com a Fase 3: a página aceita `?direcao=&tela=&estado=&tema=&texto=&ve
 `window.vitrine.definir({direcao, tela, estado, tema, texto, versao})` com os mesmos nomes, mais
 `window.vitrine.direcoes`, `telas` e `estados` (objeto tela → lista).
 
-- `direcao`: `a`, `b`, `c` (a vitrine aceita também `todas`, lado a lado; os testes sempre passam uma).
+- `direcao`: `a`, `b`, `c`; padrão `a` (a vitrine abre na Fita e aceita também `todas`, lado a lado; os testes
+  sempre passam uma).
+- Seletor de skin: em Opções › Visual, três botões `data-acao="skin"` com `data-skin="a|b|c"` e `aria-pressed="true"`
+  na skin atual; o clique chama `definir({direcao})`. Na interface real, o mesmo gesto grava `casco_skin`.
+  A troca mantém o grupo Visual na mesma altura da tela (ou o mais perto que a rolagem deixa, com o botão escolhido
+  ainda sob o ponteiro) e põe o foco no botão da skin escolhida, à vista; o
+  `testar-contrato` (linha "seletor de skin") clica cada skin e confere isso, e os dois testes conferem que a janela
+  medida está na skin pedida (no `--sabotar`, a falha tem de aparecer em cada skin; se uma não acusa, saem com 2).
 - `tela`: `gravar`, `biblioteca`, `arquivo`, `opcoes`. `estado`: um dos estados da tela.
 - `tema`: `sistema`, `claro`, `escuro`. `texto`: `normal`, `longo-pt`, `longo-en`. `versao`: `sim`, `nao`.
 
@@ -216,7 +224,7 @@ Inventário do Reco de hoje (relatório 1 § 1, 19 linhas) e onde cada função 
 | 6 | Parar da transcrição disparada pela tela de gravar | Gravar › `painel`, variante "transcrevendo", com barra de progresso |
 | 7 | ao vivo: painel de 8 linhas e passada final | Gravar › `painel`, variante "ao vivo", rolando por dentro |
 | 8 | modo nota, sem entrada hoje | Gravar › seletor "Gravação · Nota" em `acoes` (desenho aqui; ligar é Fase 3) |
-| 9 | Opções: entrada, saída (Auto console, Auto comunicação, manual), atualizar dispositivos, pasta, Processar em, idioma, tema, ao vivo, atalho | aba Opções, tudo visível, rolando por dentro; o tema livre sai (F1-D6) |
+| 9 | Opções: entrada, saída (Auto console, Auto comunicação, manual), atualizar dispositivos, pasta, Processar em, idioma, tema, ao vivo, atalho | aba Opções, tudo visível, rolando por dentro; o tema livre sai (F1-D6); entra Opções › Visual: Fita · Caderno · Instrumento (EN "Look: Tape · Notebook · Instrument"), a skin, logo antes de Aparência. Ordem na interface real (Fase 3): Visual e Aparência no topo de Opções, antes dos dispositivos, para quem abre ver sem rolar (decisão técnica de 12/11; a vitrine ainda mostra a ordem antiga) |
 | 10 | telas por links de texto, bloqueadas durante a gravação | `abas` Gravar, Biblioteca, Arquivo, Opções; a que conflita fica bloqueada com o motivo (F1-D7) |
 | 11 | Transcrever: escolher arquivo, Transcrever, Parar, status, Abrir pasta | aba Arquivo, ação "Transcrever", com progresso em % |
 | 12 | Biblioteca: busca por nome e conteúdo, lista, Reproduzir, Transcrever, Abrir txt, Resumo IA, Excluir, Abrir pasta, Atualizar, duplo clique toca | aba Biblioteca; as ações saem do hover e ganham rótulo visível |
@@ -248,7 +256,8 @@ Continuidade com o Reco de hoje, amadurecida. O mundo é o gravador de fita: cor
 contador grande num visor rebaixado e uma lâmpada de gravação que acende com brilho. O coral de hoje vira
 um vermelho-laranja de lâmpada acesa, usado só no que grava (botão Gravar, lâmpada, contorno do visor
 gravando). Segoe UI Variable, cronômetro de 44 px em Display, camadas de tom em vez de linhas, abas e
-botões em pílula, medidores finos. Escuro é a casa dela; o claro é grafite claro, não creme.
+botões em pílula, medidor de gravador (barra de 10 px num trilho rebaixado, zona quente no último quinto e
+pico que brilha na cor da lâmpada). Escuro é a casa dela; o claro é grafite claro, não creme.
 
 ### B "Caderno"
 
@@ -270,4 +279,13 @@ seletor com um traço que escurece na ativa, teclas escuras para Gravar e Parar.
 
 Nas três, a fala ao vivo rotula "Eu" e "Outros" (o `.txt` continua com os rótulos do `reco.py`).
 
-Direção escolhida: (preencher no passo 13, com as palavras do Gabriel).
+Direção escolhida: A "Fita" como padrão, com B "Caderno" e C "Instrumento" como skins (11/11/2026).
+Nas palavras do Gabriel: "opção A, mas gostei das outras duas. acho que dá pra ter opção de skin pra
+implementá-las também".
+
+Efeito no contrato: as três direções continuam em `tokens.css` e nos dois testes (anti-pulo e
+contrato percorrem as três). Na interface real, a skin é a preferência `casco_skin` (`a`, `b` ou `c`;
+padrão `a`), escolhida em Opções › Visual e aplicada como `data-direcao` no `<html>`. Trocar de skin
+é um gesto deliberado: muda cor, letra, forma e densidade (e com elas a altura interna das áreas), nunca
+o tamanho da janela (R1). Dentro de cada skin, as áreas não se movem entre telas e estados (R2), e os
+testes medem cada skin contra a própria linha de base.

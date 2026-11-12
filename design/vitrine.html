@@ -96,7 +96,7 @@
   --gr-cronometro: 64px;
   --gr-medidores: 76px;
   --botao-altura: 44px;
-  --medidor-altura: 5px;
+  --medidor-altura: 10px;
   --lib-linhas: 8;
 
   --fundo: #e3e5e8;
@@ -132,10 +132,13 @@
   --medidor-fundo: #c2c6cc;
   --medidor-nivel: #43474d;
   --medidor-pico: #c13a1f;
+  --medidor-zona: #dcaa9c;
   --pauta: transparent;
   --margem: transparent;
   --selecao: #f2dcd4;
   --sobre: #f4f5f7;
+  --seg-trilho: #d5d8dc;
+  --seg-marcador: #f4f5f7;
   color-scheme: light;
 }
 
@@ -174,8 +177,11 @@
     --medidor-fundo: #3d3833;
     --medidor-nivel: #c7beb3;
     --medidor-pico: #ff7a57;
+    --medidor-zona: #5a3326;
     --selecao: #4a2c22;
     --sobre: #262320;
+    --seg-trilho: #141210;
+    --seg-marcador: #4a443e;
     color-scheme: dark;
   }
 }
@@ -214,8 +220,11 @@
   --medidor-fundo: #3d3833;
   --medidor-nivel: #c7beb3;
   --medidor-pico: #ff7a57;
+  --medidor-zona: #5a3326;
   --selecao: #4a2c22;
   --sobre: #262320;
+  --seg-trilho: #141210;
+  --seg-marcador: #4a443e;
   color-scheme: dark;
 }
 
@@ -285,6 +294,8 @@
   --margem: #e7a5ac;
   --selecao: #dfe6fb;
   --sobre: #ffffff;
+  --seg-trilho: #ffffff;
+  --seg-marcador: #dfe6fb;
   color-scheme: light;
 }
 
@@ -327,6 +338,8 @@
     --margem: #7a3a47;
     --selecao: #273763;
     --sobre: #18213a;
+    --seg-trilho: #18213a;
+    --seg-marcador: #273763;
     color-scheme: dark;
   }
 }
@@ -369,6 +382,8 @@
   --margem: #7a3a47;
   --selecao: #273763;
   --sobre: #18213a;
+  --seg-trilho: #18213a;
+  --seg-marcador: #273763;
   color-scheme: dark;
 }
 
@@ -444,6 +459,8 @@
   --margem: transparent;
   --selecao: #bfc3bd;
   --sobre: #e2e4e0;
+  --seg-trilho: #c6c9c4;
+  --seg-marcador: #e2e4e0;
   color-scheme: light;
 }
 
@@ -490,6 +507,8 @@
     --medidor-pico: #ffb238;
     --selecao: #3d423e;
     --sobre: #2a2d2b;
+    --seg-trilho: #1a1c1b;
+    --seg-marcador: #3f4340;
     color-scheme: dark;
   }
 }
@@ -536,6 +555,8 @@
   --medidor-pico: #ffb238;
   --selecao: #3d423e;
   --sobre: #2a2d2b;
+  --seg-trilho: #1a1c1b;
+  --seg-marcador: #3f4340;
   color-scheme: dark;
 }
 
@@ -598,7 +619,8 @@ body { margin: 0; background: var(--casca-fundo); color: var(--casca-texto); fon
 .janela ::selection { background: var(--selecao); color: var(--tinta); }
 svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .janela svg.ic { width: 16px; height: 16px; flex: none; }
-.janela button { font: inherit; color: inherit; cursor: pointer; }
+/* reset com especificidade de classe (:where não conta): .aba, .botao, .modo-op e companhia, que vêm depois, vencem na cor e na fonte */
+.janela :where(button) { font: inherit; color: inherit; cursor: pointer; }
 .janela button:disabled { cursor: default; }
 .janela :focus-visible { outline: var(--foco-largura) solid var(--foco); outline-offset: -2px; }
 .janela [data-num] { font-variant-numeric: tabular-nums; }
@@ -638,6 +660,9 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 .tela[data-ativa] { visibility: visible; opacity: 1; }
 .camada { position: absolute; inset: 0; visibility: hidden; opacity: 0; transition: opacity var(--dur); }
 .camada[data-ativa] { visibility: visible; opacity: 1; }
+/* tela escondida esconde tudo dentro dela: sem isto, a camada ativa (ou a escala da C) de uma tela invisível ficava
+   "visible" por cima da tela à mostra e roubava clique e roda do mouse (ex.: a roda na fala ao vivo caía no Arquivo) */
+.tela:not([data-ativa]) * { visibility: hidden !important; }
 
 /* status */
 .status {
@@ -700,10 +725,13 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 /* Gravar: ações */
 .acoes { height: calc(var(--botao-altura) * 2 + var(--esp-2)); flex: none; display: grid; grid-template-rows: var(--botao-altura) var(--botao-altura); gap: var(--esp-2); }
 .acoes-linha { display: grid; grid-template-columns: 1.55fr 1fr; gap: var(--esp-2); }
-.modo { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--linha); border-radius: var(--raio-m); padding: 3px; background: var(--superficie); }
-.modo-op { display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: calc(var(--raio-m) - 2px); background: transparent; color: var(--tinta-2); font-weight: 600; transition: background-color var(--dur), color var(--dur); }
-.modo-op[aria-checked="true"] { background: var(--superficie-2); color: var(--tinta); }
-.modo-op:disabled { color: var(--tinta-3); }
+/* seletor segmentado: um desenho só por skin, igual no modo (Gravação · Nota) e nos segmentos de Opções.
+   Trilho rebaixado e marcador mais claro que o trilho, no claro e no escuro (tokens --seg-*); desativado, o escolhido segue mais forte */
+.modo, .segmentos { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: 3px; border: 1px solid var(--linha); border-radius: var(--raio-m); background: var(--seg-trilho); }
+.modo-op, .segmentos button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; border: 0; border-radius: calc(var(--raio-m) - 2px); background: transparent; color: var(--tinta-2); font-weight: 600; transition: background-color var(--dur), color var(--dur); }
+.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"] { background: var(--seg-marcador); color: var(--tinta); }
+.modo-op:disabled, .segmentos button:disabled { color: var(--tinta-3); }
+.modo-op[aria-checked="true"]:disabled, .segmentos button[aria-pressed="true"]:disabled { color: var(--tinta-2); }
 
 /* Gravar: painel */
 .painel { flex: none; position: relative; height: calc(var(--altura-conteudo) - 2 * var(--pad-v) - var(--gr-cronometro) - var(--gr-medidores) - (2 * var(--botao-altura) + var(--esp-2)) - 3 * var(--gap-gr)); border-radius: var(--raio-m); background: var(--superficie); }
@@ -713,12 +741,23 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 .linha-info span { color: var(--tinta); }
 .painel-titulo { font-family: var(--fonte-titulo); font-weight: 650; font-size: 14.5px; display: flex; align-items: center; gap: 8px; color: var(--tinta); }
 .painel-nota { color: var(--tinta-2); margin: 0; }
+/* fala ao vivo: a rolagem para sempre no começo de uma linha (rolarAoVivo), então a 1ª linha à vista sai inteira;
+   o degradê fica no respiro de cima e só esmaece a 1ª linha, sem apagá-la. No respiro mora o marcador de continuação */
+.painel { --vivo-respiro: 20px; }
 .ao-vivo { overflow-y: auto; scrollbar-gutter: stable; font-family: var(--fonte-texto); font-size: var(--tam-painel); line-height: var(--linha-painel); color: var(--tinta);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 4px, rgb(0 0 0) 44px); mask-image: linear-gradient(to bottom, transparent 4px, rgb(0 0 0) 44px); }
-.ao-vivo p { margin: 0; color: var(--tinta-2); }
+  padding-top: var(--vivo-respiro);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0 var(--vivo-respiro), rgb(0 0 0 / 0.6) var(--vivo-respiro), rgb(0 0 0) calc(var(--vivo-respiro) + var(--linha-painel)));
+  mask-image: linear-gradient(to bottom, transparent 0 var(--vivo-respiro), rgb(0 0 0 / 0.6) var(--vivo-respiro), rgb(0 0 0) calc(var(--vivo-respiro) + var(--linha-painel))); }
+.painel .ao-vivo { padding-top: var(--vivo-respiro); }
+.ao-vivo p { margin: 0; flex: none; color: var(--tinta-2); }
 .ao-vivo p[data-quem="eu"] { color: var(--tinta); }
-.ao-vivo .quem { font-family: var(--fonte-ui); font-size: var(--tam-pequeno); font-weight: 700; margin-right: 6px; }
+.ao-vivo .quem { font-family: var(--fonte-ui); font-size: var(--tam-pequeno); font-weight: 700; margin-right: 6px; line-height: 1; }
 .ao-vivo .rascunho { color: var(--tinta-2); }
+/* marcador de continuação: quando a 1ª linha à vista é meio de uma fala, diz de quem é (a fala começou mais acima) */
+.vivo-segue { position: absolute; z-index: 1; top: 0; left: 14px; right: 24px; height: var(--vivo-respiro); display: flex; align-items: center; gap: 5px; pointer-events: none;
+  font-family: var(--fonte-ui); font-size: 11px; line-height: 1; color: var(--tinta-2); visibility: hidden; opacity: 0; transition: opacity var(--dur); }
+.vivo-segue[data-ativa] { visibility: visible; opacity: 1; }
+.vivo-segue .quem { font-weight: 700; }
 .saidas { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; height: 100%; }
 .saidas .botao { height: auto; padding: 0 10px; justify-content: flex-start; align-items: center; text-align: left; }
 .saidas .botao .corta { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
@@ -776,8 +815,13 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 .progresso .botao { height: 34px; }
 
 /* Opções */
-.opcoes-lista { height: calc(var(--altura-conteudo) - 2 * var(--pad-v)); flex: none; overflow-y: auto; scrollbar-gutter: stable; margin-right: calc(-1 * var(--pad-h) + 4px); padding-right: calc(var(--pad-h) - 8px); }
-.opcoes-lista { -webkit-mask-image: linear-gradient(to top, transparent 0, rgb(0 0 0) 28px); mask-image: linear-gradient(to top, transparent 0, rgb(0 0 0) 28px); padding-bottom: 24px; }
+/* a lista rola desde a borda das abas: o respiro de cima fica dentro dela, e o que sobe some num degradê, como embaixo
+   (sem isso o texto era cortado reto numa linha invisível, 14 a 16 px abaixo das abas) */
+[data-tela-painel="opcoes"] { padding-top: 0; }
+.opcoes-lista { height: calc(var(--altura-conteudo) - var(--pad-v)); flex: none; overflow-y: auto; scrollbar-gutter: stable; margin-right: calc(-1 * var(--pad-h) + 4px); padding-right: calc(var(--pad-h) - 8px); }
+.opcoes-lista { padding-top: var(--pad-v); padding-bottom: 24px; scroll-padding-block: calc(var(--pad-v) + 4px) 32px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0) var(--pad-v), rgb(0 0 0) calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0) var(--pad-v), rgb(0 0 0) calc(100% - 28px), transparent 100%); }
 .opcao { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
 .opcao:last-child { border-bottom: 0; }
 .opcao-nome { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--tinta); }
@@ -792,11 +836,7 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 .campo select { width: 100%; height: 34px; appearance: none; border: 1px solid var(--linha); border-radius: var(--raio-s); background: var(--superficie); color: var(--tinta); font: inherit; padding: 0 30px 0 10px; text-overflow: ellipsis; }
 .campo select:disabled { color: var(--tinta-3); }
 .campo .ic { position: absolute; right: 9px; top: 9px; pointer-events: none; color: var(--tinta-2); }
-.segmentos { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--linha); border-radius: var(--raio-s); overflow: hidden; }
-.segmentos button { height: 32px; border: 0; border-right: 1px solid var(--linha); background: var(--superficie); color: var(--tinta-2); font-weight: 600; transition: background-color var(--dur), color var(--dur); }
-.segmentos button:last-child { border-right: 0; }
-.segmentos button[aria-pressed="true"] { background: var(--acao); color: var(--acao-tinta); }
-.segmentos button:disabled { color: var(--tinta-3); }
+.segmentos button { height: 30px; } /* o desenho é o mesmo do .modo (Gravar › ações) */
 .par { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 .par .botao { height: 34px; padding: 0 12px; }
 .caminho { color: var(--tinta-2); font-size: var(--tam-pequeno); }
@@ -814,14 +854,21 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 [data-direcao="a"] .rec { background: transparent; padding: 0; gap: 9px; font-size: 13px; }
 [data-direcao="a"] .rec .ic { width: 14px; height: 14px; }
 [data-direcao="a"] .rec[data-sinal="rec"] .ic { filter: drop-shadow(0 0 5px var(--grava)); }
-[data-direcao="a"] .medidor-barra { border-radius: 3px; }
-[data-direcao="a"] .medidor-pico { width: 3px; border-radius: 2px; }
+/* medidor de gravador: barra encorpada num trilho rebaixado, com a zona quente no fim (como o vermelho do VU)
+   e a marca de pico que brilha na cor da lâmpada */
+[data-direcao="a"] .medidor-barra { border-radius: 3px;
+  background: linear-gradient(to right, var(--medidor-fundo) 0 80%, var(--medidor-zona) 80%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.3); }
+[data-direcao="a"] .medidor-nivel { width: auto; right: 0;
+  background: linear-gradient(to right, var(--medidor-nivel) 0 80%, var(--grava) 80%);
+  clip-path: inset(0 calc(100% - var(--nivel, 0%)) 0 0); }
+[data-direcao="a"] .medidor-pico { top: -4px; bottom: -4px; width: 3px; border-radius: 2px; box-shadow: 0 0 6px var(--grava); }
 [data-direcao="a"] .ganho input { accent-color: var(--tinta-3); }
 [data-direcao="a"] .botao { border-radius: 999px; }
 [data-direcao="a"] .botao-pilha, [data-direcao="a"] .saidas .botao, [data-direcao="a"] .botoes-linha .botao { border-radius: var(--raio-m); }
-[data-direcao="a"] .modo { border: 0; border-radius: 999px; background: var(--superficie-2); }
-[data-direcao="a"] .modo-op { border-radius: 999px; }
-[data-direcao="a"] .modo-op[aria-checked="true"] { background: var(--superficie); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+[data-direcao="a"] :is(.modo, .segmentos) { border: 0; border-radius: 999px; }
+[data-direcao="a"] :is(.modo-op, .segmentos button) { border-radius: 999px; }
+[data-direcao="a"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]) { box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
 [data-direcao="a"] .painel, [data-direcao="a"] .progresso, [data-direcao="a"] .lista { border-radius: var(--raio-l); }
 [data-direcao="a"] .busca { border: 0; border-radius: 999px; background: var(--superficie-2); }
 
@@ -842,19 +889,26 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 [data-direcao="b"] .progresso, [data-direcao="b"] .lista, [data-direcao="b"] .origem { border: 1px solid var(--linha); background: var(--superficie); }
 [data-direcao="b"] .origem { border-style: dashed; }
 [data-direcao="b"] .lista { background-image: linear-gradient(to right, transparent 30px, var(--margem) 30px, var(--margem) 31px, transparent 31px); }
+/* o painel só tem o papel e a margem (vertical, não sofre com a rolagem); a pauta mora em cada camada de texto */
 [data-direcao="b"] .painel {
   border: 1px solid var(--linha);
   background-color: var(--superficie);
-  background-image:
-    linear-gradient(to right, transparent 30px, var(--margem) 30px, var(--margem) 31px, transparent 31px),
-    repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--linha-painel) - 1px), var(--pauta) calc(var(--linha-painel) - 1px), var(--pauta) var(--linha-painel));
-  background-position: 0 12px;
+  background-image: linear-gradient(to right, transparent 30px, var(--margem) 30px, var(--margem) 31px, transparent 31px);
 }
-[data-direcao="b"] .painel .camada { padding: 12px 14px 12px 42px; gap: 0; line-height: var(--linha-painel); }
-[data-direcao="b"] .progresso .camada { padding-left: 42px; }
+/* 18 px em cima: a linha de base do texto cai sobre a pauta (que começa a 12 px), em todas as camadas de texto */
+[data-direcao="b"] .painel .camada { padding: 18px 14px 12px 42px; gap: 0; line-height: var(--linha-painel);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--linha-painel) - 1px), var(--pauta) calc(var(--linha-painel) - 1px), var(--pauta) var(--linha-painel));
+  background-position: 0 12px; }
+/* fala ao vivo: a pauta rola junto com o texto (attachment local); rolando com a roda, o texto nunca flutua entre as linhas */
+[data-direcao="b"] .painel { --vivo-respiro: 18px; }
+[data-direcao="b"] .painel .ao-vivo { padding-top: var(--vivo-respiro); background-attachment: local; }
+[data-direcao="b"] .vivo-segue { left: 42px; }
+[data-direcao="b"] .vivo-segue .quem { font-style: italic; font-weight: 600; }
+/* a margem vermelha só existe nas camadas de texto; as camadas com botões cobrem a pauta e alinham como nas outras skins */
+[data-direcao="b"] .painel .camada:is([data-variante="erro"], [data-variante="pronta"], [data-variante="transcrevendo"]) { padding: 12px 14px; }
 [data-direcao="b"] .linha-info, [data-direcao="b"] .painel .painel-titulo, [data-direcao="b"] .painel .progresso-linha { height: var(--linha-painel); }
 [data-direcao="b"] .painel .barra { margin: 8px 0; }
-[data-direcao="b"] .painel .camada[data-variante="parado"] { padding: 10px 10px 10px 42px; }
+[data-direcao="b"] .painel .camada[data-variante="parado"] { padding: 10px; }
 [data-direcao="b"] .lista .vazio { background: var(--superficie); }
 [data-direcao="b"] .item { border-bottom: 1px solid var(--pauta); }
 [data-direcao="b"] .lista-grade { padding-left: 38px; }
@@ -862,8 +916,9 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 [data-direcao="b"] .lista-cabeca { background: var(--superficie); }
 [data-direcao="b"] .painel-titulo { font-size: 16px; font-weight: 600; }
 [data-direcao="b"] .linha-info span, [data-direcao="b"] .painel-nota { font-family: var(--fonte-texto); font-size: 14px; }
-[data-direcao="b"] .modo { background: transparent; }
-[data-direcao="b"] .modo-op[aria-checked="true"] { background: var(--selecao); color: var(--acao); }
+/* segmentado do caderno: papel com o escolhido marcado a caneta (fundo azul-claro e um traço embaixo, como a aba) */
+[data-direcao="b"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]) { color: var(--acao); box-shadow: inset 0 -2px 0 var(--acao); }
+[data-direcao="b"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]):disabled { color: var(--tinta-2); box-shadow: inset 0 -2px 0 var(--tinta-3); }
 [data-direcao="b"] .botao[data-tom="perigo"] { border-color: var(--linha); }
 [data-direcao="b"] .busca { border-width: 0 0 1px; border-radius: 0; background: transparent; }
 [data-direcao="b"] .opcao-nome { font-family: var(--fonte-titulo); font-size: 15px; font-weight: 600; }
@@ -899,9 +954,11 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 [data-direcao="c"] .ganho output { color: var(--visor-tinta); font-weight: 400; }
 [data-direcao="c"] .botao { box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.14); font-family: var(--fonte-rotulo); font-weight: 600; font-size: 14px; letter-spacing: 0.01em; }
 [data-direcao="c"] .botao-pilha { font-size: 12.5px; }
-[data-direcao="c"] .modo { border-radius: 0; background: var(--superficie-2); padding: 2px; }
-[data-direcao="c"] .modo-op { font-family: var(--fonte-rotulo); font-size: 14px; font-weight: 400; }
-[data-direcao="c"] .modo-op[aria-checked="true"] { background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linha); }
+/* segmentado do instrumento: teclas retas num trilho rebaixado; a engatada sobe e acende o filete de cima, como a aba */
+[data-direcao="c"] :is(.modo, .segmentos) { border-radius: 0; padding: 2px; }
+[data-direcao="c"] :is(.modo-op, .segmentos button) { border-radius: 0; font-family: var(--fonte-rotulo); font-size: 14px; font-weight: 400; }
+[data-direcao="c"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]) { box-shadow: inset 0 0 0 1px var(--linha), inset 0 3px 0 var(--aba-marca); }
+[data-direcao="c"] :is(.modo-op[aria-checked="true"], .segmentos button[aria-pressed="true"]):disabled { box-shadow: inset 0 0 0 1px var(--linha), inset 0 3px 0 var(--tinta-3); }
 [data-direcao="c"] .painel, [data-direcao="c"] .progresso, [data-direcao="c"] .lista, [data-direcao="c"] .origem { border: 1px solid var(--linha); background: var(--superficie); }
 [data-direcao="c"] .painel-titulo, [data-direcao="c"] .opcao-nome { font-family: var(--fonte-rotulo); font-size: 15px; font-weight: 600; }
 [data-direcao="c"] .lista-cabeca { font-family: var(--fonte-rotulo); font-weight: 400; font-size: 13px; background: var(--superficie-2); }
@@ -952,6 +1009,7 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 <symbol id="i-notebook-pen" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></symbol>
 <symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></symbol>
 <symbol id="i-languages" viewBox="0 0 24 24"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></symbol>
+<symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></symbol>
 <symbol id="i-sun-moon" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715"/><path d="M16 12a4 4 0 0 0-4-4"/><path d="m19 5-1.256 1.256"/><path d="M20 12h2"/></symbol>
 <symbol id="i-cpu" viewBox="0 0 24 24"><path d="M12 20v2"/><path d="M12 2v2"/><path d="M17 20v2"/><path d="M17 2v2"/><path d="M2 12h2"/><path d="M2 17h2"/><path d="M2 7h2"/><path d="M20 12h2"/><path d="M20 17h2"/><path d="M20 7h2"/><path d="M7 20v2"/><path d="M7 2v2"/><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
 <symbol id="i-captions" viewBox="0 0 24 24"><rect width="18" height="14" x="3" y="5" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></symbol>
@@ -966,11 +1024,11 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 <div class="vitrine">
   <header class="vitrine-cabeca">
     <h1>Vitrine do Reco</h1>
-    <p>Três caras possíveis para o Reco novo, com as mesmas telas e os mesmos estados. Troque a tela e o estado aqui em cima ou clique dentro da janela: nenhuma janela, área ou botão pode mudar de tamanho nem de lugar.</p>
+    <p>O Reco novo abre na cara Fita; Caderno e Instrumento são skins que se escolhem em Opções › Visual, com as mesmas telas e os mesmos estados. Troque a tela e o estado aqui em cima ou clique dentro da janela: nenhuma janela, área ou botão pode mudar de tamanho nem de lugar.</p>
   </header>
 
   <div class="controles">
-    <div class="controle"><span class="controle-nome">Direção</span><div class="seg" data-controle="direcao"><button type="button" data-valor="todas">Lado a lado</button><button type="button" data-valor="a">A Fita</button><button type="button" data-valor="b">B Caderno</button><button type="button" data-valor="c">C Instrumento</button></div></div>
+    <div class="controle"><span class="controle-nome">Visual (skin)</span><div class="seg" data-controle="direcao"><button type="button" data-valor="todas">Lado a lado</button><button type="button" data-valor="a">A Fita</button><button type="button" data-valor="b">B Caderno</button><button type="button" data-valor="c">C Instrumento</button></div></div>
     <div class="controle"><span class="controle-nome">Tela</span><div class="seg" data-controle="tela"><button type="button" data-valor="gravar">Gravar</button><button type="button" data-valor="biblioteca">Biblioteca</button><button type="button" data-valor="arquivo">Arquivo</button><button type="button" data-valor="opcoes">Opções</button></div></div>
     <div class="controle"><span class="controle-nome">Tema</span><div class="seg" data-controle="tema"><button type="button" data-valor="sistema">Sistema</button><button type="button" data-valor="claro">Claro</button><button type="button" data-valor="escuro">Escuro</button></div></div>
     <div class="controle" style="grid-column: 1 / -1"><span class="controle-nome">Estado</span><div class="seg" data-controle="estado"></div></div>
@@ -980,15 +1038,15 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
 
   <div class="palco">
     <section class="quadro" data-quadro="a">
-      <div class="quadro-legenda"><span class="quadro-letra">A</span><div><h2>Fita</h2><p>Grafite, contador grande num visor e uma lâmpada de gravação. O Reco de hoje, amadurecido.</p></div></div>
+      <div class="quadro-legenda"><span class="quadro-letra">A</span><div><h2>Fita · padrão</h2><p>Grafite, contador grande num visor e uma lâmpada de gravação. O Reco de hoje, amadurecido.</p></div></div>
       <div class="moldura" data-moldura="a"></div>
     </section>
     <section class="quadro" data-quadro="b">
-      <div class="quadro-legenda"><span class="quadro-letra">B</span><div><h2>Caderno</h2><p>Papel pautado, tinta azul e margem vermelha. O texto da conversa em primeiro plano.</p></div></div>
+      <div class="quadro-legenda"><span class="quadro-letra">B</span><div><h2>Caderno · skin</h2><p>Papel pautado, tinta azul e margem vermelha. O texto da conversa em primeiro plano.</p></div></div>
       <div class="moldura" data-moldura="b"></div>
     </section>
     <section class="quadro" data-quadro="c">
-      <div class="quadro-legenda"><span class="quadro-letra">C</span><div><h2>Instrumento</h2><p>Painel de alumínio, visores escuros e um único sinal âmbar. Medidores com escala em dB.</p></div></div>
+      <div class="quadro-legenda"><span class="quadro-letra">C</span><div><h2>Instrumento · skin</h2><p>Painel de alumínio, visores escuros e um único sinal âmbar. Medidores com escala em dB.</p></div></div>
       <div class="moldura" data-moldura="c"></div>
     </section>
   </div>
@@ -1046,7 +1104,7 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
       <div class="painel" data-area="painel">
         <div class="camada" data-variante="motor">
           <div class="painel-titulo"><span class="espera"></span><span data-t>Preparando o motor de gravação</span></div>
-          <p class="painel-nota" data-t>Leva uns 5 segundos depois de abrir. O botão Gravar libera sozinho; a transcrição não precisa estar pronta.</p>
+          <p class="painel-nota" data-t>Leva só um instante depois de abrir. O botão Gravar libera sozinho; a transcrição não precisa estar pronta.</p>
         </div>
         <div class="camada" data-variante="pronto">
           <div class="linha-info"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><b data-t>Entrada</b><span class="corta" data-ref="info-mic"></span></div>
@@ -1061,6 +1119,7 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
           <p class="painel-nota" data-t>Esquerda: você. Direita: quem está na chamada.</p>
         </div>
         <div class="camada ao-vivo" data-variante="aovivo" data-ref="aovivo"></div>
+        <div class="vivo-segue" data-ref="vivo-segue" aria-hidden="true"><span class="quem" data-ref="vivo-segue-quem"></span><span>…</span></div>
         <div class="camada" data-variante="nota">
           <div class="painel-titulo"><svg class="ic" data-lucide="notebook-pen"><use href="#i-notebook-pen"/></svg><span data-t>Nota de voz</span></div>
           <p class="painel-nota" data-t>Grava só o microfone. Ao parar, a fala vira texto (.md) e o caminho é copiado; o áudio vai para a Lixeira.</p>
@@ -1196,6 +1255,15 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
           <div class="segmentos" data-grupo="idioma"><button type="button" data-acao="idioma" data-idioma="pt" aria-pressed="true">Português</button><button type="button" data-acao="idioma" data-idioma="en" aria-pressed="false">English</button></div>
         </div>
         <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="palette"><use href="#i-palette"/></svg><span data-t>Visual</span></span>
+          <div class="segmentos" data-grupo="skin" role="group" aria-label="Visual">
+            <button type="button" data-acao="skin" data-skin="a" aria-pressed="true"><span data-t>Fita</span></button>
+            <button type="button" data-acao="skin" data-skin="b" aria-pressed="false"><span data-t>Caderno</span></button>
+            <button type="button" data-acao="skin" data-skin="c" aria-pressed="false"><span data-t>Instrumento</span></button>
+          </div>
+          <p class="opcao-ajuda" data-t>Fita é o padrão. Muda cor, letra e forma; as telas e as ações são as mesmas.</p>
+        </div>
+        <div class="opcao">
           <span class="opcao-nome"><svg class="ic" data-lucide="sun-moon"><use href="#i-sun-moon"/></svg><span data-t>Aparência</span></span>
           <div class="segmentos" data-grupo="aparencia"><button type="button" data-acao="aparencia" data-tema="sistema" aria-pressed="true"><span data-t>Sistema</span></button><button type="button" data-acao="aparencia" data-tema="claro" aria-pressed="false"><span data-t>Claro</span></button><button type="button" data-acao="aparencia" data-tema="escuro" aria-pressed="false"><span data-t>Escuro</span></button></div>
         </div>
@@ -1240,7 +1308,7 @@ const DIRECOES = ['a', 'b', 'c'];
 const PADRAO = { gravar: 'pronto', biblioteca: 'lista', arquivo: 'nada-escolhido', opcoes: 'normal' };
 const VALORES = { direcao: ['todas', ...DIRECOES], tema: ['sistema', 'claro', 'escuro'], texto: ['normal', 'longo-pt', 'longo-en'], versao: ['nao', 'sim'] };
 const GRAVANDO = new Set(['gravando', 'gravando-ao-vivo', 'nota-gravando', 'pausado']);
-const s = { direcao: 'todas', tela: 'gravar', estado: 'pronto', tema: 'sistema', texto: 'normal', versao: 'nao' };
+const s = { direcao: 'a', tela: 'gravar', estado: 'pronto', tema: 'sistema', texto: 'normal', versao: 'nao' };
 const porTela = { ...PADRAO };
 let modo = 'gravacao', aoVivo = false, aviso = null, segundos = 0;
 
@@ -1248,7 +1316,7 @@ let modo = 'gravacao', aoVivo = false, aviso = null, segundos = 0;
 const EN = {
   'Gravar': 'Record', 'Biblioteca': 'Library', 'Arquivo': 'File', 'Opções': 'Options', 'Microfone': 'Microphone', 'Sistema': 'System',
   'Gravação': 'Recording', 'Nota': 'Note', 'Preparando o motor de gravação': 'Starting the recording engine',
-  'Leva uns 5 segundos depois de abrir. O botão Gravar libera sozinho; a transcrição não precisa estar pronta.': 'Takes about 5 seconds after opening. Record unlocks by itself; transcription does not need to be ready.',
+  'Leva só um instante depois de abrir. O botão Gravar libera sozinho; a transcrição não precisa estar pronta.': 'Takes just a moment after opening. Record unlocks by itself; transcription does not need to be ready.',
   'Entrada': 'Input', 'Saída': 'Output', 'Pasta': 'Folder', 'Ao parar, um clique salva e copia o caminho do arquivo.': 'When you stop, one click saves the file and copies its path.',
   'Esquerda: você. Direita: quem está na chamada.': 'Left: you. Right: everyone else on the call.', 'Nota de voz': 'Voice note',
   'Grava só o microfone. Ao parar, a fala vira texto (.md) e o caminho é copiado; o áudio vai para a Lixeira.': 'Records the microphone only. When you stop, speech becomes text (.md) and the path is copied; the audio goes to the Recycle Bin.',
@@ -1274,6 +1342,8 @@ const EN = {
   'Pausar': 'Pause', 'Continuar': 'Resume', 'Pronto': 'Ready', 'Preparando': 'Starting', 'Gravando': 'Recording', 'Ao vivo': 'Live', 'Pausado': 'Paused', 'Parado': 'Stopped',
   'Transcrevendo': 'Transcribing', 'Texto pronto': 'Text ready', 'Erro': 'Error', 'Resumo IA': 'AI summary', 'Resumindo': 'Summarizing', 'Ligado': 'On', 'Desligado': 'Off',
   'Nova': 'New', 'Auto comunicação': 'Auto communications',
+  'Visual': 'Look', 'Fita': 'Tape', 'Caderno': 'Notebook', 'Instrumento': 'Instrument',
+  'Fita é o padrão. Muda cor, letra e forma; as telas e as ações são as mesmas.': 'Tape is the default. Changes color, type and shape; the screens and actions stay the same.',
 };
 const en = () => s.texto === 'longo-en';
 const t = (pt) => (en() && EN[pt]) || pt;
@@ -1391,6 +1461,7 @@ const janelas = DIRECOES.map((dir) => {
   raiz.addEventListener('click', (ev) => { const b = ev.target.closest('[data-acao]'); if (b && raiz.contains(b)) acao(b); });
   r['ganho-mic'].addEventListener('input', () => ganho(r['ganho-mic'], r['ganho-mic-valor']));
   r['ganho-sis'].addEventListener('input', () => ganho(r['ganho-sis'], r['ganho-sis-valor']));
+  r.aovivo.addEventListener('scroll', () => seguirFala(r), { passive: true });
   return { dir, raiz, r };
 });
 function ganho(inp, out) { out.textContent = Number(inp.value).toFixed(1).replace('.', en() ? '.' : ',') + '×'; }
@@ -1478,7 +1549,35 @@ function aplicarGravar(j) {
   const falas = FALAS[en() ? 'en' : 'pt'];
   if (r.aovivo.childElementCount === 0) falas.forEach(() => { const p = document.createElement('p'); p.innerHTML = '<span class="quem"></span><span></span>'; r.aovivo.append(p); });
   falas.forEach(([quem, fala], i) => { const p = r.aovivo.children[i]; texto(p.firstChild, quem); p.dataset.quem = i % 2 ? 'outros' : 'eu'; texto(p.lastChild, fala + (i === falas.length - 1 ? '…' : '')); p.lastChild.className = i === falas.length - 1 ? 'rascunho' : ''; });
-  if (v === 'aovivo') r.aovivo.scrollTop = r.aovivo.scrollHeight;
+  if (v === 'aovivo') rolarAoVivo(r.aovivo);
+  seguirFala(r);
+}
+
+// marcador de continuação: se a 1ª linha à vista é meio de uma fala (o rótulo "Eu"/"Outros" ficou acima),
+// o respiro de cima mostra de quem é a fala. Roda ao trocar de estado e a cada rolagem (roda do mouse, teclado).
+function seguirFala(r) {
+  const box = r.aovivo, respiro = parseFloat(getComputedStyle(box).paddingTop), topo = box.scrollTop + respiro;
+  const p = box.hasAttribute('data-ativa') && box.scrollTop > 0.5 ? [...box.children].find((x) => x.offsetTop + x.offsetHeight > topo + 0.5) : null;
+  const meio = !!p && p.offsetTop < topo - 0.5;
+  if (meio) texto(r['vivo-segue-quem'], p.firstChild.textContent);
+  ativar(r['vivo-segue'], meio);
+}
+
+// fala ao vivo: mostra o fim, mas com o topo no começo de uma linha (nunca meia linha cortada em cima).
+// Se o fim não cai numa linha, sobra um respiro embaixo (menos de uma linha), nunca um corte em cima.
+// O respiro de baixo pode encolher até 4 px para caber mais uma linha em cima (senão sobrava quase uma linha vazia embaixo).
+function rolarAoVivo(box) {
+  box.style.paddingBottom = '';
+  const cs = getComputedStyle(box), respiro = parseFloat(cs.paddingTop), L = parseFloat(cs.lineHeight), baixo = parseFloat(cs.paddingBottom);
+  const max = box.scrollHeight - box.clientHeight;
+  if (max <= 0) { box.scrollTop = 0; return; }
+  const fim = max - Math.max(0, baixo - 4);
+  const topos = [];
+  for (const p of box.children) for (let k = 0; k < Math.round(p.offsetHeight / L); k++) topos.push(p.offsetTop - respiro + k * L);
+  const alvo = topos.find((y) => y >= fim - 0.5);
+  if (alvo === undefined) { box.scrollTop = max; return; }
+  if (alvo > max) box.style.paddingBottom = (baixo + alvo - max) + 'px';
+  box.scrollTop = alvo;
 }
 
 function aplicarBiblioteca(j) {
@@ -1543,6 +1642,9 @@ function aplicarOpcoes(j) {
   r['ao-vivo'].setAttribute('aria-checked', String(aoVivo)); texto(r['ao-vivo-texto'], t(aoVivo ? 'Ligado' : 'Desligado'));
   raiz.querySelectorAll('[data-acao="aparencia"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tema === s.tema)));
   raiz.querySelectorAll('[data-acao="idioma"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.idioma === (en() ? 'en' : 'pt'))));
+  // Visual (skin): cada janela marca a própria; na interface real é a preferência casco_skin, aplicada como data-direcao na raiz do documento
+  raiz.querySelectorAll('[data-acao="skin"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.skin === raiz.dataset.direcao)));
+  raiz.querySelector('[data-grupo="skin"]').setAttribute('aria-label', t('Visual'));
 }
 
 function aplicarJanela(j) { aplicarGeral(j); aplicarGravar(j); aplicarBiblioteca(j); aplicarArquivo(j); aplicarOpcoes(j); aplicarStatus(j); }
@@ -1579,7 +1681,8 @@ function definir(p = {}) {
   if (s.tela === 'gravar' && s.estado === 'nota-gravando') modo = 'nota';
   if (s.tela === 'gravar' && (s.estado === 'gravando' || s.estado === 'gravando-ao-vivo')) modo = 'gravacao';
   aviso = null;
-  janelas.forEach(aplicarJanela); aplicarCasca();
+  aplicarCasca(); // antes das janelas: a rolagem da fala ao vivo só se mede na janela que já está à mostra
+  janelas.forEach(aplicarJanela);
   return { ...s };
 }
 
@@ -1609,6 +1712,19 @@ function acao(b) {
     'arq-escolher': () => vai('arquivo', 'escolhido'), 'arq-transcrever': () => vai('arquivo', 'transcrevendo'),
     'arq-converter': () => vai('arquivo', 'convertendo'), 'arq-parar': () => vai('arquivo', 'escolhido'),
     'ao-vivo': () => { aoVivo = !aoVivo; janelas.forEach(aplicarOpcoes); },
+    skin: () => {
+      // a troca não pode tirar o seletor de baixo do cursor: o grupo Visual fica na mesma altura da tela na skin nova,
+      // e o foco passa para o botão equivalente, já à vista (R9). Na interface real (mesmo documento) vale o mesmo ancoramento.
+      const lista = b.closest('[data-area="opcoes-lista"]'), grupo = b.closest('[data-grupo="skin"]');
+      const altura = grupo.getBoundingClientRect().top - lista.getBoundingClientRect().top;
+      definir({ direcao: b.dataset.skin });
+      const destino = janelas.find((x) => x.dir === b.dataset.skin).raiz;
+      const lista2 = destino.querySelector('[data-area="opcoes-lista"]'), grupo2 = destino.querySelector('[data-grupo="skin"]');
+      lista2.scrollTop += grupo2.getBoundingClientRect().top - lista2.getBoundingClientRect().top - altura;
+      const igual = grupo2.querySelector(`[data-skin="${b.dataset.skin}"]`);
+      igual.focus({ preventScroll: true });
+      igual.scrollIntoView({ block: 'nearest' });
+    },
     aparencia: () => definir({ tema: b.dataset.tema }), idioma: () => definir({ texto: b.dataset.idioma === 'en' ? 'longo-en' : 'normal' }),
     seg: () => b.parentElement.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))),
     minimizar: () => diz('info', 'No app, minimizar e fechar levam o Reco para a bandeja.', 'In the app, minimize and close send the Reco to the tray.'),

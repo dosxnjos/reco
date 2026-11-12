@@ -3,6 +3,8 @@
 //   node design/testar-contrato.cjs                  vitrine local (design/vitrine.html por HTTP local)
 //   node design/testar-contrato.cjs --url <endereço>  outro alvo com o mesmo condutor de estados (Fase 3)
 //   node design/testar-contrato.cjs --sabotar        controle negativo: botão que encolhe no clique; tem de sair 1
+//                                                    (e acusar em cada skin; se uma não acusa, ela não foi medida: sai 2)
+// Cada troca de estado confere que há uma janela visível só e que ela está na skin pedida ("skin medida").
 // Uma linha "ok" ou "FALHA" por regra e direção; a última diz o total. Saída 0 = contrato cumprido.
 'use strict';
 const fs = require('fs');
@@ -36,10 +38,15 @@ function servir() {
 }
 
 let falhas = 0;
+const cliqueMovePor = new Set(); // skins em que o R6 acusou (o controle negativo tem de acusar em todas)
+const skinErrada = new Set(); // skins em que a janela medida não era a pedida
+let direcoesMedidas = [];
 const relatar = (regra, dir, problemas, resumo) => {
   const rotulo = `${regra} [${dir || 'alvo'}]`;
   if (!problemas.length) { console.log(`ok    ${rotulo}${resumo ? ' ' + resumo : ''}`); return; }
   falhas += problemas.length;
+  if (regra.startsWith('R6')) cliqueMovePor.add(dir);
+  if (regra === 'skin medida') skinErrada.add(dir); // mediu outra skin: o que acusou nela não vale para esta
   problemas.slice(0, 8).forEach((p) => console.log(`FALHA ${regra.startsWith('R6') ? 'clique-move' : regra} [${dir || 'alvo'}] ${p}`));
   if (problemas.length > 8) console.log(`FALHA ${rotulo} … mais ${problemas.length - 8}`);
 };
@@ -47,8 +54,18 @@ const relatar = (regra, dir, problemas, resumo) => {
 // ---- funções que rodam dentro da página (recebem a direção e devolvem a lista de problemas)
 const NA_PAGINA = `
 window.__t = {
+  erradas: [],
   combos() { const v = window.vitrine; return v.telas.flatMap((tela) => v.estados[tela].map((estado) => ({ tela, estado }))); },
-  ir(p, dir) { if (dir) p.direcao = dir; window.vitrine.definir(p); },
+  // depois de cada troca: uma janela visível só, e na skin pedida (atributo da janela na vitrine, do <html> no app)
+  ir(p, dir) {
+    if (dir) p.direcao = dir;
+    window.vitrine.definir(p);
+    const vistas = [...document.querySelectorAll('[data-area="janela"]')].filter((e) => e.checkVisibility({ visibilityProperty: true }));
+    const skin = vistas.length ? (vistas[0].closest('[data-direcao]') || document.documentElement).dataset.direcao : null;
+    const onde = p.tela + '/' + p.estado;
+    if (vistas.length !== 1) this.erradas.push(onde + ': ' + vistas.length + ' janelas visíveis, o esperado é 1');
+    else if (dir && skin !== dir) this.erradas.push(onde + ': pediu a skin ' + dir + ', a janela medida é ' + (skin || 'sem skin'));
+  },
   janela() { return [...document.querySelectorAll('[data-area="janela"]')].find((e) => e.checkVisibility({ visibilityProperty: true })); },
   visivel(e) { return e.checkVisibility({ visibilityProperty: true, opacityProperty: true }) && !e.closest('[inert]'); },
   nome(e) { return String(e.getAttribute('aria-label') || e.innerText || e.getAttribute('class') || e.tagName).trim().replace(/\\s+/g, ' ').slice(0, 40); },
@@ -127,8 +144,9 @@ async function cliqueParado(page, dir) {
     await page.evaluate(([p, d]) => window.__t.ir({ ...p, tema: 'claro', texto: 'normal', versao: 'sim' }, d), [c, dir]);
     const qtd = await page.evaluate(() => {
       const t = window.__t, j = t.janela();
-      const vista = (e) => { const r = e.getBoundingClientRect(); for (let x = e.parentElement; x && x !== j; x = x.parentElement) { if (getComputedStyle(x).overflowY !== 'visible') { const q = x.getBoundingClientRect(); if (r.top < q.top || r.bottom > q.bottom) return false; } } return true; };
-      const bs = [...j.querySelectorAll('button')].filter((b) => t.visivel(b) && !b.disabled && vista(b));
+      // todo botão conta, inclusive o que está abaixo da dobra de uma área que rola (Opções › Visual, fim da lista):
+      // cada um é rolado até a vista antes de medir
+      const bs = [...j.querySelectorAll('button')].filter((b) => t.visivel(b) && !b.disabled);
       document.querySelectorAll('[data-teste-botao]').forEach((b) => b.removeAttribute('data-teste-botao'));
       bs.forEach((b, i) => b.setAttribute('data-teste-botao', i));
       return bs.length;
@@ -136,7 +154,12 @@ async function cliqueParado(page, dir) {
     for (let i = 0; i < qtd; i++) {
       const sel = `[data-teste-botao="${i}"]`;
       const caixa = () => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((x) => Math.round(x * 100) / 100).join(','); });
-      const nome = await page.$eval(sel, (e) => window.__t.nome(e));
+      const [nome, coberto] = await page.$eval(sel, (e) => {
+        e.scrollIntoView({ block: 'nearest' });
+        const r = e.getBoundingClientRect(), no = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return [window.__t.nome(e), no && !e.contains(no) ? window.__t.nome(no) : ''];
+      });
+      if (coberto) out.push(`${c.tela}/${c.estado} "${nome}" está coberto: o clique no meio dele cai em "${coberto}"`);
       const antes = await caixa();
       const [x, y] = antes.split(',').map(Number);
       const [w, h] = antes.split(',').slice(2).map(Number);
@@ -152,6 +175,56 @@ async function cliqueParado(page, dir) {
     }
   }
   return { out, n };
+}
+
+// seletor de skin (Opções › Visual): 3 botões, só o da skin atual marcado; clicar noutro troca a janela visível para ela,
+// do mesmo tamanho e no mesmo lugar, com o grupo Visual na mesma altura e o foco no botão escolhido, à vista; e volta
+async function seletorSkin(page, dir, direcoes) {
+  if (!dir) return [];
+  const out = [];
+  const ler = () => page.evaluate(() => {
+    const t = window.__t, j = t.janela(), lista = j.querySelector('[data-area="opcoes-lista"]'), a = document.activeElement;
+    const bs = [...j.querySelectorAll('[data-acao="skin"]')], r = j.getBoundingClientRect(), q = lista.getBoundingClientRect(), f = a.getBoundingClientRect();
+    return {
+      skin: (j.closest('[data-direcao]') || document.documentElement).dataset.direcao, n: bs.length,
+      marcados: bs.filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.skin).join(','),
+      caixa: [r.x, r.y, r.width, r.height].map((x) => Math.round(x * 100) / 100).join(','),
+      foco: j.contains(a) && a.dataset.acao === 'skin' ? a.dataset.skin : '(fora do seletor)', focoVisto: f.top >= q.top - 0.5 && f.bottom <= q.bottom + 0.5,
+      grupo: j.querySelector('[data-grupo="skin"]').getBoundingClientRect().top - q.top,
+      limite: lista.scrollTop <= 0.5 || lista.scrollTop >= lista.scrollHeight - lista.clientHeight - 0.5,
+      sob: (() => { const m = window.__t.ponto; const e = m && document.elementFromPoint(m[0], m[1]); return (e && e.closest('[data-acao="skin"]') || {}).dataset?.skin || '(nada)'; })(),
+    };
+  });
+  const clicar = async (skin) => {
+    await page.evaluate((s) => {
+      const b = window.__t.janela().querySelector(`[data-acao="skin"][data-skin="${s}"]`);
+      document.querySelectorAll('[data-teste-skin]').forEach((e) => e.removeAttribute('data-teste-skin'));
+      b.setAttribute('data-teste-skin', ''); b.scrollIntoView({ block: 'nearest' });
+      const r = b.getBoundingClientRect(); window.__t.ponto = [r.x + r.width / 2, r.y + r.height / 2]; // onde o clique cai
+    }, skin);
+    const e0 = await ler();
+    await page.click('[data-teste-skin]');
+    return [e0, await ler()];
+  };
+  await page.evaluate((d) => window.__t.ir({ tela: 'opcoes', estado: 'normal', tema: 'claro', texto: 'normal', versao: 'nao' }, d), dir);
+  const ini = await ler();
+  if (ini.n !== 3) out.push(`${ini.n} botões de skin, o esperado é 3`);
+  if (ini.skin !== dir || ini.marcados !== dir) out.push(`ao abrir: janela na skin ${ini.skin}, marcado ${ini.marcados || 'nenhum'}; o esperado é ${dir}`);
+  for (const outra of direcoes.filter((x) => x && x !== dir)) {
+    const [e0, e1] = await clicar(outra);
+    if (e1.skin !== outra) out.push(`clicar ${outra} deixou a janela na skin ${e1.skin}`);
+    if (e1.marcados !== outra) out.push(`depois de clicar ${outra}, marcado ${e1.marcados || 'nenhum'}`);
+    if (e1.caixa !== e0.caixa) out.push(`clicar ${outra} mudou a janela de ${e0.caixa} para ${e1.caixa}`);
+    if (e1.foco !== outra || !e1.focoVisto) out.push(`depois de clicar ${outra}, foco em ${e1.foco}${e1.focoVisto ? '' : ' fora da área visível'}`);
+    // o grupo fica na mesma altura; só pode desviar quando a lista da skin nova bate no começo ou no fim da rolagem,
+    // e mesmo assim o botão escolhido continua sob o ponteiro
+    if (Math.abs(e1.grupo - e0.grupo) > 1 && !e1.limite) out.push(`clicar ${outra} mudou a altura do grupo Visual de ${Math.round(e0.grupo)} para ${Math.round(e1.grupo)} px`);
+    if (e1.sob !== outra) out.push(`depois de clicar ${outra}, sob o ponteiro ficou ${e1.sob}`);
+    const [, e2] = await clicar(dir);
+    if (e2.skin !== dir || e2.marcados !== dir) out.push(`voltar para ${dir} deixou a skin ${e2.skin}, marcado ${e2.marcados || 'nenhum'}`);
+  }
+  await page.mouse.move(2, 2);
+  return out;
 }
 
 async function teclado(page, dir) {
@@ -206,6 +279,7 @@ async function teclado(page, dir) {
   try {
     const { ctx, page, erros } = await abrir({ colorScheme: 'light' });
     const direcoes = (await page.evaluate(() => window.vitrine.direcoes)) || [null];
+    direcoesMedidas = direcoes;
     for (const dir of direcoes) {
       const lista = [];
       for (const texto of ['normal', 'longo-pt', 'longo-en']) lista.push(...await page.evaluate(porEstado, { dir, texto, permitidas: TRANSICAO_OK }));
@@ -213,6 +287,8 @@ async function teclado(page, dir) {
       const clique = await cliqueParado(page, dir);
       relatar('R6 clique-move', dir, clique.out, `(${clique.n} botões, antes, hover, apertado e depois)`);
       relatar('R9', dir, await teclado(page, dir));
+      relatar('seletor de skin', dir, await seletorSkin(page, dir, direcoes));
+      relatar('skin medida', dir, await page.evaluate(() => [...new Set(window.__t.erradas.splice(0))]));
     }
     relatar('erros-de-pagina', null, erros);
     await ctx.close();
@@ -224,6 +300,7 @@ async function teclado(page, dir) {
       for (const dir of direcoes) for (const tema of ['sistema', 'claro', 'escuro']) {
         fundos[`${dir}|${esquema}|${tema}`] = await a.page.evaluate(([d, tm]) => { window.__t.ir({ tela: 'gravar', estado: 'pronto', tema: tm }, d); return getComputedStyle(window.__t.janela()).backgroundColor; }, [dir, tema]);
       }
+      relatar(`skin medida (R11, ${esquema})`, null, await a.page.evaluate(() => [...new Set(window.__t.erradas.splice(0))]));
       await a.ctx.close();
     }
     for (const dir of direcoes) {
@@ -253,6 +330,7 @@ async function teclado(page, dir) {
       relatar('R14', dir, p);
       for (const tema of ['claro', 'escuro']) relatar(`contraste ${tema}`, dir, await m.page.evaluate(contraste, { dir, tema }));
     }
+    relatar('skin medida (R14 e contraste)', null, await m.page.evaluate(() => [...new Set(window.__t.erradas.splice(0))]));
     await m.ctx.close();
   } finally {
     await browser.close();
@@ -265,5 +343,8 @@ async function teclado(page, dir) {
     relatar('tokens', null, (modelo.match(/#[0-9a-fA-F]{3,8}\b/g) || []).map((h) => `hexadecimal ${h} em vitrine.modelo.html`));
   }
   console.log(`contrato: ${falhas} falhas`);
+  // controle negativo por skin: o clique que encolhe tem de acusar em cada direção; se uma não acusa, ela não foi medida (saída 2)
+  const mudas = SABOTAR ? direcoesMedidas.filter((d) => !cliqueMovePor.has(d) || skinErrada.has(d)) : [];
+  if (mudas.length) { console.log(`sabotagem sem efeito na direção ${mudas.join(', ')}: o teste não mede essa skin`); process.exit(2); }
   process.exit(falhas ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });
