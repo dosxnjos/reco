@@ -503,6 +503,14 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      `app/build.ps1`; telas seguem o contrato anti-pulo do `design/DESIGN.md`).
    - Hub `cerebro/projetos/reco.md`: linha datada em "Estado agora". Relatório da fase no sidecar `.d/`.
    - Commit final por pathspec; push só autorizado.
+   - **Execução parcial (12/11, depois da revisão adversarial):** prova rodada → `git diff --stat 9fd4f95 --
+     docs/ARQUITETURA.md README.md CLAUDE.md` lista os três (114 linhas a mais) e o `gate-claude-md` dá `Passed`
+     (5948 bytes). Feitos: README "New app (under construction)" / "App novo (em construção)" (como gerar o
+     instalador, que ele se chama Reco Novo e exclui o velho pela mesma trava), ARQUITETURA § Casco Tauri, CLAUDE.md
+     (build por `app/build.ps1`), duas armadilhas por `visoes.py novo`, hub e diário (`4ab9a3c`; C:\Dev `9a02b019`).
+     **Fica aberto** porque depende do passo 17: o README diz "não é o app de uso ainda" e não ensina a instalar
+     (nenhuma instalação foi provada), e o relatório não tem os dois tempos do app instalado (clique no ícone até a
+     janela e até Gravar habilitar, D12). Fechar junto com o 17.
 
 ## Tabela de paridade (relatório 1 § 1, 19 linhas)
 

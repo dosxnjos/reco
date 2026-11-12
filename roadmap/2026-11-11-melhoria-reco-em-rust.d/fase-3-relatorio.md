@@ -5,6 +5,8 @@
 > o dono decidiu às ~22:40 (A "Fita" padrão; B e C como skins em Opções) enquanto esta execução andava.
 > **Atualização (12/11):** os passos 11 a 16 foram feitos depois (execução anotada em cada passo do md; o 16 tem
 > seção própria abaixo). Seguem abertos o 17 (teste real) e o 18 (docs).
+> **Atualização (12/11, ~12:30):** revisão adversarial corrigida (seção própria) e o passo 18 feito menos o que
+> depende do 17 (seção "Passo 18"). Para fechar a fase falta o que está em "O que falta para fechar a Fase 3".
 
 Fase: [fase-3](../2026-11-11-melhoria-reco-em-rust-fase-3.md) · índice: [Reco em Rust](../2026-11-11-melhoria-reco-em-rust.md).
 
@@ -180,6 +182,57 @@ Playwright e o coletor do WhatsApp). O `build.ps1` foi lido, conferido contra o 
   em cp1252 e o script lê UTF-8), e os tempos misturam vírgula e ponto (formatação do PowerShell por cultura).
 - **Repo depois do build:** `git status` limpo (sem instalador nem `dist/` no git); `reco.py`, `tray.py` e o
   `build.ps1` do velho intocados. Commit `a8f183c` (o script, logo depois da primeira rodada verde).
+
+### Revisão adversarial (12/11/2026, ~11:40 a 12:30)
+
+16 achados (5 altos, 4 médios, 7 baixos). Nenhum é falso: todos batem com o código. O de número 10 (aspas no
+modo falso) não pede código: fica para o passo 17. Commits: `7efcc33` (interface), `c42cc11` (casco), `bcd7d78`
+(smoke). O Reco do dono não foi aberto, fechado nem chamado: nenhuma prova sobe o casco (que pega o mesmo mutex).
+
+| # | achado | gravidade | o que foi feito |
+| --- | --- | --- | --- |
+| 1 | duplo clique em Parar com o motor em `stopping` mostra "interrompida" | alta | `cliques.ts` ignora `detail > 1`; `gravar.ts` tem a trava de pedido em voo (principal, secundário, Só salvar, Excluir; sem valer com o condutor); `refused`/`busy` no parar ressincronizam pelo `state` |
+| 2 | duplo clique em "Salvar e copiar" começa gravação nova | alta | mesma trava e mais: no principal, o clique de ponteiro cujo aperto começou antes da última troca de papel (`principalTrocouEm`) é ignorado (teclado passa) |
+| 3 | duplo clique em Gravar começa e para; `busy` no start vira erro falso | alta | mesma trava; `busy`/`refused` no `rec.start` ressincronizam |
+| 4 | motor caído ocioso ou `hello` que falha deixam a tela "Pronto" ou "Preparando" para sempre | alta | `Vista.motorFora` desabilita o principal; queda ocioso → aviso "O motor de gravação parou"; `hello` que falha ou `ready` com erro → "O motor não carregou"; 20 s em `motor-subindo` → "O motor está demorando"; o aviso (`doMotor`) some no `ready` e o alarme do D11 fica |
+| 5 | medidores acesos depois da queda; tempo gravado perdido | média | `mostrarInterrompida` zera os VUs (também no `rec.error` fatal) e põe "interrompida em 00:12:34" no status |
+| 6 | janela nasce em Fita e troca de skin e tema depois do `ready` | média | cache local `reco.aparencia` (`aparencia.ts`), lido na `vistaInicial` e por um script em linha no `index.html` antes do primeiro desenho; gravado no `config.get` e em Opções; o motor continua dono |
+| 7 | painel muda a ordem das linhas ao gravar | baixa | gravando também em Entrada, Saída, Pasta |
+| 8 | textos com cara de rascunho e detalhe cru no status | baixa | `Microfone: X · Sistema: Y`, um espaço entre frases, ` · ` antes do nome, erro do `rec.start` por código (`no_device`, `unavailable`, outro), `refused`/`busy`/`internal` em frase humana, "Processar em" sem jargão; o detalhe cru vai só ao Detalhes e ao console (`app.falhou`) |
+| 9 | Transcrever da Biblioteca desabilitado sem motivo | baixa | status da seleção ganha "Transcrever volta quando a gravação ou a transcrição em curso terminar." |
+| 10 | aspas do colar não verificáveis no modo falso | baixa | sem código: o teste `aspas` do Rust (passo 6) cobre a montagem; o colar real fica no passo 17 |
+| 11 | smoke aprova motor que diz `hello` mas não importa o `reco` | alta | `engine/build.py` imprime `ready ok=…` e `devices ok=…` e sai 1 se falhar (`--motor` para provar); `Assert-Smoke` exige os dois; armadilha nova |
+| 12 | Sair logo depois de Parar corta o `close()` do MP3 | média | `saida.rs`: com `stopping`, pergunta o `state` a cada 200 ms até sair dele (teto de 120 s) e só então `shutdown`, sem `rec.stop` novo (`Saida::EsperouFechar`) |
+| 13 | motor morre em `stopping` e a tela segue "Gravando" | média | `estado.rs` trata `stopping` como arquivo aberto (alarme e `reco-gravacao-interrompida`); a tela, gravando, vira alarme no `engine-status` caído mesmo sem o evento; `ressincronizar` com `idle` e a tela gravando → alarme, parada → Pronto com aviso |
+| 14 | Gravar pela bandeja com a tela em Nota mostra "Gravando nota" | baixa | `recording` vindo de fora vira modo gravação (a bandeja grava `rec`), lê o `state` para o ao vivo e põe Opções em `durante-gravacao`; durante o `rec.start` da própria tela, o evento espera a resposta (`comecando`) |
+| 15 | `reco-conclusao` antes da resposta do parar prende a tela em transcrevendo | baixa | a conclusão que chega com o parar (da tela ou da bandeja) em curso fica guardada e é aplicada depois |
+| 16 | falha de Gravar/Pausar pela bandeja some no log | baixa | `lib.rs` `pedir` avisa com a janela escondida (`Aviso::BandejaFalhou`) |
+
+**Provas rodadas depois das correções:**
+
+- `npm --prefix app run ui:build` → `built`; `npm --prefix app run i18n:check` → `234 chaves PT, 234 EN … 0 faltando`.
+- `node app/ui/tests/gravar.cjs` → `falhas 0 em 53`; `telas.cjs` → `falhas 0 em 50`; `paridade.cjs` → `17 de 17
+  presentes`; **novo** `revisao.cjs` → `falhas 0 em 18` (duplo clique nos três papéis, motor lento no start e no
+  stop, aperto antes da troca de papel, bandeja com a tela em Nota, conclusão antes do parar, motivo na Biblioteca,
+  motor caído ocioso e de volta, caído em `stopping` sem o evento, VUs zerados e tempo no alarme, ordem do painel,
+  skin e tema do cache no `DOMContentLoaded`).
+- Controle negativo do `revisao.cjs`: com a interface antiga (os arquivos de `HEAD` e o backend falso novo) →
+  ordem do painel, os três duplos cliques e o stop lento em `FALHA` e o teste quebra no Excluir (a tela parou em
+  erro); com a trava desligada (`false &&` por Edit, desfeito e conferido por `cmp`) → os dois "motor lento" em
+  `FALHA`.
+- Fase 1 com `--url` (`ui:preview` na 1431, parado no fim por pid) → `anti-pulo: 0 diferenças em 23868 medições`,
+  `a=0`; `contrato: 0 falhas`, `c=0`; sabotagens → `anti-pulo=1` (1932 diferenças), `contrato=1` (981 falhas).
+- `cargo test --manifest-path app/src-tauri/Cargo.toml -- --include-ignored` → `test result: ok. 41 passed` (40
+  antes; novo `sair_espera_o_stopping`, e `stopping` nos testes de `saida` e `estado`); controle negativo com o ramo
+  do `stopping` desligado → `left: Ocioso, right: EsperouFechar { ok: true }`, `FAILED`. `cargo clippy --all-targets`
+  → 0 avisos.
+- Smoke: motor falso (`engine/build.py --motor python <falso> <modo>`) → `ok` sai 0; `ready-erro` e
+  `devices-falha` saem 1 com `SMOKE REPROVADO`. `Assert-Smoke` carregado do `build.ps1` pela AST com linhas prontas
+  → a boa é aceita; a linha antiga (`devices ok=False`, sem `ready ok=`), `ready ok=False` e `devices ok=False` são
+  recusadas.
+
+**Pegadinha do processo:** o guarda de comando recusa `git checkout -- $(…)`; o controle negativo usou
+`git restore -- <arquivos>` nomeados e a cópia no scratchpad para voltar.
 
 ### Pendências (precisam do app velho fechado ou da interface)
 
