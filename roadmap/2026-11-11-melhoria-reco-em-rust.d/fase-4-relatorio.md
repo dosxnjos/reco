@@ -443,3 +443,17 @@ reposto depois de cada "copiar".
 - Passo 14: "a frio" (3 reinícios) e a mediana a quente do build final com a máquina livre (a desta rodada saiu sob carga).
 - Passo 17: P1 (arrastar), P7 (player), P8 (Abrir transcrição), P12 (trocar o padrão do Windows), P13 (pasta), P18 e P21
   (escolher arquivo), P19 (comparar a Biblioteca com a do velho) e P22 (hover, clique e ícone vermelho).
+
+**Armadilhas novas** (commit `bdab7a5`): o Tk do velho ignora clique por mensagem (e o caminho pelo menu da bandeja);
+guardas por caminho do processo (Medal e a demora do `Get-Process` por `Path`); autostart sem aspas e a marca do
+`StartupApproved`.
+
+**Máquina no fim (17:43):** o app novo **"Reco" `84EE1142` instalado e aberto na bandeja** (pid 38448, motor pid 46184,
+`--oculto`, sem `HF_HUB_OFFLINE` e sem porta de depuração: nenhum `msedgewebview2` com `remote-debugging`, 9351/9361
+fechadas), mutex `True`; `reco.exe` instalado `3B8CBE29…ADCED210E`; nenhum commit em `app/` desde o início
+(`df07ffe`). Reco velho fechado (nenhum `Reco.exe` do `dist` vivo). Autostart desligado (`Run /v Reco` rc 1,
+`StartupApproved` rc 1); atalho global desligado (nunca ligado). `Reco.lnk` → exe novo, sem tecla; nada na Área de
+Trabalho. Modelos 828 098 952 bytes (revisão `b568445`). `~/.reco_config.json` = cópia das 16:45 (`cmp` igual, sem
+chave `casco_*`), conferido de novo com o app aberto. `Documents\Reco`: 214 arquivos, 0 diferenças contra a foto. O
+clipboard foi reposto depois de cada teste (último às 17:36); no fim ele tinha outro conteúdo, que não é caminho de
+teste (o dono copiou algo depois), e ficou como estava. `Reco-reserva` intacta (o `reco_config.json` dela = config atual).
