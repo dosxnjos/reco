@@ -150,8 +150,10 @@ que abri; reabrir é com ele).
 
 ### Passo 16 — `app/build.ps1` e o instalador (12/11/2026, 03:34 a 03:58)
 
-Condição: o Reco do dono **aberto** o tempo todo; o build não abre o app (o casco de release pega o mesmo mutex)
-nem o instalador. Uma execução anterior caiu às ~03:25 com o `build.ps1` escrito e sem commit; ela chegou a gerar
+Condição: o chamador avisou que o Reco do dono estava aberto. Não conferi no início; às 03:59, depois do build,
+`tasklist` não achou nenhum processo com "reco" no nome (nem o velho, nem o casco, nem o motor). Esta rodada não
+abriu, fechou nem mandou mensagem a ele: o build não abre o app (o casco de release pega o mesmo mutex) nem o
+instalador, e o smoke sobe só o `reco-engine.exe` congelado, que encerra com `shutdown`. Uma execução anterior caiu às ~03:25 com o `build.ps1` escrito e sem commit; ela chegou a gerar
 `C:\pt\release\reco.exe` às 03:09, mas nenhum instalador. Retomada sem processo de build órfão (só MCP do
 Playwright e o coletor do WhatsApp). O `build.ps1` foi lido, conferido contra o passo e rodado sem mudança.
 
