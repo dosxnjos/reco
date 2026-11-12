@@ -109,7 +109,7 @@
    - Autostart: `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Reco; $LASTEXITCODE` (esperado: `1` = não existe; `0` = existe, anotar o valor).
    - Migração: `python -c "import json,pathlib;print(json.loads((pathlib.Path.home()/'.reco_config.json').read_text(encoding='utf-8')).get('_migracao'))"` → `2` (`reco.py:173`).
    - Modelos: `(Get-ChildItem -Recurse "$env:LOCALAPPDATA\Reco\models" | Measure-Object Length -Sum).Sum` (≈ 790 MB do turbo).
-4. [ ] Criar `tools/paridade.py` (arquivo novo, até 500 linhas) que roda as réguas de disco por MP3; entrada em `docs/TOOLS.md`. — **prova:** `python tools/paridade.py <2 gravações recentes do app velho, com x.txt>` → 2 linhas `-> ok` e `PASSOU`, rc 0
+4. [x] Criar `tools/paridade.py` (arquivo novo, até 500 linhas) que roda as réguas de disco por MP3; entrada em `docs/TOOLS.md`. — **prova:** `python tools/paridade.py <2 gravações recentes do app velho, com x.txt>` → 2 linhas `-> ok` e `PASSOU`, rc 0
    **reprova se:** rc ≠ 0 numa gravação boa do app velho (a régua está errada), linha faltando, ou o arquivo passa de 500 linhas.
    - Reusar por import, sem copiar lógica: `varrer_silencio.medir` (`tools/varrer_silencio.py:40`),
      `varrer_acervo.mede`/`resume` (`tools/varrer_acervo.py:39`, `:59`), `reparar_duracao.declared_and_real`
@@ -129,12 +129,21 @@
      (o app passa `_whisper_lang()`, `reco.py:3743-3744`, que lê o `LANG` de `reco.py:515`).
    - Texto vazio: o app grava `(no content recognized)` (`reco.py:4184`) e o script grava vazio (`tools/transcrever.py:159`); contar como igual.
    - `sys.stdout.reconfigure(encoding="utf-8")` no topo (armadilha do print com emoji no console desta máquina). Saída 0/1/2.
-5. [ ] Prova negativa: a régua tem de reprovar arquivo ruim. — **prova:** `python tools/paridade.py temp/trunc_reco.mp3 temp/mono.mp3` → as duas linhas `FALHOU` (`xing=ERRADO`, `nao-estereo`), rc 1
+   - Nota (2026-11-12, execução): das 3 gravações recentes com `x.txt` do app, a mais nova sai `FALHOU (loop)`: `pior=4`,
+     um token alucinado pelo Whisper (fora do português) repetido 4 vezes no `x.txt` do **app velho**. A régua ficou como o
+     md manda (`pior` > 3 reprova): é defeito real da transcrição, e o passo 18 compara com a linha de base. A prova rodou
+     nas outras duas. Extras: `--anonimo` (G01…, para o relatório público), contagem dos vereditos e do alinhamento na
+     penúltima linha, e o `pior` só como número (o n-grama é trecho de transcrição).
+5. [x] Prova negativa: a régua tem de reprovar arquivo ruim. — **prova:** `python tools/paridade.py temp/trunc_reco.mp3 temp/mono.mp3` → as duas linhas `FALHOU` (`xing=ERRADO`, `nao-estereo`), rc 1
    **reprova se:** alguma das duas sai `ok` ou `ALERTA`, ou rc 0.
    - `head -c 3000000 "<gravação real com mais de 10 MB>" > temp/trunc_reco.mp3`: o Xing do começo declara a duração inteira
      e o resto sumiu. Conferido em 11/11/2026 com `reparar_duracao.declared_and_real`: declarado 2317 s, real 245 s.
    - Mono pelo mesmo código do Converter (`reco.extract_mp3`, `EXTRACT_CH = 1`, `reco.py:162`):
      `python -c "import sys; sys.path.insert(0,'.'); import reco; reco.extract_mp3(sys.argv[1], sys.argv[2])" "<gravação curta>" temp/mono.mp3`.
+   - Nota (2026-11-12, execução): os dois arquivos ficam fora do repo (derivam de gravação do dono). O corte de 3 000 000 bytes
+     caiu no meio de um frame: o último pacote não decodifica e o `declared_and_real` desiste nele (`InvalidDataError`). A
+     régua mede o Xing pulando esse pacote e sai `xing=ERRADO leitura=ERRO … FALHOU (xing, cauda-corrompida)`; um corte em
+     fronteira de frame (2 999 000 bytes) sai `xing=ERRADO … FALHOU (xing)`. Processo morto no meio de uma escrita pode deixar o mesmo rabo (não medido).
 6. [ ] Linha de base do app velho: rodar a régua nas 10 gravações mais recentes e anotar a contagem de vereditos. — **prova:** `cd "$HOME/Documents/Reco" && python C:/Dev/Reco/tools/paridade.py $(ls -t gravacao_reco_*.mp3 | grep -v _alinhado | head -10)` → 10 linhas e a contagem anotada
    **reprova se:** menos de 10 linhas ou algum `FALHOU` por erro de leitura (aí a régua, não o app, precisa de conserto).
    - Pasta: se `output_dir` do config não for nulo, trocar `$HOME/Documents/Reco` por ela (em 11/11/2026 era nulo).
