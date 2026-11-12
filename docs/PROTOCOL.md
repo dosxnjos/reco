@@ -44,7 +44,7 @@ global (sem pedido) vai **sem** `id`; o casco testa `event` antes de `id`.
 
 | cmd | args | data | eventos | timeout sugerido |
 | --- | --- | --- | --- | --- |
-| `hello` | `{}` | `{engine_version, reco_version\|null, protocol:1, platform, ready, uptime_s}`; responde antes do `import reco` | — | 10 s |
+| `hello` | `{}` | `{engine_version, reco_version\|null, protocol:1, platform, ready, uptime_s}`; responde antes do `import reco`. `engine_version` acompanha a versão do casco (`tauri.conf.json`) a cada instalador (0.3.0 desde 12/11/2026); `protocol` só sobe se o contrato quebrar; `reco_version` é o `reco.APP_VERSION` | — | 10 s |
 | `shutdown` | `{}` | `{}` e o processo sai (fecha o MP3 se estiver gravando); roda na thread leitora, então o EOF que o casco manda logo atrás não troca o motivo do log (`encerrando (shutdown)`) | — | 60 s |
 | `state` | `{}` | `{ready, rec_state, elapsed_s, transcribing, live, last_rec\|null, auto\|null}`: retrato para ressincronizar | — | 60 s |
 | `config.get` | `{}` | `{config:{…com defaults e migração em memória}, output_dir_efetivo, lang_efetivo}` | — | 60 s |

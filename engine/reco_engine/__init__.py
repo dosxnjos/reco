@@ -4,4 +4,5 @@ Fase 2 do roadmap `roadmap/2026-11-11-melhoria-reco-em-rust.md`. O `reco.py` é 
 linha; este pacote só reimplementa a orquestração que hoje mora nos métodos do `App` (Tk).
 """
 
-__version__ = "0.1.0"
+# Acompanha a versão do casco (app/src-tauri/tauri.conf.json) a cada instalador: os dois saem juntos (docs/PROTOCOL.md).
+__version__ = "0.3.0"

@@ -13,11 +13,19 @@ HELLO_MAX_EXE_S = 3.0      # congelado (passo 15)
 WARM_MAX_S = 30.0
 
 
+def _versao_do_fonte() -> str:
+    """`__version__` do `engine/reco_engine/__init__.py`, lido como texto: o motor congelado também é medido contra o
+    fonte, então um exe velho no `engine/dist` reprova aqui."""
+    texto = (ENGINE_DIR / "reco_engine" / "__init__.py").read_text(encoding="utf-8")
+    achado = re.search(r'^__version__ = "([^"]+)"', texto, re.M)
+    return achado.group(1) if achado else "?"
+
+
 def _hello(eng: Engine) -> float:
     t0 = time.perf_counter()
     data = eng.ok("hello", timeout=10)
     dt = time.perf_counter() - eng.t0
-    check(data.get("engine_version") == "0.1.0", f"engine_version: {data}")
+    check(data.get("engine_version") == _versao_do_fonte(), f"engine_version: {data}")
     check(data.get("protocol") == 1 and "uptime_s" in data, f"hello incompleto: {data}")
     check(time.perf_counter() - t0 < 10, "hello lento")
     return dt
