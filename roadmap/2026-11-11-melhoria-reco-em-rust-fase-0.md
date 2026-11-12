@@ -181,7 +181,7 @@
     - Sentido 1: abre o spike sem `SPIKE_SEM_MUTEX`, espera o log `icone_rect`, abre `dist/Reco/Reco.exe` e mede quanto ele leva para sair.
     - Sentido 2: abre o `Reco.exe`, espera a janela, abre o spike e mede a saída dele.
     - No fim, encerra por pid só os processos que abriu. No sentido 2 a janela do Reco de teste aparece (efeito do `Reco.Show`); é esperado.
-14. [ ] Reabrir o Reco do Gabriel e conferir que a biblioteca dele está limpa — **prova:** `powershell -NoProfile -Command "Start-Process 'C:\Dev\Reco\dist\Reco\Reco.exe'"` e depois `python C:/Dev/Reco/tools/medir_partida.py --ram-viva` → pid novo com `ws_mb` > 0
+14. [x] Reabrir o Reco do Gabriel e conferir que a biblioteca dele está limpa — **prova:** `powershell -NoProfile -Command "Start-Process 'C:\Dev\Reco\dist\Reco\Reco.exe'"` e depois `python C:/Dev/Reco/tools/medir_partida.py --ram-viva` → pid novo com `ws_mb` > 0
     **reprova se:** "Reco não está aberto", ou a pasta de saída dele ainda tem algum MP3 com a hora de uma rodada dos passos 11 a 13 (comparar com `temp/medicoes/partida.jsonl`).
     - **Antes do `Start-Process`, reprova também se:** `ls "$LOCALAPPDATA/Reco/models/"` não lista `whisper-large-v3-turbo-int8-ov`, lista algo terminado em `.old`, ou a soma de `models` difere da anotada no passo 9 (uma instância de teste mexeu no modelo).
       Aí, ainda com nenhum `Reco.exe` aberto, repor (PowerShell): `robocopy C:\Dev\Reco\temp\medicoes\models-reserva "$env:LOCALAPPDATA\Reco\models" /MIR /NFL /NDL` e somar de novo.
@@ -190,6 +190,7 @@
     - O app reabre com a janela centralizada, não escondida na bandeja (`reco.py:2930-2937`): é o comportamento normal ao abrir.
     - Conferir também que `tasklist` não lista nenhum `reco-spike-bandeja.exe`.
     - 11/11, 23:49: conferências verdes (soma 828.097.157, config igual, pasta sem MP3 de teste, nenhum spike). A reabertura ficou para a última etapa do lote, que ainda precisa do app fechado.
+    - 12/11, 00:24: conferências repetidas verdes e app reaberto (pid 24220, `ws_mb` 113,7); reserva apagada. Detalhe no relatório § Passo 14.
 
 ### Bloco C — registrar e propagar
 

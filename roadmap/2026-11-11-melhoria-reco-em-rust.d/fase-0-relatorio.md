@@ -1,7 +1,7 @@
 ## Relatório de execução — Fase 0 (2026-11-11, sessão 4c65eb01)
 
-> **Parcial:** Bloco A feito; Bloco B medido (passos 9 a 13) com o app do Gabriel fechado; a reabertura do
-> passo 14 ficou para a última etapa (as próximas precisam do app fechado). Este arquivo cresce até o fecho.
+> **Parcial:** Bloco A feito; Bloco B medido (passos 9 a 13) com o app do Gabriel fechado; o passo 14
+> (reabertura) fechou em 12/11, 00:24. Este arquivo cresce até o fecho.
 
 Frescor: ok (0 dias, 0 commits em `reco.py`, `tray.py` e `tools/` desde `7c5c1a1`).
 
@@ -240,6 +240,22 @@ CPU 23,4%):
   (`Start-Process`, `--ram-viva` com pid novo) e a remoção de `temp/medicoes/models-reserva` ficam para a
   última etapa. Passo 14 fica `[ ]` até lá.
 
+### Passo 14 — reabertura (12/11, 00:23 a 00:25, última etapa do lote) — **verde**
+
+Antes do `Start-Process`, sem nenhum processo do Reco aberto (`tasklist` e `Get-Process` sem `Reco.exe`,
+`reco.exe` do casco "Reco Novo", `reco-engine.exe` nem `reco-spike-bandeja.exe`; nada de teste a fechar):
+- `models`: só `whisper-large-v3-turbo-int8-ov`, nada `.old`; soma **828.097.157** bytes em 46 arquivos, igual
+  à reserva e ao passo 9. Nada a repor.
+- config: `cmp ~/.reco_config.json temp/medicoes/reco_config.antes.json` → igual. Nada a repor, sem diff.
+- pasta de saída: `ls` igual a `temp/medicoes/pasta_antes.txt` (213 entradas) e nenhum MP3 modificado desde
+  11/11 23:00; os 11 MP3 de teste (23:37 a 23:47, os do `partida.jsonl`) estão todos em `temp/medicoes/`.
+
+Reabertura às 00:24:22: `Start-Process 'C:\Dev\Reco\dist\Reco\Reco.exe' -WorkingDirectory 'C:\Dev\Reco\dist\Reco'`
+→ `python tools/medir_partida.py --ram-viva` → `{"pid": 24220, "ws_mb": 113.7, "privado_mb": 531.8, "cpu_pct": 0.6}`,
+código 0. Pid novo (o de antes do Sair era 36616), um só `Reco.exe`, do caminho `dist/Reco`. Aberto sem
+`HF_HUB_OFFLINE` (a checagem de modelo dele roda normal). Config ainda igual à cópia depois de abrir.
+Só então `temp/medicoes/models-reserva` foi apagada (790 MB).
+
 ## Desvios do md (Bloco A)
 
 - `medir_partida` saiu em 3 arquivos (`medir_partida.py` 267 linhas, `medir_partida_rodada.py` 265,
@@ -258,8 +274,7 @@ CPU 23,4%):
 ## Pendências e decisões pendentes
 
 - ~~Bloco B: o Gabriel fecha o Reco pela bandeja~~ feito (~23:18 de 11/11).
-- Passo 14: reabrir o Reco do Gabriel (`Start-Process`), `--ram-viva` com pid novo e só então apagar
-  `temp/medicoes/models-reserva`. Fica para a última etapa do lote. `dono: agente`.
+- ~~Passo 14: reabrir o Reco do Gabriel~~ feito (12/11, 00:24, pid 24220; reserva apagada).
 - Passo 12: o md da fase precisa trocar a chave da prova (`clique_mp3_cresce_s` → `clique_arquivo_criado_s`),
   pelo Achado 1. `dono: agente` (quem fecha a fase).
 - Achado 1 (o MP3 nasce no 1º pacote, não no `start()`): entrada na ARMADILHAS no passo 17; o comentário de
