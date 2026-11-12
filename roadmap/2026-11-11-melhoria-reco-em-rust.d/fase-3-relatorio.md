@@ -1,12 +1,11 @@
 ## Relatório de execução — Fase 3 (2026-11-11, sessão 4c65eb01)
 
-> **Parcial: passos 2 a 10** (o casco Rust). O passo 1 foi feito só na parte de contrato. Os passos 11 em
-> diante (interface, testes de tela, build final, teste real) não começaram: dependem da direção visual, que
-> o dono decidiu às ~22:40 (A "Fita" padrão; B e C como skins em Opções) enquanto esta execução andava.
-> **Atualização (12/11):** os passos 11 a 16 foram feitos depois (execução anotada em cada passo do md; o 16 tem
-> seção própria abaixo). Seguem abertos o 17 (teste real) e o 18 (docs).
-> **Atualização (12/11, ~12:30):** revisão adversarial corrigida (seção própria) e o passo 18 feito menos o que
-> depende do 17 (seção "Passo 18"). Para fechar a fase falta o que está em "O que falta para fechar a Fase 3".
+> **Fase 3 fechada (12/11/2026, ~16h): os 18 passos marcados.** O relatório cresceu por rodadas, nesta ordem:
+> passos 2 a 10 (casco Rust, 11/11); 11 a 16 (interface e instalador, madrugada de 12/11); revisão adversarial
+> (~12:30); passo 17, o teste real no instalador do `aac7ca7` (11:50 a 12:22); a correção dos 5 defeitos dele (tarde);
+> a revisão adversarial desses consertos e o fechamento (passos 1 e 18), na seção "Revisão adversarial dos consertos
+> e fechamento", no fim. As frases "fica para o 17" e "aberto" das seções mais antigas são do momento em que foram
+> escritas; o que ainda não foi provado no app instalado está em "Fechamento", com dono na Fase 4.
 
 Fase: [fase-3](../2026-11-11-melhoria-reco-em-rust-fase-3.md) · índice: [Reco em Rust](../2026-11-11-melhoria-reco-em-rust.md).
 
@@ -21,7 +20,7 @@ Fase: [fase-3](../2026-11-11-melhoria-reco-em-rust-fase-3.md) · índice: [Reco 
 
 | passo | estado | prova (comando → o que veio) |
 | --- | --- | --- |
-| 1 contrato | só a parte de contrato | prova inteira → `OK doc: 22 comandos no registro, 22 na tabela do PROTOCOL.md, nenhum faltando`, `anti-pulo: 0 diferenças em 23868 medições`, `s=1` (11 `data-direcao` nos tokens). Não marcado. |
+| 1 contrato | [x] (12/11, no fechamento) | prova inteira em 11/11 → `OK doc: 22 comandos…`, `anti-pulo: 0 diferenças em 23868 medições`, `s=1` (11 `data-direcao` nos tokens, que são as skins B e C mantidas pelo dono). Prova trocada no md ("a skin padrão é a A") e rodada no fechamento → `s=0` |
 | 2 trava `.rs`/`.ts` | [x] | `grep -o … tools/tamanho.json \| wc -l` → `2`; `grep -A4 'id: trava-tamanho' … \| grep -cE '[\|(]ts[\|)]'` → `1`; `gate_tamanho.py --medir` → `5213 reco.py`, `1 arquivo(s) de código acima de 500 linhas` |
 | 3 esqueleto | [x] | `npm --prefix app run ui:build` → `✓ built in 66ms`; `cargo check --manifest-path app/src-tauri/Cargo.toml` → `Finished dev profile … in 54.99s` |
 | 4 ponte | [x] | `cargo test … motor` → `test result: ok. 13 passed; … 2 ignored` (17 depois do passo 5); `-- --ignored fake_engine` → `1 passed`; `-- --ignored motor_real_hello` → `1 passed` (motor real do fonte, só `hello`+`shutdown`); `wc -l motor/*.rs` → maior 391 |
@@ -238,19 +237,19 @@ medidores parados). O Reco do dono não foi aberto, fechado nem chamado: nenhuma
 **Pegadinha do processo:** o guarda de comando recusa `git checkout -- $(…)`; o controle negativo usou
 `git restore -- <arquivos>` nomeados e a cópia no scratchpad para voltar.
 
-### Pendências (precisam do app velho fechado ou da interface)
+### Pendências da rodada dos passos 2 a 10 (resolvidas no fechamento, 12/11)
 
-- **Passo 10, foco no botão principal** pelo atalho: passo 13.
-- **Clique dentro da janela do hover** (`window_pin` com `set_focus()` na primeira vez) não foi exercitado: o
-  esqueleto da interface ainda não chama `window_pin`. Conferir no passo 12 (o foco vai para a janela e ela fica
-  fixada com o cursor fora).
-- **D11 de ponta a ponta** (casco morto e motor morto gravando): passo 17, com o app instalado.
-- **Minimizar sem botão na barra de tarefas:** `skipTaskbar: true` é acréscimo meu (o md não pedia); com ele,
-  `window_minimize` deixa a janela sem lugar visível (só a bandeja a traz de volta, `mostrar_fixada` faz
-  `unminimize`). Conferir no passo 12; se incomodar, tirar o `skipTaskbar` ao fixar.
-- **Resto da fumaça:** a rodada do exe de debug criou `%LOCALAPPDATA%\io.github.dosxnjos.reco\` (`EBWebView` e
-  `logs`). É o perfil normal do app novo; fica até a desinstalação ou limpeza da Fase 4.
-- **Passos 17 e 18:** teste real com o app velho fechado (inclui os dois tempos do passo 16) e docs.
+- **Passo 10, foco no botão principal** pelo atalho: provado no backend falso (`gravar.cjs`, `reco-atalho` com foco no
+  principal, passo 12). Com tecla física no app instalado, não: vai para a Fase 4 (passo 11 dela).
+- **Clique dentro da janela do hover** (`window_pin` com `set_focus()` na primeira vez): a tela chama `window_pin` em
+  todo clique (passo 12), mas o clique real dentro da janela nunca foi feito (o teste real foi sem mouse). Fase 4.
+- **D11 de ponta a ponta:** feito no passo 17 (build `aac7ca7`): casco morto → motor fecha o MP3 (30,827 = 30,827 s);
+  motor morto → alarme em 0,11 s, sem religar. Resolvido.
+- **Minimizar sem botão na barra de tarefas** (`skipTaskbar: true`): não conferido no app instalado. Fase 4 (uso real;
+  se incomodar, tirar o `skipTaskbar` ao fixar).
+- **Perfil `%LOCALAPPDATA%\io.github.dosxnjos.reco\`:** é o perfil normal do app novo, que segue instalado (`aac7ca7`)
+  para a Fase 4. Fica.
+- **Passos 17 e 18:** feitos (seções "Passo 17" e "Revisão adversarial dos consertos e fechamento").
 
 ### completei:
 
@@ -329,7 +328,8 @@ Prova como escrita: `git diff --stat 9fd4f95 -- docs/ARQUITETURA.md README.md CL
 46 e 66 linhas mudadas); `pre-commit run gate-claude-md --files CLAUDE.md` → `Passed` (5948 bytes). Feitos:
 README nas duas línguas (seção do app novo em construção e como gerar o instalador), ARQUITETURA § Casco Tauri,
 `_INDICE`, CLAUDE.md (1 linha e meia), duas armadilhas (`visoes.py novo`), hub e diário no C:\Dev (`9a02b019`).
-Commit dos docs: `4ab9a3c`. O passo **fica `[ ]`**: o que falta depende do 17 (abaixo).
+Commit dos docs: `4ab9a3c`. O passo ficou `[ ]` nesta rodada porque dependia do 17; foi fechado no fim (seção
+"Revisão adversarial dos consertos e fechamento").
 
 ### Passo 17 — teste real (12/11/2026, 11:50 a 12:22)
 
@@ -506,30 +506,78 @@ junto (até o fim da gravação ou o prazo de 2 h do casco). Raro e sem perda; n
 desmarcada; o teste do motor fixa o contrato de `console`/`comm` como nome; o `PROTOCOL.md` diz como o
 `model.update_check`, o `shutdown` e o `devices.list` se comportam agora.
 
-**Fica para o reteste com o app velho fechado (dono na máquina):** instalar este instalador e conferir na prática a
-nota logo depois de abrir, os nomes de Entrada e Saída antes de gravar, o `Reco Novo.log` em hora local, o
-`encerrando (shutdown)` ao Sair e a ausência do atalho na Área de Trabalho depois do `/S`.
+**Reteste com o app velho fechado (dono na máquina):** instalar e conferir na prática a nota logo depois de abrir, os
+nomes de Entrada e Saída antes de gravar, o `Reco Novo.log` em hora local, o `encerrando (shutdown)` ao Sair e a
+ausência do atalho na Área de Trabalho depois do `/S`. No fechamento, passou para a Fase 4 ("Herdado da Fase 3"
+no md dela), com o instalador da seção seguinte, que substitui este.
 
-### O que falta para fechar a Fase 3
+### Revisão adversarial dos consertos e fechamento (12/11/2026, 15:00 a 16:00)
 
-1. **Passo 17, com o Reco velho fechado pela bandeja (Sair) e sem gravar** — precisa do dono na máquina:
-   - `Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Reco.lnk"` antes e depois (mesmo valor).
-   - Instalar o "Instalador final" abaixo; anotar o tempo do clique no ícone até a janela e até Gravar habilitar
-     (D12, ao lado do 1,515 s do velho).
-   - Gravar 30 s com fala e vídeo, parar, clicar "Salvar e copiar caminho": `Get-Clipboard` → `.mp3` entre aspas
-     (achado 10); `ffprobe` → 2 canais, 16000 Hz, duração do cronômetro ±1 s.
-   - Nota (o `.md` nasce e o caminho vai ao colar), Transcrever a gravação (`x.txt` diarizado ao lado), bandeja
-     (hover sem foco, clique fixa, menu grava e para, ícone vermelho), Sair gravando (arquivo inteiro).
-   - Medir quanto dura o `stopping` real ao parar (a tela mostra "Parando…"; com o motor falso foi provado só o texto).
-   - D11: matar o casco gravando (o motor fecha o MP3) e matar o motor gravando (alarme, ícone sai do vermelho; o
-     arquivo vai à Lixeira).
-   - Repasse `--transcribe` do exe instalado numa cópia em pasta temporária (exit 0, `.txt` ao lado, sem janela).
-   - Ao fim: Sair do novo pela bandeja, iniciar com o Windows desligado, reabrir o velho, restaurar o config se
-     mudou, mandar os arquivos de teste à Lixeira.
-2. **Resto do passo 18**, depois do 17: README com como instalar (hoje diz que ainda não é o app de uso),
-   os dois tempos do app instalado neste relatório, e o `[x]` do 18.
-3. **Passo 1**: segue sem `[x]`. Rodada de novo em 12/11 → `--conferir-doc` OK (22 comandos), `anti-pulo: 0
-   diferenças`, mas `s=1` pelos 11 `data-direcao` dos `design/tokens.css`. Eles não são "direção não escolhida":
-   são as skins B e C, que ficaram por decisão do dono (11/11 ~22:40, a poda virou seletor). A prova do passo 1
-   está velha; quem fechar a fase troca o último termo por "a skin padrão é a A" e marca, com nota no md.
-4. Fechar: marcar 17 e 18, linha no índice, hub e diário.
+Condição igual à da correção: o Reco velho do dono **aberto** (`C:\Dev\Reco\dist\Reco\Reco.exe`, pid 29256, conferido
+no fim) e o dono usando a máquina. Nada abriu o Reco Novo instalado nem o casco contra o motor real; nenhum mouse ou
+teclado; nenhuma prova que grava; `reco.py` intocado. Controles negativos em cópias no scratchpad da sessão, nunca no
+repo (as duas mutações da tela e do casco foram feitas por `Edit` no repo, rodadas e desfeitas por `Edit`).
+
+| # | achado do revisor | real? | o que foi feito | prova (e o controle negativo) | commit |
+| --- | --- | --- | --- | --- | --- |
+| 1 | médio: com revisão nova, a vaga da transcrição ficava presa durante o **download** inteiro (o `reco.update_model_if_newer` baixa e troca com ela presa): a nota e o Transcrever levavam `busy` por minutos, logo depois de qualquer trabalho | sim | `modelo.py` faz os passos do `update_model_if_newer` (o `reco.py` não muda): baixa numa temporária **sem** a vaga, espera o motor ocioso, ocupa a vaga só para renomear e mover; troca que falha no meio devolve a pasta antiga; a temporária sai em todo caminho | `OK modelo em voo` ganhou a 2ª rodada: o hub falso diz que há revisão nova e segura o download → `state.transcribing=false`; o download falha → pasta intacta e nenhuma `reco_model_*` no `TEMP` do teste. `OK modelo troca` (download com a vaga livre, uma transcrição entra no meio, troca só depois). `OK modelo pasta` (troca e devolução). Controle com a vaga ocupada antes do download → `FALHOU vaga` (`[True]`) e `FALHOU voo` (`transcribing: True`) | `058acfc` |
+| 2 | baixo: o teste não cobria a guarda do ao vivo nem `starting`/`stopping`/`paused`; e, anterior, o abort soltava `live_active` antes de o worker do ao vivo terminar | sim, os dois | casos novos no `run_espera_vaga`; `_stop_live` sem esperar descarta a fila e só solta `live_active` quando o worker termina (teto de 120 s), com contador `live_gen` para a soltura atrasada não apagar um ao vivo novo; `make_live` não liga ao vivo com o worker anterior ainda gerando (`live_suprimido`) | `OK modelo troca` (6 estados) e `OK ao vivo solto no fim`. Controles: sem `or core.live_active` → `FALHOU vaga a troca rodou com o motor em idle, ao vivo=True`; com o `recording.py`/`conclude.py` de antes → `FALHOU vivo` (o primeiro `check`, o `discard`, já reprova) | `058acfc` |
+| 3 | baixo: depois de uma nota, a Saída e o status viravam "Automático (padrão do Windows)" (a nota manda `sys` sem nome) | sim | `gravar.ts` não escreve a Saída na nota; o backend falso devolve `sys` vazio na nota, como o motor | `passo17.cjs` → `falhas 0 em 9` (caso novo). Controle com a regra antiga (`|| true` por `Edit`, desfeito) → `FALHA depois de uma nota, a Saída segue com o nome do alto-falante: Automático (padrão do Windows)` | `456eb23` |
+| 4 | baixo: o teste do fuso via só a função, não o `run()` | sim | `plugin_de_log()` monta o plugin num lugar só e o `run()` o usa. Os campos do `Builder` do plugin são privados e o `split` pede um `AppHandle`, então o teste novo `log_do_casco_usa_o_fuso` confere pelo fonte (só o código fora de `#[cfg(test)]`): um `Builder::new()`, com `.timezone_strategy(fuso_do_log())`, e o `run()` com `.plugin(plugin_de_log().build())` | `cargo test … log_do_casco` → `2 passed`. Controle sem o `.timezone_strategy(...)` → `FAILED` | `69636f0` |
+| 5 | baixo: `model_info` sem prazo; conexão travada segurava o `app.update_check` até 2 h | sim | `timeout=15` (`CONSULTA_TIMEOUT_S`) | `OK modelo prazo: … timeout=15 s` (API falsa no processo). Controle sem o `timeout` → `FALHOU prazo` | `058acfc` |
+
+**Provas da Fase 3 depois do último código (`69636f0`), o "Gatilho que fecha" inteiro:**
+
+- `python tools/test_engine_protocol.py` → 13 linhas `OK` (5 novas do modelo e do ao vivo); `--exe
+  engine/dist/reco-engine/reco-engine.exe` (motor congelado neste build) → as mesmas 13; `--conferir-doc` → `22
+  comandos no registro, 22 na tabela`.
+- `cargo test --manifest-path app/src-tauri/Cargo.toml -- --include-ignored` → `test result: ok. 43 passed` (42 antes);
+  `cargo clippy --all-targets` → 0 avisos.
+- `npm --prefix app run ui:build` → `built`; `i18n:check` → `237 chaves PT, 237 EN … 0 faltando`; `passo17.cjs` → `falhas
+  0 em 9`; `gravar.cjs` → `falhas 0 em 53`; `telas.cjs` → `falhas 0 em 50`; `revisao.cjs` → `falhas 0 em 21`;
+  `paridade.cjs` → `17 de 17 presentes`; `python tools/test_nsis_atalho.py` → `falhas 0`.
+- Fase 1 com `--url` (`ui:preview` na 1431, parado no fim pelo pid) → `anti-pulo: 0 diferenças em 23868 medições`,
+  `a=0`; `contrato: 0 falhas`, `c=0`; sabotagens → `anti-pulo=1`, `contrato=1`.
+- Passo 1, prova nova → `s=0`; controle (`data-direcao="b"` esperado) → `s=1`.
+- Passo 18 → `git diff --stat 9fd4f95 -- docs/ARQUITETURA.md README.md CLAUDE.md` lista os três; `gate-claude-md` →
+  `Passed` (5948 bytes).
+
+**Instalador final da Fase 3** (o motor mudou, então build completo; feito do `69636f0`). A 1ª rodada (15:28) congelou
+o motor e passou no smoke, mas o `npm ci` falhou com `-4048` porque eu deixei o `ui:preview` aberto ao mesmo tempo
+(armadilha nova); servidor parado, `app/build.ps1 -SemCongelar` (15:30:56 a 15:39:31) com o motor congelado dessa
+mesma rodada (15:30:29) → `exit=0`, última linha `Instalador: C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`;
+smoke `ready ok=True` em 0,27 a 0,28 s e `devices ok=True (1, 2)`; `tauri build` 510 s, 514,6 s no total.
+
+- Instalador: 128,8 MB (135038252 bytes), gravado às 15:39:31, SHA256
+  `a06809a6909a84cd4e8dd35b4c335678f8f8f6061b6453292888cb50a0f4f422`.
+- Casco `C:\pt\release\reco.exe` SHA256 `551674c6b4a4f4b00bc07ca029c4010b86ac16d85622419fb4d466b733ee598a`.
+- Motor `engine\dist\reco-engine\reco-engine.exe` SHA256 `e49f20127be43ba1d553003aa0c5c3b9d082d456ae85daa8e8a9e0ffc53daa2f`.
+- **Substitui** o `f3f2f391…ccb9f05`. Não instalado nem aberto: o app instalado na máquina continua o do `aac7ca7`.
+
+**Passo 18 fechado:** README nas duas línguas troca "ainda não é o app de uso" por "em teste", ensina a instalar
+pelo instalador do build (pasta, atalho, Sair pela bandeja, desinstalar, aviso do SmartScreen) e diz que o Reco Novo e
+o Reco atual nunca abrem juntos (e como trocar sem gravar). ARQUITETURA, `PROTOCOL.md` e a tabela do md acompanham a
+troca do modelo. Os tempos do app instalado estão na seção "Passo 17", tabela D12, por build: passo 16 (janela visível)
+Gravar habilitado em 1,156 s de mediana, `aac7ca7` (`--oculto` com CDP) 0,781 s, contra 1,515 s do velho; ícone até a
+janela 0,047 s (só no build do passo 16).
+
+### Fechamento: o que a Fase 3 entrega e o que passa para a Fase 4
+
+- **Provado no app instalado (`aac7ca7`):** tudo da seção "Passo 17" (colar com aspas, `ffprobe`, lados, nota,
+  transcrever, Sair gravando, D11 nos dois sentidos, repasse, D12).
+- **Provado só fora do app instalado** (backend falso, `cargo test`, motor do fonte e congelado): os 5 defeitos do passo
+  17 e os 5 achados acima. O reteste no app instalado é o primeiro bloco da Fase 4 ("Herdado da Fase 3", no md dela),
+  junto com o que nunca foi visto no build final: hover e clique no ícone, ícone fora do vermelho com o motor caído,
+  clique dentro da janela do hover, minimizar com `skipTaskbar`, atalho por tecla física, mutex do repasse.
+- **Máquina:** Reco velho aberto e intocado (pid 29256); nenhum processo meu sobrando (porta 1431 livre); o repo só
+  com os commits desta rodada.
+
+### A lista "O que falta para fechar", item por item (resolvida em 12/11)
+
+1. **Passo 17:** feito no instalador do `aac7ca7` (seção "Passo 17"): `Reco.lnk` `False` antes e depois; colar,
+   `ffprobe`, nota, transcrever, Sair gravando, `stopping` real (0,452 e 0,469 s), D11 nos dois sentidos, repasse e
+   máquina como estava. Hover, clique no ícone e ícone fora do vermelho só no build anterior (sem mouse a pedido do
+   dono): passam para a Fase 4.
+2. **Resto do passo 18:** README com a instalação, tempos do app instalado neste relatório (por build) e `[x]`.
+3. **Passo 1:** prova trocada por "a skin padrão é a A" (nota datada no md), rodada → `s=0`, `[x]`.
+4. **Fechar:** 17 e 18 marcados; índice (coluna "estado" e Pendente com a Fase 4), hub e diário atualizados.

@@ -103,6 +103,8 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
 - `resumo.ia` → `{path, existia}`; `model.update_check` → `{}` e pode responder `busy` (o casco engole).
   **Corrigido em 12/11 (defeito 1 do passo 17):** a consulta não ocupa mais a vaga da transcrição; só a troca, com
   revisão nova e o motor ocioso (`engine/reco_engine/modelo.py`). A tela não engole `busy` no Gravar: diz o motivo.
+  Depois da revisão dos consertos (12/11), o download da revisão nova também corre com a vaga livre: ela fica
+  ocupada só nos segundos da troca de pasta.
 - `rec.error.channel` é `mic|sys|save`. Códigos do próprio casco, fora da lista do motor: `timeout` (Router) e
   `hotkey_taken` (passo 10).
 - Nenhum comando novo no motor foi preciso para os passos 2 a 10.
@@ -151,8 +153,13 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
   tela e o ícone avisam na hora e nunca continuam dizendo "gravando".
   - Se a fase falhou: o arquivo sai truncado ou sem duração, ou o ícone segue vermelho sem nada gravando.
 
-1. [ ] Fases 0 a 2 fechadas e contrato reconciliado com o `engine/` real — **prova:** `test -f docs/PROTOCOL.md && python tools/test_engine_protocol.py --conferir-doc && node design/testar-anti-pulo.cjs && test "$(grep -c data-direcao design/tokens.css)" = 0; echo "s=$?"` → `s=0`
-   **reprova se:** `s` diferente de 0: falta o `PROTOCOL.md`, um teste falha ou sobra `data-direcao` nos tokens (direção visual não escolhida). Parar: a fase depende das três.
+1. [x] Fases 0 a 2 fechadas e contrato reconciliado com o `engine/` real — **prova:** `test -f docs/PROTOCOL.md && python tools/test_engine_protocol.py --conferir-doc && node design/testar-anti-pulo.cjs && grep -q '<html[^>]*data-direcao="a"' app/ui/index.html && grep -q 'let skin: Skin = "a"' app/ui/src/aparencia.ts && grep -q 'casco_skin as Skin) : "a"' app/ui/src/controle/dados.ts; echo "s=$?"` → `s=0`
+   **reprova se:** `s` diferente de 0: falta o `PROTOCOL.md`, um teste falha ou a skin padrão não é a A (a janela nasce, o cache vazio ou o config sem `casco_skin` caem em outra skin). Parar: a fase depende das três.
+   > Atualizado em 2026-11-12: o último termo era `test "$(grep -c data-direcao design/tokens.css)" = 0` (direção
+   > ainda não escolhida). O dono decidiu manter B e C como skins em Opções (11/11 ~22:40), então os 11
+   > `data-direcao` dos tokens ficam de propósito, e a prova passa a conferir que a padrão é a A nos três lugares
+   > que a definem. Rodada em 12/11 → `OK doc: 22 comandos…`, `anti-pulo: 0 diferenças em 23868 medições`, `s=0`;
+   > controle com `data-direcao="b"` no lugar do `"a"` no primeiro `grep` → `s=1`.
    - Anotar aqui a base da fase: `git rev-parse --short HEAD` antes do primeiro commit desta fase (o passo 18 usa).
      **Base: `9fd4f95`** (11/11/2026). Mecanismo do hover sem foco (Fase 0, D2 confirmada): modo `tao`,
      `focused(false)` + `focusable(false)` na criação, `show()`, e `set_focusable(true)` + `set_focus()` no clique
@@ -515,7 +522,13 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      Área de Trabalho na instalação silenciosa, cada um com teste que reprova sem o conserto. Instalador novo, SHA256
      `f3f2f391…ccb9f05`, ainda não instalado: o reteste no app instalado espera o velho fechado. Detalhe no
      relatório, seção "Defeitos do passo 17: correção".
-18. [ ] Documentar e fechar — **prova:** `git diff --stat <base da fase anotada no passo 1> -- docs/ARQUITETURA.md README.md CLAUDE.md` → os três arquivos listados, e `pre-commit run gate-claude-md --files CLAUDE.md` → `Passed`
+   - **Revisão adversarial dos consertos (12/11, tarde, `058acfc` a `69636f0`):** 5 achados, todos reais; o médio (o
+     download da revisão nova do modelo ainda prendia a vaga) e os 4 baixos corrigidos com teste e controle negativo.
+     Instalador refeito (SHA256 no relatório, seção "Revisão adversarial dos consertos"). **O `[x]` deste passo vale
+     pelo teste real no instalador do `aac7ca7`**; os consertos de depois foram provados no backend falso, nos testes
+     do casco e do motor, e o reteste deles no app instalado passou para a Fase 4 (lá o app é instalado de qualquer
+     forma, com o velho fechado pelo dono).
+18. [x] Documentar e fechar — **prova:** `git diff --stat <base da fase anotada no passo 1> -- docs/ARQUITETURA.md README.md CLAUDE.md` → os três arquivos listados, e `pre-commit run gate-claude-md --files CLAUDE.md` → `Passed`
    **reprova se:** algum dos três não aparece no diff (a doc ficou para trás; vale também depois do commit), ou o gate acusa mais de 6 KB.
    - A base é o HEAD do início desta fase, não `7c5c1a1`: as Fases 1 e 2 também mexem nesses arquivos.
    - Armadilha nova (só se a execução achou uma) por `python tools/visoes.py novo "<título>"`; `docs/ARMADILHAS.md`
@@ -533,6 +546,11 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      **Fica aberto** porque depende do passo 17: o README diz "não é o app de uso ainda" e não ensina a instalar
      (nenhuma instalação foi provada), e o relatório não tem os dois tempos do app instalado (clique no ícone até a
      janela e até Gravar habilitar, D12). Fechar junto com o 17.
+   - **Fechado (12/11, ~16h):** prova rodada de novo → os três no diff (142 linhas a mais) e `gate-claude-md` →
+     `Passed` (5948 bytes). README nas duas línguas: "em teste", como instalar pelo instalador do build e que o Reco Novo
+     e o Reco atual nunca abrem juntos. Tempos do app instalado no relatório (seção "Passo 17", tabela D12, por build).
+     Armadilha nova (`npm ci` travado pelo `ui:preview`). Índice, hub e diário. Detalhe no relatório, seção "Revisão
+     adversarial dos consertos e fechamento".
 
 ## Tabela de paridade (relatório 1 § 1, 19 linhas)
 

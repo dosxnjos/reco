@@ -59,6 +59,22 @@
    dois nunca ficam gravando ao mesmo tempo. Se falhar: o antigo não abre (fecha sozinho), não grava, ou os dois
    aparecem vivos juntos.
 
+### Herdado da Fase 3 (12/11/2026)
+
+> Atualizado em 2026-11-12, no fechamento da Fase 3. O teste real dela rodou no instalador do `aac7ca7`; os consertos
+> de depois (os 5 defeitos do passo 17 e os 5 achados da revisão deles, `adf3fc0` a `69636f0`) foram provados no
+> backend falso, nos testes do casco e do motor, mas nunca no app instalado: o instalador final (SHA256 no relatório
+> da Fase 3, seção "Revisão adversarial dos consertos") não foi instalado. Conferir no app instalado do passo 9:
+>
+> - "Gravar nota" ~2 s depois de abrir grava de primeira; depois da nota, Entrada e Saída seguem com os nomes.
+> - Entrada e Saída com os nomes dos dispositivos e o status "Pronto para gravar. Microfone: X · Sistema: Y" antes
+>   da 1ª gravação.
+> - `Reco Novo.log` (ou `Reco.log`, depois do passo 8) na hora local; o `engine.log` do Sair diz `encerrando (shutdown)`.
+> - A instalação silenciosa não deixa atalho na Área de Trabalho.
+> - Também ficaram sem prova no build final: o hover e o clique no ícone (sem mouse, a pedido do dono), o ícone saindo
+>   do vermelho quando o motor cai gravando, o clique dentro da janela do hover (fixa e foca), minimizar com
+>   `skipTaskbar` (a janela só volta pela bandeja) e se o repasse `--transcribe` pega o mutex.
+
 ### A. Reserva e régua, antes de instalar
 
 1. [ ] Resolver `$prod`, `$ver`, `$ident` e o binário em `app/src-tauri/tauri.conf.json`; anotar no relatório. — **prova:** `node -p "const c=require('./app/src-tauri/tauri.conf.json');[c.productName,c.version,c.identifier,c.mainBinaryName].join(' ')"` → 4 valores, versão ≥ `0.3.0`

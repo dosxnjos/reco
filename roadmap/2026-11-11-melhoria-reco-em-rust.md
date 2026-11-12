@@ -19,16 +19,16 @@ Pedido: reco-rust | Reco em Rust, com interface bonita e que não fica pulando |
    Antes de executar qualquer uma delas, rodar uma nova auditoria do md contra o código (skill melhore no
    próprio md) e só então começar.
 
-| fase | md | depende de |
-| --- | --- | --- |
-| 0 Medir o hoje e provar o que é barato provar | [fase-0](2026-11-11-melhoria-reco-em-rust-fase-0.md) | — |
-| 1 Identidade visual e contrato de tela | [fase-1](2026-11-11-melhoria-reco-em-rust-fase-1.md) | 0 (medições de tempo e da bandeja) |
-| 2 Motor Python como servidor | [fase-2](2026-11-11-melhoria-reco-em-rust-fase-2.md) | 0 |
-| 3 Casco Tauri e telas novas | [fase-3](2026-11-11-melhoria-reco-em-rust-fase-3.md) | 1 (direção escolhida) e 2 |
-| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 |
-| 5 Captura e MP3 em Rust | [fase-5](2026-11-11-melhoria-reco-em-rust-fase-5.md) | 4 |
-| 6 Transcrição em Rust (spike com portão) | [fase-6](2026-11-11-melhoria-reco-em-rust-fase-6.md) | 5 |
-| 7 Aposentar a interface Tk e propagar | [fase-7](2026-11-11-melhoria-reco-em-rust-fase-7.md) | 4 e 6 (o veredito do portão, aberto ou fechado) |
+| fase | md | depende de | estado |
+| --- | --- | --- | --- |
+| 0 Medir o hoje e provar o que é barato provar | [fase-0](2026-11-11-melhoria-reco-em-rust-fase-0.md) | — | fechada (12/11) |
+| 1 Identidade visual e contrato de tela | [fase-1](2026-11-11-melhoria-reco-em-rust-fase-1.md) | 0 (medições de tempo e da bandeja) | fechada (12/11) |
+| 2 Motor Python como servidor | [fase-2](2026-11-11-melhoria-reco-em-rust-fase-2.md) | 0 | fechada (12/11) |
+| 3 Casco Tauri e telas novas | [fase-3](2026-11-11-melhoria-reco-em-rust-fase-3.md) | 1 (direção escolhida) e 2 | fechada (12/11) |
+| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 | **próxima**: depende do Gabriel usar o app novo (Pendente) |
+| 5 Captura e MP3 em Rust | [fase-5](2026-11-11-melhoria-reco-em-rust-fase-5.md) | 4 | — |
+| 6 Transcrição em Rust (spike com portão) | [fase-6](2026-11-11-melhoria-reco-em-rust-fase-6.md) | 5 | — |
+| 7 Aposentar a interface Tk e propagar | [fase-7](2026-11-11-melhoria-reco-em-rust-fase-7.md) | 4 e 6 (o veredito do portão, aberto ou fechado) | — |
 
 As Fases 1 e 2 podem andar em paralelo depois da 0. O **spike** da Fase 6 (até o portão) só precisa da
 Fase 2, não da captura em Rust: pode rodar cedo e dar ao Gabriel o número para decidir "híbrido × tudo em
@@ -163,6 +163,12 @@ troca de app não o afeta, mas a etiqueta `RECO_TAG` no nome é contrato (D6).
 `show()`; `ShowWindow(4)` de reserva) e D7 provada nos dois sentidos com `CreateMutexW` à mão (F0-D5: o plugin de
 instância única cria outro mutex). Régua da D12: `abrir_pronta_s` mediana 1,515 s · [relatório](2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md).
 
+**Fase 3 fechada (12/11/2026):** casco Tauri + interface nova com os 18 passos marcados; teste real no app instalado
+(build `aac7ca7`): colar com o `.mp3` entre aspas, 2 canais a 16 kHz com a duração do cronômetro, D11 nos dois
+sentidos e Gravar habilitado em 0,78 s (mediana) contra 1,515 s do velho. Os 5 defeitos do teste real e os 5 achados
+da revisão dos consertos foram corrigidos e provados fora do app instalado; o reteste deles no app instalado é o
+primeiro item herdado pela Fase 4 · [relatório](2026-11-11-melhoria-reco-em-rust.d/fase-3-relatorio.md).
+
 ## O que NÃO fazer
 
 - **Não reescrever tudo de uma vez.** Seis meses sem app novo e o velho sem manutenção é o pior dos mundos;
@@ -208,6 +214,10 @@ instância única cria outro mutex). Régua da D12: `abrir_pronta_s` mediana 1,5
 
 ## Pendente (decisão do Gabriel)
 
+- **Uso real do app novo (Fase 4, a próxima):** a Fase 3 fechou em 12/11/2026, e a 4 só fecha com o Gabriel usando
+  o Reco novo instalado no dia a dia (6 gravações reais em pelo menos 5 dias, F4-D1) e dizendo "aprovo". Também
+  dependem dele: sair do Reco velho pela bandeja para a instalação e os testes no app instalado, e os reinícios do
+  Windows da medida "a frio" (passo 14). `dono: gabriel`.
 - **Direção visual** (Fase 1): decidido em 11/11/2026: A "Fita" é o padrão e B "Caderno" e C "Instrumento"
   ficam como skins em Opções (preferência `casco_skin`). O passo 14 da Fase 1 (poda) virou "seletor de skin";
   a Fase 3 aplica `data-direcao` no `<html>` conforme a preferência.
