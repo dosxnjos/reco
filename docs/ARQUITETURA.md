@@ -349,7 +349,8 @@ sendo o que se usa; nada do motor entra no `Reco.exe`.
 - **Orquestração reimplementada** (os métodos do `App` não são importáveis): `recording.py`
   (`_start_rec`, `_stop_rec`, pausa, erro de canal, `_quit`), `conclude.py` (Salvar/Excluir/Transcrever,
   passada final do ao vivo, modo nota), `transcribe.py` (`_run_transcriber`, `_autosave_txt`),
-  `library.py`, `extras.py`, `cli.py`. Estado comum em `core.py`.
+  `library.py`, `extras.py`, `modelo.py` (`model.update_check`: a consulta ao hub não ocupa a vaga da
+  transcrição; só a troca, com revisão nova e o motor ocioso), `cli.py`. Estado comum em `core.py`.
 - **Transcritor único** por processo (`make_transcriber()` uma vez), compartilhado com o ao vivo e as
   passadas finais; um `pipe.generate` por vez (`busy`).
 - **O motor é o dono do config** (D6): `config.set` relê o arquivo cru, faz merge, aceita só chaves de
@@ -406,7 +407,10 @@ App novo da Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco
   `testar-contrato.cjs`, contra o `ui:preview` na porta 1431, com o backend falso `mock.ts` e o condutor de
   estados `window.vitrine`).
 - **Provas**: `cargo test --manifest-path app/src-tauri/Cargo.toml -- --include-ignored` (os ignorados sobem
-  um motor falso em Python), `npm --prefix app run i18n:check`, `node app/ui/tests/{gravar,telas,revisao,paridade}.cjs`.
+  um motor falso em Python), `npm --prefix app run i18n:check`, `node app/ui/tests/{gravar,telas,revisao,passo17,paridade}.cjs`,
+  `python tools/test_nsis_atalho.py` (hooks do instalador: `/S` sem atalho na Área de Trabalho). O backend falso
+  manda o que o motor manda (ex.: `console`/`comm` do `devices.list` são nomes, não ids): forma divergente deixa a
+  tela quebrada no app e verde nos testes (defeito 2 do passo 17).
 - **Build**: `powershell -ExecutionPolicy Bypass -File app/build.ps1` congela o motor, roda o smoke (que
   reprova `ready` com erro), `npm ci`, a interface e o `tauri build` (NSIS). O instalador fica em
   `<CARGO_TARGET_DIR>\release\bundle\nsis` (nesta máquina `C:\pt`), fora do repo; o script nunca abre o app.

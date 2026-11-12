@@ -474,7 +474,8 @@ Cada defeito tem teste que reprova sem o conserto (controle negativo rodado) e c
 
 **Provas da Fase 3 que tocam o que mudou (todas depois do último código, `db64f5d`/`c6be9dc`):**
 
-- `python tools/test_engine_protocol.py` → 10 linhas `OK`, saída 0 (inclui as três novas); o mesmo com `--exe
+- `python tools/test_engine_protocol.py` → 10 linhas `OK`, saída 0 (inclui as três novas; rodada de novo depois do
+  `c6be9dc`); o mesmo com `--exe
   engine/dist/reco-engine/reco-engine.exe` (motor congelado novo) → 10 `OK`, saída 0; `--conferir-doc` → `22 comandos
   no registro, 22 na tabela`.
 - `npm --prefix app run ui:build` → `built`; `i18n:check` → `237 chaves PT, 237 EN … 0 faltando`; `gravar.cjs` →
@@ -493,7 +494,12 @@ smoke `ready ok=True` em 0,27 a 0,50 s nas 3 rodadas e `devices ok=True (1, 2)`;
 `f3f2f3918f13ed4ef5e6195d1d51990a699a6c19f0e23a56ecbf97769ccb9f05`; casco `C:\pt\release\reco.exe` SHA256
 `3a11420a61566a27336129ea00a6656c33355e7f8d8fbb3bc7c73dd02f7861dc`; `reco-engine.exe` SHA256
 `3b37612b11af540527853039beaae29d5416c82ec61edbf481465b14bed8ab12`. **Substitui** o `75d02dae…` do passo 17. Não
-instalado nem aberto.
+instalado nem aberto. (A mensagem do commit `3e62a2d` abrevia o hash como `f3f2f391…f7861dc`, errado: o fim
+`f7861dc` é do `reco.exe`; o certo é o inteiro acima, `…ccb9f05`.)
+
+**Efeito colateral aceito:** o casco espera o `model.update_check` antes de pedir o `app.update_check`. Com revisão
+nova do modelo e uma gravação em curso, a troca espera o motor ficar ocioso, e o aviso de versão nova do app espera
+junto (até o fim da gravação ou o prazo de 2 h do casco). Raro e sem perda; nenhum código mudou por isso.
 
 **completei:** a resposta `name: null` do `rec.start` também cai em "Automático (padrão do Windows)"; o Parar com
 `busy` que o motor não explica também avisa; a caixa "criar atalho na Área de Trabalho" da instalação com tela vem

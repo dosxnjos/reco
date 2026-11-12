@@ -513,7 +513,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - **Defeitos do teste real corrigidos (12/11, à tarde, `adf3fc0` a `c6be9dc`):** nota logo depois de abrir,
      Entrada e Saída vazias antes de gravar, log do casco em UTC, `eof` no lugar de `shutdown` ao Sair e atalho na
      Área de Trabalho na instalação silenciosa, cada um com teste que reprova sem o conserto. Instalador novo, SHA256
-     `f3f2f391…f7861dc`, ainda não instalado: o reteste no app instalado espera o velho fechado. Detalhe no
+     `f3f2f391…ccb9f05`, ainda não instalado: o reteste no app instalado espera o velho fechado. Detalhe no
      relatório, seção "Defeitos do passo 17: correção".
 18. [ ] Documentar e fechar — **prova:** `git diff --stat <base da fase anotada no passo 1> -- docs/ARQUITETURA.md README.md CLAUDE.md` → os três arquivos listados, e `pre-commit run gate-claude-md --files CLAUDE.md` → `Passed`
    **reprova se:** algum dos três não aparece no diff (a doc ficou para trás; vale também depois do commit), ou o gate acusa mais de 6 KB.
