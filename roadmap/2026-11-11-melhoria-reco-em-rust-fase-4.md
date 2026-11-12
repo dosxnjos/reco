@@ -87,6 +87,10 @@
 > Nota (2026-11-12, revisão adversarial): o instalador no caminho do `$setup` foi refeito às 16:55:58 com o motor em
 > 0.3.0 (SHA256 `84EE1142…D92211CF`, relatório, seção "Revisão adversarial"). O app dos passos 9 e 10 foi instalado do
 > `76C890E8…` (motor 0.1.0); a única diferença é o número da versão do motor, e a próxima reinstalação pelo `$setup` leva o novo.
+>
+> Nota (2026-11-12, 18:11, conserto do autostart): o `$setup` foi refeito do `be4664c` (SHA256 `74730218…1B564E98`,
+> relatório, seção "Conserto do autostart"), **não instalado**. O app instalado e aberto continua o `84EE1142`; a
+> próxima reinstalação pelo `$setup` leva o conserto e reabre a prova do passo 13.
 
 ### A. Reserva e régua, antes de instalar
 
@@ -287,6 +291,11 @@
       rc 0; desligado → rc 1. Dois achados: o caminho vai **sem aspas** (o home tem espaço; `auto-launch` 0.6.0,
       `windows.rs:77`, grava `{caminho} {args}`), e o desligar deixa a marca `Reco` em `…\Explorer\StartupApproved\Run`
       (o ligar a cria, o desligar não a apaga; apagada à mão no fim). A subida no boot fica pendente do dono (reiniciar).
+    - Nota (2026-11-12, 18:11, conserto): `be4664c` troca o plugin pelo `app/src-tauri/src/autostart.rs`. O valor sai
+      `"<exe>" --oculto`, entre aspas, e desligar apaga também a marca do `StartupApproved`. Os testes rodam em
+      `HKCU\Software\RecoTeste` e reprovam sem o conserto. Instalador `74730218…` pronto, não instalado. Na próxima
+      reinstalação, refazer esta prova esperando o valor **com aspas** e o rc 1 também em
+      `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run /v Reco` depois de desligar.
 14. [ ] Medir "pronto para gravar" no app instalado (D12), com método próprio. — **prova:** o laço do 1º sub-item em 3 aberturas a quente → mediana ≤ a mediana de `abrir_pronta_s` do relatório da Fase 0; Gravar clicado logo depois do `ready` põe o cronômetro a andar sem esperar `aquecimento pronto`
     **reprova se:** a mediana passa da de `abrir_pronta_s`, o laço sai pelo teto de 60 s (não achou janela ou `ready em`), ou Gravar espera o aquecimento da transcrição.
     - Laço (PowerShell, `$log` dos Nomes): `$n=@(Get-Content $log -EA 0).Count; $sw=[Diagnostics.Stopwatch]::StartNew(); $p=Start-Process $exe -PassThru;`

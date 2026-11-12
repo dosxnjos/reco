@@ -25,7 +25,7 @@ Pedido: reco-rust | Reco em Rust, com interface bonita e que não fica pulando |
 | 1 Identidade visual e contrato de tela | [fase-1](2026-11-11-melhoria-reco-em-rust-fase-1.md) | 0 (medições de tempo e da bandeja) | fechada (12/11) |
 | 2 Motor Python como servidor | [fase-2](2026-11-11-melhoria-reco-em-rust-fase-2.md) | 0 | fechada (12/11) |
 | 3 Casco Tauri e telas novas | [fase-3](2026-11-11-melhoria-reco-em-rust-fase-3.md) | 1 (direção escolhida) e 2 | fechada (12/11) |
-| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 | **em curso**: passos 1 a 8 feitos em 12/11 (instalador `Reco_0.3.0` gerado, não instalado); o 9 espera o Gabriel fechar o Reco velho, e o fechamento, ele usar o app novo (Pendente) |
+| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 | **em curso**: passos 1 a 13, 15 e 16 feitos em 12/11; o "Reco" 0.3.0 (`84EE1142`) está instalado e aberto desde 17:43 e o velho, fechado na reserva. Abertos: 14 (remedir com a máquina livre), 17 (11 linhas do Gabriel) e 18 em diante (uso real). Conserto do autostart (`be4664c`) com instalador pronto para a próxima reinstalação (Pendente) |
 | 5 Captura e MP3 em Rust | [fase-5](2026-11-11-melhoria-reco-em-rust-fase-5.md) | 4 | — |
 | 6 Transcrição em Rust (spike com portão) | [fase-6](2026-11-11-melhoria-reco-em-rust-fase-6.md) | 5 | — |
 | 7 Aposentar a interface Tk e propagar | [fase-7](2026-11-11-melhoria-reco-em-rust-fase-7.md) | 4 e 6 (o veredito do portão, aberto ou fechado) | — |
@@ -214,10 +214,12 @@ primeiro item herdado pela Fase 4 · [relatório](2026-11-11-melhoria-reco-em-ru
 
 ## Pendente (decisão do Gabriel)
 
-- **Uso real do app novo (Fase 4, a próxima):** a Fase 3 fechou em 12/11/2026, e a 4 só fecha com o Gabriel usando
-  o Reco novo instalado no dia a dia (6 gravações reais em pelo menos 5 dias, F4-D1) e dizendo "aprovo". Também
-  dependem dele: sair do Reco velho pela bandeja para a instalação e os testes no app instalado, e os reinícios do
-  Windows da medida "a frio" (passo 14). `dono: gabriel`.
+- **Uso real do app novo (Fase 4, em curso):** desde 12/11/2026 ~17:43 o Reco novo está instalado e aberto e o velho,
+  fechado na reserva. A fase só fecha com o Gabriel usando o app novo no dia a dia (6 gravações reais em pelo menos 5
+  dias, F4-D1) e dizendo "aprovo". Também dependem dele: as 11 linhas do checklist do passo 17 que pedem a mão ou o olho
+  dele, o Ctrl+Shift+R por tecla física (11), os reinícios do Windows da medida "a frio" (14) e um momento sem gravar
+  para a sessão remedir o passo 14 com a máquina livre e reinstalar com o conserto do autostart (refazendo o passo
+  13). `dono: gabriel`.
 - **Direção visual** (Fase 1): decidido em 11/11/2026: A "Fita" é o padrão e B "Caderno" e C "Instrumento"
   ficam como skins em Opções (preferência `casco_skin`). O passo 14 da Fase 1 (poda) virou "seletor de skin";
   a Fase 3 aplica `data-direcao` no `<html>` conforme a preferência.
@@ -252,4 +254,4 @@ primeiro item herdado pela Fase 4 · [relatório](2026-11-11-melhoria-reco-em-ru
 
 `2026-11-11-melhoria-reco-em-rust.d/`: `diagnostico/` (as 5 frentes e a crítica de completude, 11/11/2026)
 e um relatório por fase executada: [fase-0-relatorio](2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md),
-`fase-1-relatorio.md`, `relatorio-fase-2-4c65eb01.md`, `fase-3-relatorio.md`.
+`fase-1-relatorio.md`, `relatorio-fase-2-4c65eb01.md`, `fase-3-relatorio.md`, `fase-4-relatorio.md` (em curso).
