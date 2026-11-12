@@ -456,13 +456,21 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - **Execução (12/11):** `node app/ui/tests/paridade.cjs` → `linhas da tabela: 19 (17 tela, 2 rust: bandeja, instancia)`,
      `17 de 17 presentes`, saída 0. Controle negativo (`PARIDADE_MD` com uma cópia do md): linha inventada a mais →
      `17 de 18 presentes`, saída 1; linha `resumo-ia` a menos → `sobra [data-paridade="resumo-ia"]`, saída 1.
-16. [ ] `app/build.ps1`: congela o motor (Fase 2), smoke `hello`, `npm ci`, build da interface e `tauri build` — **prova:** `powershell -ExecutionPolicy Bypass -File app/build.ps1` → última linha `Instalador: ...\nsis\Reco Novo_<versão>_x64-setup.exe`
+16. [x] `app/build.ps1`: congela o motor (Fase 2), smoke `hello`, `npm ci`, build da interface e `tauri build` — **prova:** `powershell -ExecutionPolicy Bypass -File app/build.ps1` → última linha `Instalador: ...\nsis\Reco Novo_<versão>_x64-setup.exe`
    **reprova se:** o script segue sem o motor congelado (o `build.rs` do release deveria parar) ou pega o instalador do Lacre.
    - Falha com mensagem clara se o motor não existir ou o smoke não responder; não copia o instalador para
      dentro do repo (ele fica em `C:\pt\release\bundle\nsis`, fora do git).
    - Medir e anotar no relatório da fase: tamanho do instalador e tempo do clique no ícone até a janela.
    - D12: anotar também o tempo até Gravar ficar habilitado (evento `ready`), ao lado do número do app velho
      medido na Fase 0. Pior que o velho não reprova esta fase (a régua fecha na Fase 4), mas vai ao relatório.
+   - **Execução (12/11, 03:34 a 03:58):** prova como escrita → `exit=0`, última linha `Instalador:
+     C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`; instalador de 128,8 MB (135005911 bytes), casco
+     4,3 MB + motor 491,2 MB = 495,5 MB de pasta (soma calculada, sem instalar); 1435,5 s no total (motor 178,4 s,
+     `npm ci` 4,5 s, interface 5,2 s, `tauri build` 1246,6 s, dos quais ~15 min do `makensis`). Smoke do motor
+     congelado: `hello` em 0,53 a 0,75 s, `ready` em 0,88 a 1,10 s (Fase 0: velho pronto em 1,515 s). Controle
+     negativo: sem `engine/dist/reco-engine`, `-SemCongelar` → `ERROR: frozen engine not found …`, saída 1.
+     **Fica para o passo 17** (precisa do app velho fechado): o tempo do clique no ícone até a janela e o tempo até
+     Gravar habilitar no app instalado. Detalhe no relatório.
 17. [ ] Teste real manual, app velho fechado: instalar, gravar 30 s com fala e vídeo, parar, clicar no principal — **prova:** `Get-Clipboard` → `.mp3` entre aspas; `ffprobe -v error -show_entries stream=channels,sample_rate:format=duration <arq>` → `2`, `16000`, duração do cronômetro ±1 s
    **reprova se:** o colar sai sem aspas, o arquivo tem 1 canal ou outra taxa, ou a duração difere mais de 1 s do cronômetro ao parar (sem o cabeçalho do container ela sai muito maior ou zero).
    - Manual porque precisa de microfone, som tocando e o Gabriel ou o executor na máquina.

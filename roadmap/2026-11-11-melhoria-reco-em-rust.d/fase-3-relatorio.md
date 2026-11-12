@@ -148,6 +148,34 @@ estava). O config só diferia da cópia em `casco_atalho: false` (nenhuma outra 
 de teste do passo 7): a cópia voltou, `cmp` igual. **O Reco do dono continua fechado** (a tarefa manda fechar só o
 que abri; reabrir é com ele).
 
+### Passo 16 — `app/build.ps1` e o instalador (12/11/2026, 03:34 a 03:58)
+
+Condição: o Reco do dono **aberto** o tempo todo; o build não abre o app (o casco de release pega o mesmo mutex)
+nem o instalador. Uma execução anterior caiu às ~03:25 com o `build.ps1` escrito e sem commit; ela chegou a gerar
+`C:\pt\release\reco.exe` às 03:09, mas nenhum instalador. Retomada sem processo de build órfão (só MCP do
+Playwright e o coletor do WhatsApp). O `build.ps1` foi lido, conferido contra o passo e rodado sem mudança.
+
+- **Prova:** `powershell -ExecutionPolicy Bypass -File app/build.ps1` → `exit=0`, última linha
+  `Instalador: C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`. Nome exato do `tauri.conf.json` e data
+  posterior ao início da rodada (instalador do Lacre ou antigo não passa).
+- **Instalador:** `C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`, 128,8 MB (135005911 bytes), SHA256
+  `72e983389d2b54c39eeca920ca7ac2c0d1835d79e9125687fc17a8212231d660`. Fora do repo; não instalado nem rodado.
+- **Pasta final (calculada, sem instalar):** casco `reco.exe` 4,3 MB + motor `engine/` 491,2 MB = 495,5 MB, sem o
+  desinstalador. Não medi a pasta de `C:\pt\release` porque ela é dividida com o Lacre.
+- **Tempo de build:** 1435,5 s (~24 min) no total: congelar o motor e o smoke 178,4 s, `npm ci` 4,5 s, interface
+  5,2 s, `tauri build` 1246,6 s (compilação release 5 min 07 s; o `makensis` comprimindo os ~500 MB levou ~15 min).
+- **Smoke do motor congelado (D12, lado do motor):** 3 rodadas, `hello` em 0,75/0,56/0,53 s e `ready` em
+  1,10/0,98/0,88 s, `shutdown ok=True exit=0`; a última listou dispositivos (1 entrada, 2 saídas) em 0,09 s. A régua
+  da Fase 0 é o velho pronto em 1,515 s (mediana). O número que fecha o D12 é o do app instalado (abaixo).
+- **Controle negativo:** com `engine/dist/reco-engine` renomeada, `build.ps1 -SemCongelar` → `ERROR: frozen engine
+  not found at …\reco-engine.exe`, saída 1, antes de qualquer build; pasta renomeada de volta em seguida.
+- **Fica para o passo 17** (precisa do app velho fechado, proibido nesta rodada): o tempo do clique no ícone até a
+  janela e o tempo até Gravar habilitar no app instalado, ao lado do 1,515 s do velho.
+- **Cosmético, sem efeito na prova:** o `memória` do smoke sai `mem?ria` (o Python grava o stdout redirecionado
+  em cp1252 e o script lê UTF-8), e os tempos misturam vírgula e ponto (formatação do PowerShell por cultura).
+- **Repo depois do build:** `git status` limpo (sem instalador nem `dist/` no git); `reco.py`, `tray.py` e o
+  `build.ps1` do velho intocados. Commit `a8f183c` (o script, logo depois da primeira rodada verde).
+
 ### Pendências (precisam do app velho fechado ou da interface)
 
 - **Passo 10, foco no botão principal** pelo atalho: passo 13.
