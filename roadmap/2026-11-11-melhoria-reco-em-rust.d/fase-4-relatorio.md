@@ -256,3 +256,138 @@ congelado novo, com `hello` + `shutdown` → `"engine_version":"0.3.0"`.
 | `60122c7` | passos 6 e 7 e o `pior` fala a fala |
 | `9b6294b` | revisão, achado 4: motor 0.3.0 (o instalador `84EE…` sai deste código) |
 | `d837de2` | revisão, achados 1, 2, 3 e 5: régua, `tools/test_paridade.py`, notas no md |
+
+### Passos 9 a 17 — app instalado (12/11/2026, a partir das 16:37)
+
+Condição: o dono autorizou instalar (~16:3x, "Já pode instalar sim") e está usando a máquina. **Sem mouse e sem
+teclado**: nada de `SendInput`/`SetCursorPos`; o casco abre com `--oculto` e o WebView2 com
+`--remote-debugging-port`, cliques por `el.click()` no DOM via CDP, itens da bandeja por `PostMessageW(WM_COMMAND)` na
+janela do ícone (armadilha de 12/11 12:22). Gravações de teste com o clipe de fala tocando no alto-falante; cada
+arquivo de teste sai de `Documents\Reco` para `temp/medicoes/f4/` (fora do git) ou vai à Lixeira; clipboard do dono
+reposto depois de cada "copiar caminho". Instalador usado: cópia em `temp/instaladores/` do `Reco_0.3.0_x64-setup.exe`
+do passo 8, SHA256 `76C890E8…5B1A4D90` conferido na cópia e no original. Início: `HEAD` `df07ffe`.
+
+**Antes de fechar (16:37 a 16:45) — correção da premissa:** o Reco velho (pid 29256) já não estava aberto. Às 16:39:20
+o dono abriu o "Reco Novo" instalado (`aac7ca7`) pelo Menu Iniciar (pai `explorer.exe`, `oculto=false`), gravou um teste
+curto às 16:39:32 (o `.txt` dele ficou na pasta, intocado) e mudou o ganho do sistema de 0,5 para 1,0 (mantido; a foto
+do config foi refeita com isso). Esse build antigo, online, **baixou uma revisão nova do modelo** às 16:39:27–45
+(`.hf_revision` `4929ae8` → `b568445`; models 828 097 157 → 828 098 952 bytes, 46 → 49 itens). A reserva
+(`Reco-reserva\models`) segue na revisão anterior, que também transcreve. Antes de fechar: `--checar-gravando` →
+`nenhuma gravação em curso` duas vezes, `travados` vazio duas vezes com 25 s entre elas e CPU do motor 0,1% (o casco 0%);
+fechado pelo Sair da bandeja por mensagem (`WM_COMMAND 1003`) → saiu em 1,4 s, log `saída: Ocioso`, motor `encerrando
+(shutdown)`, nenhum processo Reco e mutex livre.
+
+**Herdado da Fase 3, antes de instalar (16:45 a 16:48):** `python tools/test_engine_protocol.py --gravar 5 --concluir`
+→ `OK conclusões: save, delete (Lixeira), transcribe, transcribe_delete, nota, final_pass (1 live.text), 2 cancelados
+com mp3`, rc 0; `--eof 25` → `OK eof: declarada 25.0 s, decodificada 25.0 s, saiu em 0.5 s; OK shutdown no meio:
+declarada 25.0 s, decodificada 25.0 s, saiu em 0.5 s`, rc 0.
+
+**Passo 9 (16:48):** guarda `Get-Process | ? Path -like '*\Reco*\*'` → só o gravador do **Medal**
+(`…\Medal\recorder-2645…\MedalEncoder.exe` e `crashpad_handler.exe`): o padrão casa `\recorder`, falso positivo lido
+pelo caminho (nenhum Reco). `Test-Path "…\Reco Novo\uninstall.exe"` → `True`; `uninstall.exe /S` → sumiu em ~3 s;
+pasta `Reco Novo`, `Reco Novo.lnk` (Menu Iniciar e Área de Trabalho) → `False`; `reg query …\Run /v "Reco Novo"` → rc 1;
+soma dos modelos igual (828 098 952). `Start-Process $setup -ArgumentList '/S' -Wait` → exit 0 em 27,3 s; `Test-Path
+$exe` → `True`; `Reco.lnk` no Menu Iniciar `True`, **na Área de Trabalho `False`** (o hook do NSIS da Fase 3 vale no
+`/S` real); `reco-engine.exe` instalado SHA256 `214822A8331C349ED94A8321E14DE4E1DBD71F37E2D825E0622D51CF220BCEE0`, igual ao
+motor do passo 8;
+`reco.exe` instalado `BA142BDA7915C6FDBFFDD63D990EAC13C2F88DDE15E142CB8E2548879F7F20A5` (≠ o `C:\pt\release\reco.exe`
+`E0309C6F…` anotado no passo 8: o casco que vai no instalador não é byte a byte o arquivo solto da pasta de saída).
+Config copiado para `Reco-reserva\reco_config.json` às 16:53 (nota da revisão no md; feito depois de instalar, com os
+dois apps fechados) → `Get-FileHash` igual nos dois (`3119E0CE…`).
+
+**Herdado da Fase 3, depois de instalar (16:50 a 16:52, app instalado, CDP):**
+
+- Nota 2,21 s depois do Gravar habilitado, **online** (sem `HF_HUB_OFFLINE`, o caso real da checagem do modelo) →
+  `Parar` no 1º clique; o `.md` nasce e o clipboard traz `"…\nota_2026-11-12_16-50-09.md"` entre aspas (o `.md` saiu da
+  pasta para `temp/medicoes/f4/`, sem ler o conteúdo).
+- Antes da 1ª gravação: Entrada `Grupo de microfones (…Smart Sound…)`, Saída `Alto-falantes (Realtek(R) Audio)`, status
+  `Pronto para gravar. Microfone: <mic> · Sistema: <alto-falante>`; depois da nota e de volta ao modo gravação, os
+  mesmos nomes.
+- `Reco.log` na hora local (`[16:50:04]` para 16:50 locais; o `Reco Novo.log` antigo seguia em UTC, `19:39`).
+- Sair (`WM_COMMAND 1003`) → código 0 em 0,75 s; `engine.log` → `ready em 0.50 s` e `encerrando (shutdown)`.
+- Ao vivo ligado em Opções (`aria-checked=true`, `live: true` no config), 25 s gravando com o clipe, Parar → "Salvar e
+  copiar caminho" em 14,3 s (passada final), `x.txt` com 2 falas `Eu`/`Interlocutor(es)`, nenhum `busy` nem `ERROR` no
+  `engine.log` ou no `Reco.log`, `encerrando (shutdown)`; régua `dur=25.5 xing=ok r_zero_inicio=0 mic_zero_max=4
+  alinhamento=ok txt=diarizado pior=1 -> ok`, `PASSOU`. Ao vivo desligado de novo (`live: false`). Observação: o
+  painel do ao vivo estava vazio aos 25 s (o P10 pede 5 min).
+- Instalação silenciosa sem atalho na Área de Trabalho (passo 9, acima).
+
+**Passo 10 (16:52):** soma antes 828 098 952 e soma da árvore (caminho + SHA256 dos 45 arquivos)
+`E3089D1F…70EBBB2E1D`. `uninstall.exe /S` → `reco.exe` e `uninstall.exe` sumiram em 4 s; soma 828 098 952, árvore
+igual, `models` existe; sobraram `models`, `ovcache`, `transcribe_worker.py` (do app velho); `Reco.lnk` saiu.
+Reinstalar `/S` → exit 0, `Test-Path $exe` `True`, soma 828 098 952, árvore igual, `reco.exe` com o mesmo SHA256.
+
+**Passos 11 a 13 (16:53 a 16:56, build `76C890E8`):**
+
+- 11: `Reco.lnk` → `%LOCALAPPDATA%\Reco\reco.exe |` (alvo = `$exe`, `HotKey` vazio, sem argumentos). Tecla física
+  Ctrl+Shift+R: **pulado a pedido do dono: sem teclado**. O atalho global nasce desligado (`aria-checked=false` em Opções).
+- 12, ida: novo aberto com `--oculto` (sem CDP) → `TryOpenExisting` `True`; `Start-Process …\dist\Reco\Reco.exe` →
+  `WaitForExit(60000)` `True`, código 0; a janela do novo, oculta antes, ficou visível e na frente (o `Reco.Show`
+  chegou). O X (`WM_CLOSE`) a escondeu de novo com o processo vivo; Sair por mensagem → código 0.
+- 12, volta: velho aberto e escondido pelo X dele; `Start-Process $exe` → `True 0`; a janela do velho voltou;
+  `procs` → só `C:\Dev\Reco\dist\Reco\Reco.exe` (nenhum `reco-engine.exe`). Velho fechado por `taskkill /F` depois de
+  `--checar-gravando` → `nenhuma gravação em curso`; mutex livre.
+- 13: Run `/v Reco` rc 1 antes; Opções → autostart → `aria-checked=true` e `Reco REG_SZ
+  %USERPROFILE%\AppData\Local\Reco\reco.exe --oculto`, rc 0; de novo → `false`, rc 1; `/v "Reco Novo"` rc 1. **Achados:**
+  (1) o valor vai sem aspas e o home tem espaço: o `auto-launch` 0.6.0 grava `format!("{} {}", app_path, args)`
+  (`windows.rs:77`); o Windows resolve tentando `C:\Users\Gabriel.exe`, `…\Gabriel dos.exe`… até achar, então funciona,
+  mas é o caminho sem aspas clássico (um `.exe` plantado num desses nomes subiria no lugar). Conserto possível no casco:
+  passar o caminho já entre aspas ao plugin. A subida no boot fica para o dono. (2) O ligar cria `Reco` em
+  `HKCU\…\Explorer\StartupApproved\Run` (`02 00…`, habilitado) e o desligar não apaga; apaguei à mão (`reg delete … /f`,
+  depois rc 1), porque o app velho nunca teve autostart.
+
+**Passo 14 (16:56 a 17:04):** laço do md, janela visível, sem CDP, `HF_HUB_OFFLINE=1`, `live=False`, `device=AUTO`,
+Sair por mensagem entre as aberturas, nenhum `cargo`/`rustc` rodando.
+
+| build | CPU total | aberturas (s) | mediana | régua Fase 0 |
+| --- | --- | --- | --- | --- |
+| `76C890E8` (motor 0.1.0) | 25 / 46 / 23% | 1,034 / 0,982 / 0,797 | **0,982** | 1,515 |
+| `84EE1142` (final, motor 0.3.0) | 79 / 84 / 85% (outras sessões: `node`, `python`, `svchost`) | 1,735 / 1,986 / 2,41 | 1,986 | 1,515 |
+
+- O motor deu `ready em` 0,15 a 0,47 s em todas; o que cresceu sob carga foi o resto (janela e WebView2). A Fase 0
+  mediu o velho com a máquina livre; a linha do build final não é comparável e se repete com a CPU livre (abaixo, se
+  couber nesta rodada).
+- Cláusula do Gravar (build `76C890E8`, CDP, clique no mesmo `eval` que vê o botão habilitar, clipe tocando):
+  `ready` 16:57:45,093 → clique 45,193 → "Parar" 45,454 → cronômetro `00:00:01` às 46,476; `aquecimento pronto em
+  1.76 s` às 46,854. Gravar não espera o aquecimento. (A 1ª tentativa ficou ambígua: o clique saiu 32 ms antes do
+  aquecimento acabar.)
+- "A frio": **pendente do dono** (3 reinícios do Windows; a sessão não reinicia).
+
+**Reinstalação do build final (17:02):** a revisão refez o instalador (SHA256
+`84EE114218BF5FFD4318E37B8C12C1C559A0263D1C9312ADB616BFF8D92211CF`, commit `9b6294b`, só a versão do motor muda).
+Cópia em `temp/instaladores/Reco_0.3.0_x64-setup.84EE1142.exe`, SHA conferido; `/S` por cima → exit 0; soma dos
+modelos 828 098 952 antes e depois; `reco.exe` `3B8CBE2947CA33440F78DD71BF9496735E9FD3EE4D3932599F5CEECADCED210E`,
+`reco-engine.exe` `281A0D76E3745159F6E67340E04455B1943D451763C73612D33882EBC4098A5F`; Opções →
+`Reco 0.3.0 · motor 0.3.0`; atalho certo, nada na Área de Trabalho. Daqui para baixo, tudo neste build.
+
+**Passo 15 (17:07 a 17:09, build `84EE1142`):**
+
+- Casco morto aos 40 s (`Get-Process | ? Path -eq $exe | Stop-Process -Force`) → motor saiu sozinho; régua
+  `dur=47.3 xing=ok r_zero_inicio=0 mic_zero_max=0 alinhamento=ok -> ok`, `PASSOU`; ffprobe 2 canais, 16000 Hz.
+  **Por que 47 e não 40:** o próprio comando da prova levou 4,7 s (o `Get-Process` lê o `Path` de todos os processos), e o
+  motor saiu 0,0 s depois de o casco morrer (medido numa repetição no build `76C890E8`: `stop_process_levou_s=4.69`,
+  `motor_saiu_depois_do_stop_s=0.0`, `dur=47.4 … -> ok`). O casco seguiu gravando até morrer; o D11 é imediato.
+- Motor morto aos 41 s → a tela saiu de "Parar" em **0,05 s** para "Gravar" desabilitado com "A gravação foi
+  interrompida em 00:00:41. O arquivo fica na pasta das gravações." e "Abrir pasta"; em 10 s nunca voltou a "Parar";
+  motor novo de pé, status "O motor reiniciou; a tela foi atualizada.". Arquivo: `dur=20.2 xing=ok … -> ok`; o
+  reparador numa cópia em `temp/reparo/` → "já correto" (declarado 20 s = real 20 s). Perde o trecho no buffer do
+  encode (≈ 21 s de 41), o que o md e o `CLAUDE.md` ("o MP3 só nasce no 1º pacote") já preveem.
+
+**Passo 16 (17:10 a 17:13, build `84EE1142`), sem mouse:**
+
+- a) novo fechado pelo Sair por mensagem; b) Run `/v Reco` rc 1; c) `_migracao` `2`; d) `models` presente (revisão
+  `b568445`; a reserva tem a `4929ae8`), config legível; `Reco-reserva\reco_config.json` = config atual (hash igual).
+- e) **equivalente por script** de Opções → "Remover atalho" → "Criar atalho" (os links de Opções do velho só
+  respondem a clique real): apaguei o `Reco.lnk` e o recriei com os campos de `reco.py:4902-4908` → `…\dist\Reco\Reco.exe
+  | Ctrl+Shift+R`.
+- Prova, entre e) e f): `Get-Process -Name Reco -EA 0 | Select -Expand Path` → só `C:\Dev\Reco\dist\Reco\Reco.exe`.
+- Gravação de 30 s do velho: `BM_CLICK` e `WM_LBUTTONDOWN/UP` postados no `Button` "Gravar" **não** gravam (o Tk lê o
+  estado real do botão do mouse; nada mudou na tela). Gravou pelo **menu da bandeja do velho, só por mensagens**:
+  `WM_APP+1` com `lParam=WM_RBUTTONUP` na `RecoTrayWindow` abre o `TrackPopupMenu` (itens `Gravar · Abrir · Sair`), e
+  `WM_KEYDOWN` Down + Enter postados na janela do menu (`#32768`) escolhem o 1º item; 1 → 2 botões; 32 s; o mesmo
+  para "Parar" (itens `Parar · Pausar · Abrir · Sair`) → 3 botões. Régua: `dur=31.7 xing=ok r_zero_inicio=0
+  mic_zero_max=0 alinhamento=ok -> ok`, `PASSOU`. O menu abre no ponto do cursor e o velho toma a frente: uma
+  interrupção visual curta, sem mexer no cursor nem no teclado.
+- f) `--checar-gravando` → nenhuma; velho fechado por `taskkill /F`; mutex livre; `$setup` (`84EE1142`) `/S` → exit 0,
+  `Test-Path $exe` `True`; `Reco.lnk` → `%LOCALAPPDATA%\Reco\reco.exe |` (o instalador sobrescreveu o `.lnk` do velho com
+  tecla: F4-D5 confirmada). A 1ª rodada do ensaio (só os cliques por `BM_CLICK`) fez o mesmo e/f com o mesmo resultado.

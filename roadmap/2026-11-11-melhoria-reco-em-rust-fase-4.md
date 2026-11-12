@@ -249,14 +249,17 @@
     - Lido no molde do Tauri CLI 2.12.4 (`node_modules` do Lacre): `StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"`, que é
       a mesma `%LOCALAPPDATA%\Reco` de `_user_data_dir()` (`reco.py:578-582`); a desinstalação faz `RMDir "$INSTDIR"`
       sem `/r` e só apaga recursivo `$LOCALAPPDATA\${BUNDLEID}` com a caixa "apagar dados" marcada.
-11. [ ] Conferir o atalho do Menu Iniciar e o atalho de teclado. — **prova:** o comando "Atalho" do passo 3 → `TargetPath` igual a `$exe` e `HotKey` vazio
+11. [x] Conferir o atalho do Menu Iniciar e o atalho de teclado. — **prova:** o comando "Atalho" do passo 3 → `TargetPath` igual a `$exe` e `HotKey` vazio
     **reprova se:** o alvo ainda é `dist\Reco\Reco.exe` ou o `HotKey` não vem vazio (ex.: `Ctrl+Shift+R`; dois donos para a mesma tecla).
     - O NSIS grava `$SMPROGRAMS\${PRODUCTNAME}.lnk`, o mesmo arquivo de `_shortcut_path` do app velho (`reco.py:4867-4870`),
       que cria o `.lnk` com `HotKey='CTRL+SHIFT+R'` (`reco.py:4892-4908`). O instalador sobrescreve; ver F4-D5.
     - Manual (sem comando: tecla global não se dispara por script com confiança): ligar o atalho em Opções (nasce
       desligado, `casco_atalho`, Fase 3 passo 10), app na bandeja, Ctrl+Shift+R → a janela aparece com foco no botão
       principal. Repetir com o app fechado e anotar o que acontece.
-12. [ ] Exclusão mútua nos dois sentidos (D7). — **prova:** com o app novo aberto, os dois primeiros comandos abaixo, nesta ordem → `True` e `True`; com o velho aberto, o terceiro → `True` e `0`
+    - Nota (2026-11-12, execução): prova verde nos dois builds (`TargetPath` = `$exe`, `HotKey` vazio) e de novo depois
+      da volta do passo 16 f), em que o instalador achou o `.lnk` do velho **com** `Ctrl+Shift+R` e o trocou pelo do novo
+      sem tecla. O teste por tecla física ficou **pulado a pedido do dono: sem teclado** (pendente dele).
+12. [x] Exclusão mútua nos dois sentidos (D7). — **prova:** com o app novo aberto, os dois primeiros comandos abaixo, nesta ordem → `True` e `True`; com o velho aberto, o terceiro → `True` e `0`
     **reprova se:** o `TryOpenExisting` dá `False` (parar sem lançar o velho), ou um `WaitForExit` dá `False` (o segundo app ficou vivo: dois apps nos mesmos dispositivos e no mesmo config).
     - Sem lançar nada: `$m=$null; $ok=[Threading.Mutex]::TryOpenExisting('Local\Reco.SingleInstance',[ref]$m); if($m){$m.Dispose()}; $ok`.
       O `Dispose` é obrigatório: um handle esquecido numa janela PowerShell aberta mantém o mutex vivo e o velho fecha
@@ -271,12 +274,19 @@
       `$p=Start-Process $exe -PassThru; $p.WaitForExit(60000); $p.ExitCode` → `True` e `0`. O novo manda `Reco.Show`
       e sai calado (Fase 3 passo 7), sem ligar motor nem captura; a janela do velho aparece e `Get-Process` mostra só o velho.
     - Depois: Sair do velho pela bandeja e reabrir o novo (`Start-Process $exe`) para os passos seguintes.
-13. [ ] Iniciar com o Windows, opcional e desligado por padrão (F4-D6). — **prova:** ligar em Opções e rodar `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Reco; $LASTEXITCODE` → valor com o caminho de `$exe` seguido de `--oculto`, e `0`; desligar e repetir → `1`
+    - Nota (2026-11-12, execução, build `76C890E8`): `True` e `True 0` (a janela do novo apareceu e ficou na frente);
+      `True 0` no inverso (a janela do velho, escondida antes, voltou; só o `Reco.exe` do `dist` vivo, sem motor). O
+      velho foi fechado por `taskkill /F` depois de `--checar-gravando` (o Sair da bandeja dele exige mouse).
+13. [x] Iniciar com o Windows, opcional e desligado por padrão (F4-D6). — **prova:** ligar em Opções e rodar `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Reco; $LASTEXITCODE` → valor com o caminho de `$exe` seguido de `--oculto`, e `0`; desligar e repetir → `1`
     **reprova se:** o valor existe sem o usuário ligar, sai com o nome `Reco Novo`, falta o `--oculto`, ou some/fica depois da ação contrária.
     - `tauri-plugin-autostart` 2.7.0 grava o valor com o `app_name` na chave Run do usuário (`lib.rs:207-229`); o passo 8 o trocou para `Reco`.
     - Seguir o modelo da Guarita: o registro é a verdade e a tela reconcilia ao abrir (`autostart.ts`, cabeçalho).
     - Manual, na próxima vez que o Gabriel reiniciar: com a opção ligada, o app sobe com `--oculto` (Fase 3 passo 10) e o
       ícone aparece na bandeja sem abrir a janela.
+    - Nota (2026-11-12, execução, build `76C890E8`): antes rc 1; ligado → `Reco REG_SZ %USERPROFILE%\AppData\Local\Reco\reco.exe --oculto`,
+      rc 0; desligado → rc 1. Dois achados: o caminho vai **sem aspas** (o home tem espaço; `auto-launch` 0.6.0,
+      `windows.rs:77`, grava `{caminho} {args}`), e o desligar deixa a marca `Reco` em `…\Explorer\StartupApproved\Run`
+      (o ligar a cria, o desligar não a apaga; apagada à mão no fim). A subida no boot fica pendente do dono (reiniciar).
 14. [ ] Medir "pronto para gravar" no app instalado (D12), com método próprio. — **prova:** o laço do 1º sub-item em 3 aberturas a quente → mediana ≤ a mediana de `abrir_pronta_s` do relatório da Fase 0; Gravar clicado logo depois do `ready` põe o cronômetro a andar sem esperar `aquecimento pronto`
     **reprova se:** a mediana passa da de `abrir_pronta_s`, o laço sai pelo teto de 60 s (não achou janela ou `ready em`), ou Gravar espera o aquecimento da transcrição.
     - Laço (PowerShell, `$log` dos Nomes): `$n=@(Get-Content $log -EA 0).Count; $sw=[Diagnostics.Stopwatch]::StartNew(); $p=Start-Process $exe -PassThru;`
@@ -294,12 +304,23 @@
       como a Fase 0: com o ao vivo ligado a GPU entra no caminho de gravar (`reco.py:3769-3784`); medir com ele desligado.
     - "A frio" = primeira abertura depois de reiniciar o Windows: 3 reinícios, que o Gabriel faz (combinar a hora). Informativo:
       a Fase 0 não tem número a frio (a rodada 1 dela já pega cache quente). Números no relatório, ao lado dos da Fase 0.
-15. [ ] Contrato de falha (D11) no build instalado, não só no de desenvolvimento. — **prova:** gravar 40 s, `Get-Process | ? Path -eq $exe | Stop-Process -Force`, depois `python tools/paridade.py <esse mp3>` → `xing=ok` e `dur` ≈ 40
+    - Nota (2026-11-12, execução): o laço do md sem CDP, janela visível. Build `76C890E8`, CPU 23–46% → 1,034 / 0,982 /
+      0,797 s, mediana **0,982 s** (≤ 1,515 s). Build final `84EE1142` com a máquina carregada por outras sessões (CPU
+      79–85%) → 1,735 / 1,986 / 2,41 s, mediana 1,986 s: medida não comparável à da Fase 0 (máquina livre), repetida
+      quando a CPU baixar (relatório). Cláusula do Gravar (CDP, clique no mesmo `eval` que vê o botão habilitar):
+      `ready` 45,093 → clique 45,193 → "Parar" 45,454 → cronômetro 00:00:01 às 46,476, antes de `aquecimento pronto`
+      (46,854). "A frio" pendente do dono (reiniciar).
+15. [x] Contrato de falha (D11) no build instalado, não só no de desenvolvimento. — **prova:** gravar 40 s, `Get-Process | ? Path -eq $exe | Stop-Process -Force`, depois `python tools/paridade.py <esse mp3>` → `xing=ok` e `dur` ≈ 40
     **reprova se:** o MP3 fica sem cabeçalho (o motor não fechou o arquivo ao ver o stdin fechar) ou some.
     - Segundo caso: gravar 40 s e matar só o processo do motor → a tela mostra alarme em até 2 s e nunca exibe
       "gravando" depois disso. O MP3 parcial pode mentir a duração: reparar só numa cópia, nunca na pasta real
       (a Fase 3, passo 17, proíbe): `mkdir -p temp/reparo && cp "<esse mp3>" temp/reparo/ && python tools/reparar_duracao.py temp/reparo --aplicar`.
-16. [ ] Ensaiar a volta à reserva com o procedimento exato abaixo (o mesmo que vai para a doc no passo 21). — **prova:** entre e) e f), `Get-Process -Name Reco -EA 0 | Select -Expand Path` → só `C:\Dev\Reco\dist\Reco\Reco.exe`; gravação de 30 s do velho passa em `python tools/paridade.py`
+    - Nota (2026-11-12, execução, build final `84EE1142`): casco morto aos 40 s → `dur=47.3 xing=ok … -> ok`. Os ~7 s a
+      mais são o próprio comando da prova: `Get-Process | ? Path -eq $exe` levou 4,7 s varrendo o `Path` de todos os
+      processos, e o motor saiu 0,0 s depois de o casco morrer (medido na repetição). Motor morto aos 41 s → a tela saiu de
+      "Parar" em 0,05 s para "A gravação foi interrompida em 00:00:41", não voltou a gravar em 10 s, motor reiniciado;
+      arquivo `dur=20.2 xing=ok` (declarado = real, o reparador diz "já correto"): perde o trecho que estava no buffer.
+16. [x] Ensaiar a volta à reserva com o procedimento exato abaixo (o mesmo que vai para a doc no passo 21). — **prova:** entre e) e f), `Get-Process -Name Reco -EA 0 | Select -Expand Path` → só `C:\Dev\Reco\dist\Reco\Reco.exe`; gravação de 30 s do velho passa em `python tools/paridade.py`
     **reprova se:** o velho fecha sozinho (o novo ainda segura o mutex), não grava, ou a gravação sai `FALHOU`.
     - a) Bandeja do app novo → Sair. O X só esconde; Sair espera o arquivo fechar se estiver gravando (D11).
     - b) Se "iniciar com o Windows" estiver ligado, desligar antes (ou `reg delete HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v $prod /f`).
@@ -314,6 +335,14 @@
     - Aqui roda a prova do passo (velho vivo sozinho, gravação de 30 s pela régua).
     - f) Voltar ao novo: Sair do velho pela bandeja e rodar `Start-Process $setup -ArgumentList '/S' -Wait` (repõe o atalho do novo).
     - Os dois se excluem pelo mutex (D7): com um aberto, o outro não sobe. Nunca forçar os dois.
+    - Nota (2026-11-12, execução, sem mouse): a) o novo saiu pelo Sair da bandeja por mensagem; b) Run rc 1; c) `2`;
+      d) `models` presente, config legível; e) feito pelo **equivalente por script** dos campos de `reco.py:4902-4908`
+      (alvo `dist\Reco\Reco.exe`, `Ctrl+Shift+R`): os links de Opções do velho só respondem a clique real. Prova:
+      `Get-Process -Name Reco` → só `C:\Dev\Reco\dist\Reco\Reco.exe`. A gravação do velho **não sai** por `BM_CLICK`
+      nem por `WM_LBUTTONDOWN/UP` postados (o Tk ignora); saiu pelo menu da bandeja dele aberto por mensagem
+      (`WM_APP+1` com `WM_RBUTTONUP` na `RecoTrayWindow`, e `WM_KEYDOWN` Down/Enter postados na janela do menu):
+      "Gravar" → 30 s → "Parar" → `dur=31.7 xing=ok … alinhamento=ok -> ok`, `PASSOU`. f) velho fechado por `taskkill /F`
+      depois de `--checar-gravando`; `$setup` `/S` → exit 0 e o `Reco.lnk` voltou ao exe novo sem tecla.
 
 ### C. Paridade funcional e uso real
 
