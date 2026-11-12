@@ -3,7 +3,7 @@
   "teto_linhas": 500,
   "aviso_ate": "2026-10-26",
   "_aviso_ate_motivo": "14 dias de aviso, régua do veredito de 28/09 (D6 do roadmap 2026-10-11-melhoria-trava-tamanho-e-complexidade.md); o card lateral de 23/10 lê o log em <git-common-dir>/trava-tamanho.jsonl e decide se bloqueia.",
-  "extensoes": [".py", ".js", ".mjs", ".cjs", ".ps1", ".sh", ".cmd", ".bat"],
+  "extensoes": [".py", ".js", ".mjs", ".cjs", ".ps1", ".sh", ".cmd", ".bat", ".rs", ".ts"],
   "ignorar": ["**/__pycache__/**", "temp/**"],
   "excecoes": {},
   "complexidade": {
