@@ -107,6 +107,9 @@
      linha `transcription_available=True` (`reco.py:5132-5146`; sai antes do mutex, não incomoda o app aberto).
    - Por quê: `dist/` é ignorado pelo git, `build.ps1 -Clean` o apaga e um build com o app aberto falha no meio de
      `_internal` (`docs/ARQUITETURA.md:19-23`); a reserva quebraria sem aviso. Anotar hash e data do `Reco.exe`.
+   - Nota (2026-11-12, revisão): o `--selftest` não lê modelo nenhum (`reco.py:5133-5146` só olha os imports e os
+     devices do OpenVINO); quem prova a cópia dos modelos é a soma da árvore (relatório, passo 2). A reserva ganhou
+     também o `~/.reco_config.json` (`Reco-reserva\reco_config.json`), que o app novo grava no mesmo arquivo.
 3. [x] Fotografar o que o instalador vai tocar, para a volta do passo 16. — **prova:** os 4 comandos abaixo → 4 valores anotados no relatório
    **reprova se:** algum comando falha ou um dos 4 valores fica em branco.
    - Atalho: `$l="$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Reco.lnk"; if(Test-Path $l){$s=(New-Object -ComObject WScript.Shell).CreateShortcut($l); "$($s.TargetPath) | $($s.HotKey)"} else {"sem lnk"}`.
@@ -138,6 +141,11 @@
      md manda (`pior` > 3 reprova): é defeito real da transcrição, e o passo 18 compara com a linha de base. A prova rodou
      nas outras duas. Extras: `--anonimo` (G01…, para o relatório público), contagem dos vereditos e do alinhamento na
      penúltima linha, e o `pior` só como número (o n-grama é trecho de transcrição).
+   - Nota (2026-11-12, revisão): "mudo o arquivo inteiro" passou a ser "todos os segundos menos 1" (`limiar_mudo`): o
+     encoder vaza ~21 ms do canal com som para o mudo no 1º frame (medido pelo `reco.MP3Writer`), e com som desde o 1º
+     frame a regra de zero exato do começo ao fim nunca reprovava. O sistema usa `r_total` (segundos em zero), o mic a
+     maior sequência. `--exigir-txt` reprova também o `x.txt` vazio (`(no content recognized)`). Teste da régua:
+     `python tools/test_paridade.py` → `paridade: falhas 0`.
 5. [x] Prova negativa: a régua tem de reprovar arquivo ruim. — **prova:** `python tools/paridade.py temp/trunc_reco.mp3 temp/mono.mp3` → as duas linhas `FALHOU` (`xing=ERRADO`, `nao-estereo`), rc 1
    **reprova se:** alguma das duas sai `ok` ou `ALERTA`, ou rc 0.
    - `head -c 3000000 "<gravação real com mais de 10 MB>" > temp/trunc_reco.mp3`: o Xing do começo declara a duração inteira
@@ -148,6 +156,13 @@
      caiu no meio de um frame: o último pacote não decodifica e o `declared_and_real` desiste nele (`InvalidDataError`). A
      régua mede o Xing pulando esse pacote e sai `xing=ERRADO leitura=ERRO … FALHOU (xing, cauda-corrompida)`; um corte em
      fronteira de frame (2 999 000 bytes) sai `xing=ERRADO … FALHOU (xing)`. Processo morto no meio de uma escrita pode deixar o mesmo rabo (não medido).
+   - Nota (2026-11-12, revisão): conferir só veredito e rc deixava passar a régua com a checagem do Xing ou a do estéreo
+     desligadas (o truncado ainda caía em `cauda-corrompida`, o mono em `ERRO KeyError`). A prova do passo passa a ser
+     `python tools/test_paridade.py` → `paridade: falhas 0`, rc 0: MP3 sintéticos pelo `reco.MP3Writer` (repetível, sem
+     gravação do dono), com o motivo casado caso a caso (`xing` sozinho no corte em fronteira, `xing, cauda-corrompida`
+     no cabeçalho de frame cortado, `nao-estereo`, `sistema-mudo`, `mic-mudo`, `loop`, `txt-vazio`). O "rabo ruim" é o
+     cabeçalho incompleto: o truncado de 3 000 000 bytes terminava num pacote de 3 bytes; com o cabeçalho inteiro o
+     decoder aceita o frame curto.
 6. [x] Linha de base do app velho: rodar a régua nas 10 gravações mais recentes e anotar a contagem de vereditos. — **prova:** `cd "$HOME/Documents/Reco" && python C:/Dev/Reco/tools/paridade.py $(ls -t gravacao_reco_*.mp3 | grep -v _alinhado | head -10)` → 10 linhas e a contagem anotada
    **reprova se:** menos de 10 linhas ou algum `FALHOU` por erro de leitura (aí a régua, não o app, precisa de conserto).
    - Pasta: se `output_dir` do config não for nulo, trocar `$HOME/Documents/Reco` por ela (em 11/11/2026 era nulo).
@@ -197,6 +212,9 @@
      de instalar, o resto daquele bloco, antes do passo 10.
    - Antes de tudo: `Get-Process | ? Path -like '*\Reco*\*'` → vazio (pega `dist\Reco\Reco.exe`, a reserva e a pasta `Reco Novo`).
      Se não vier vazio, pedir ao Gabriel que saia pela bandeja: a sessão nunca mata app em uso (pode estar gravando).
+   - Nota (2026-11-12, revisão): com os apps fechados e antes de instalar, recopiar o config para a reserva (o velho o
+     grava a cada ajuste): `Copy-Item "$env:USERPROFILE\.reco_config.json" "$env:LOCALAPPDATA\Reco-reserva\reco_config.json"`
+     e conferir por `Get-FileHash` nos dois (iguais).
    - Se `Test-Path "$env:LOCALAPPDATA\Reco Novo\uninstall.exe"` já der `False`, o "Reco Novo" não está instalado: pular a desinstalação.
    - Desinstalar: `$u="$env:LOCALAPPDATA\Reco Novo\uninstall.exe"; Start-Process $u -ArgumentList '/S'`, depois esperar até 120 s
      como no passo 10: `$t=0; while ((Test-Path $u) -and $t -lt 120) { Start-Sleep 1; $t++ }; Test-Path $u` → `False`.
@@ -274,6 +292,10 @@
     - b) Se "iniciar com o Windows" estiver ligado, desligar antes (ou `reg delete HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v $prod /f`).
     - c) Conferir `_migracao` (comando do passo 3): `2` segue; maior que 2, parar e ler a armadilha 029 antes de abrir o velho.
     - d) Abrir `C:\Dev\Reco\dist\Reco\Reco.exe`; se a pasta estiver quebrada, a cópia `%LOCALAPPDATA%\Reco-reserva\Reco\Reco.exe`.
+      Nota (2026-11-12, revisão), antes de abrir: sem `%LOCALAPPDATA%\Reco\models`, repor com
+      `robocopy "$env:LOCALAPPDATA\Reco-reserva\models" "$env:LOCALAPPDATA\Reco\models" /E` (código < 8 = ok); com o
+      `~/.reco_config.json` ilegível (`python -c "import json,pathlib;json.loads((pathlib.Path.home()/'.reco_config.json').read_text(encoding='utf-8'))"`
+      dá erro), copiar de volta `%LOCALAPPDATA%\Reco-reserva\reco_config.json`.
     - e) Atalho do velho: Opções → "Remover atalho" → "Criar atalho (Ctrl+Shift+R)" (`reco.py:4879-4890`). Isso
       troca o `Reco.lnk` do Menu Iniciar para o velho, e o novo some do menu até ser reinstalado.
     - Aqui roda a prova do passo (velho vivo sozinho, gravação de 30 s pela régua).
@@ -287,6 +309,7 @@
 18. [ ] Uso real: 6 gravações do Gabriel com o app novo (F4-D1), cada uma pela régua. — **prova:** `python tools/paridade.py <as 6> --exigir-txt` → 6 linhas `ok` ou `ALERTA` e `PASSOU`
     **reprova se:** alguma `FALHOU`, ou faltam G1 (≥ 60 min) ou G2 (fone).
     - Byte a byte em G3 e numa segunda gravação ≤ 10 min: `python tools/paridade.py <mp3> --txt-contra-script` → `script=igual`.
+    - Nota (2026-11-12, revisão): com `--exigir-txt`, o `x.txt` vazio (`(no content recognized)`) também reprova.
     - G2 com fone: use `--sem-sistema` só se o outro lado de fato não falou; `alinhamento=sem correlacao` é esperado.
     - `ALERTA` de salto: comparar com a linha de base do passo 6 (F4-D2) e anotar carga da máquina na hora.
 19. [ ] O ouvido dos agentes segue igual com o app novo aberto. — **prova:** `python tools/transcrever.py temp/ouvido/<um .opus ou .m4a qualquer> --forcar` → imprime o caminho `<arquivo>.opus.txt`, rc 0; `python tools/test_antiloop.py <G1> large-v3-turbo GPU` → `PASSOU`
@@ -322,6 +345,8 @@
 25. [ ] Relatório no sidecar e commit por pathspec (nunca `git add -A`, nunca `--no-verify`). — **prova:** `git -C C:/Dev/Reco status --short` → nada da fase fora do commit
     **reprova se:** sobra arquivo da fase sem commit, ou o pre-commit foi pulado.
     - `git add tools/paridade.py docs/TOOLS.md docs/ARQUITETURA.md docs/_INDICE.md README.md docs/screenshot.png CLAUDE.md docs/armadilhas.d/<novos> app/src-tauri/tauri.conf.json roadmap/2026-11-11-melhoria-reco-em-rust.d/<relatório>`.
+    - Nota (2026-11-12, revisão): `tools/test_paridade.py`, `engine/reco_engine/__init__.py` (motor 0.3.0),
+      `tools/engine_checks_proto.py` e `docs/PROTOCOL.md` já entraram em commits da revisão.
     - Somar ao pathspec o que o passo 1 mudou na versão: `app/src-tauri/Cargo.toml`, `app/src-tauri/Cargo.lock`, `app/package.json` e o lockfile do front.
     - Somar também `app/src-tauri/src/atalho.rs`, qualquer outro arquivo de `app/` que o grep do passo 8 apontou e
       `engine/reco_engine/boot.py`, se o passo 8 acrescentou a linha `ready em`.

@@ -18,9 +18,13 @@ Uma linha por arquivo:
 - `script`: com `--txt-contra-script`, o `x.txt` do app comparado byte a byte com o que o `tools/transcrever.py` gera
   da mesma gravação, com o modelo, o device e o idioma do app (o script ignora os do config, por isso as flags).
 
-FALHOU: Xing errado; não estéreo; sistema em zero o arquivo inteiro (sem `--sem-sistema`); mic em zero o arquivo inteiro;
-erro de leitura (o arquivo cortado no meio de um frame sai `leitura=ERRO`, com o Xing medido mesmo assim); `pior` > 3; com `--txt-contra-script`, `script` diferente de `igual` (`DIFERENTE`, `erro`, `sem-txt`); com `--exigir-txt`, `x.txt` ausente ou corrido.
+FALHOU: Xing errado; não estéreo; sistema em zero o arquivo inteiro (sem `--sem-sistema`); mic em zero o arquivo inteiro
+("inteiro" = todos os segundos menos 1, pelo vazamento do encoder no 1º frame: `limiar_mudo`); erro de leitura (o arquivo
+cortado no meio de um frame sai `leitura=ERRO`, com o Xing medido mesmo assim); `pior` > 3; com `--txt-contra-script`,
+`script` diferente de `igual` (`DIFERENTE`, `erro`, `sem-txt`); com `--exigir-txt`, `x.txt` ausente, corrido ou vazio.
 ALERTA (não reprova): `r_zero_inicio` >= 60 s (o maior em reunião boa foi 73 s); alinhamento `salto` ou `desalinhado`.
+Limite conhecido: com o mic falando desde o 1º frame, o mesmo vazamento zera o `r_zero_inicio` e esse ALERTA não sai.
+Teste da régua (MP3 sintéticos, sem gravação de ninguém): `python tools/test_paridade.py`.
 `--anonimo` troca o nome por G01, G02… na ordem dada (para relatório em repo público).
 Saída: 0 = PASSOU, 1 = alguma FALHOU, 2 = uso errado.
 """
@@ -84,7 +88,7 @@ def medir_audio(mp3: Path) -> dict:
         m["nao_estereo"] = True
         return m
     # `medir` conta segundos inteiros (`dur` = piso; `r_ini` = `dur` se o sistema nunca tocou): compara-se com ele
-    m.update(r_ini=zeros["r_ini"], mic_maior=zeros["mic_maior"], seg=zeros["dur"])
+    m.update(r_ini=zeros["r_ini"], r_total=zeros["r_total"], mic_maior=zeros["mic_maior"], seg=zeros["dur"])
     serie, n, dur_s = mede(mp3, JANELA_S)
     m["alinhamento"] = resume(mp3.name, serie, n, dur_s)["veredito"]
     return m
@@ -133,11 +137,20 @@ def contra_script(mp3: Path) -> str:
     return "igual" if a == b or (a.strip() in vazio and b.strip() in vazio) else "DIFERENTE"
 
 
+def limiar_mudo(seg: int) -> int:
+    """Segundos em zero que contam como "mudo do começo ao fim". O encoder (libmp3lame, também pelo `reco.MP3Writer`)
+    vaza ~21 ms do canal com som para o mudo no 1º frame: com som desde o início, o 1º segundo do lado mudo não é zero
+    exato e a conta do arquivo inteiro nunca fecha (revisão da Fase 4, 12/11/2026; medido até com ruído saturado). Tolera
+    1 s; arquivo de menos de 2 s exige todos."""
+    return seg - 1 if seg >= 2 else seg
+
+
 def julgar_canais(m: dict, flags: set, falhas: list, alertas: list) -> None:
     """Regras dos dois canais (só em arquivo estéreo lido inteiro)."""
-    if m["r_ini"] >= m["seg"] and "--sem-sistema" not in flags:
+    limiar = limiar_mudo(m["seg"])
+    if m["r_total"] >= limiar and "--sem-sistema" not in flags:
         falhas.append("sistema-mudo")
-    if m["mic_maior"] >= m["seg"]:
+    if m["mic_maior"] >= limiar:
         falhas.append("mic-mudo")
     if m["r_ini"] >= R_ZERO_ALERTA_S and "sistema-mudo" not in falhas:
         alertas.append("r_zero_inicio")
@@ -160,7 +173,7 @@ def julgar(m: dict, txt: str, p: int | None, script: str | None, flags: set) -> 
         falhas.append("loop")
     if script is not None and script != "igual":   # DIFERENTE, ou a comparação pedida não rodou (erro, sem-txt)
         falhas.append(f"script-{script}")
-    if "--exigir-txt" in flags and txt in ("ausente", "corrido"):
+    if "--exigir-txt" in flags and txt in ("ausente", "corrido", "vazio"):
         falhas.append(f"txt-{txt}")
     if falhas:
         return "FALHOU", falhas
