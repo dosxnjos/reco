@@ -3,6 +3,8 @@
 > **Parcial: passos 2 a 10** (o casco Rust). O passo 1 foi feito só na parte de contrato. Os passos 11 em
 > diante (interface, testes de tela, build final, teste real) não começaram: dependem da direção visual, que
 > o dono decidiu às ~22:40 (A "Fita" padrão; B e C como skins em Opções) enquanto esta execução andava.
+> **Atualização (12/11):** os passos 11 a 16 foram feitos depois (execução anotada em cada passo do md; o 16 tem
+> seção própria abaixo). Seguem abertos o 17 (teste real) e o 18 (docs).
 
 Fase: [fase-3](../2026-11-11-melhoria-reco-em-rust-fase-3.md) · índice: [Reco em Rust](../2026-11-11-melhoria-reco-em-rust.md).
 
@@ -150,8 +152,9 @@ que abri; reabrir é com ele).
 
 ### Passo 16 — `app/build.ps1` e o instalador (12/11/2026, 03:34 a 03:58)
 
-Condição: o chamador avisou que o Reco do dono estava aberto. Não conferi no início; às 03:59, depois do build,
-`tasklist` não achou nenhum processo com "reco" no nome (nem o velho, nem o casco, nem o motor). Esta rodada não
+Condição: o chamador avisou que o Reco do dono estava aberto, mas ele **já não rodava antes do build**: às ~03:31
+o `Get-Process` com os nomes `reco` e `reco-engine` (entre outros) só achou `node`, e às 03:59, depois do build,
+`tasklist` não achou nenhum processo com "reco" no nome. Não sei quando nem por que ele fechou; não o reabri. Esta rodada não
 abriu, fechou nem mandou mensagem a ele: o build não abre o app (o casco de release pega o mesmo mutex) nem o
 instalador, e o smoke sobe só o `reco-engine.exe` congelado, que encerra com `shutdown`. Uma execução anterior caiu às ~03:25 com o `build.ps1` escrito e sem commit; ela chegou a gerar
 `C:\pt\release\reco.exe` às 03:09, mas nenhum instalador. Retomada sem processo de build órfão (só MCP do
@@ -190,8 +193,7 @@ Playwright e o coletor do WhatsApp). O `build.ps1` foi lido, conferido contra o 
   `unminimize`). Conferir no passo 12; se incomodar, tirar o `skipTaskbar` ao fixar.
 - **Resto da fumaça:** a rodada do exe de debug criou `%LOCALAPPDATA%\io.github.dosxnjos.reco\` (`EBWebView` e
   `logs`). É o perfil normal do app novo; fica até a desinstalação ou limpeza da Fase 4.
-- **Passos 11 a 18:** interface, testes de tela, `app/build.ps1`, teste real e docs. O `i18n:check` do
-  `package.json` entra no passo 11 com o script dele.
+- **Passos 17 e 18:** teste real com o app velho fechado (inclui os dois tempos do passo 16) e docs.
 
 ### completei:
 
