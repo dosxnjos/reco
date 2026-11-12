@@ -71,6 +71,11 @@
 >   da 1ª gravação.
 > - `Reco Novo.log` (ou `Reco.log`, depois do passo 8) na hora local; o `engine.log` do Sair diz `encerrando (shutdown)`.
 > - A instalação silenciosa não deixa atalho na Área de Trabalho.
+> - **Antes de instalar** (Reco velho fechado pelo dono): `python tools/test_engine_protocol.py --gravar 5 --concluir`
+>   e `python tools/test_engine_protocol.py --eof 25`
+>   (as checagens que gravam abortam com o velho aberto e não rodaram depois do `058acfc`, que mexeu no ao vivo:
+>   `recording._stop_live` e `conclude.make_live`) e uma gravação curta com o ao vivo ligado no app instalado,
+>   parada normal (passada final sem `busy`).
 > - Também ficaram sem prova no build final: o hover e o clique no ícone (sem mouse, a pedido do dono), o ícone saindo
 >   do vermelho quando o motor cai gravando, o clique dentro da janela do hover (fixa e foca), minimizar com
 >   `skipTaskbar` (a janela só volta pela bandeja) e se o repasse `--transcribe` pega o mutex.
@@ -155,6 +160,8 @@
    - Anotar o tamanho do instalador no relatório (hoje não há número; o Lacre sem OpenVINO deu 30,6 MB).
 9. [ ] Desinstalar o "Reco Novo" e só então instalar o "Reco", em silêncio, com os dois apps fechados pelo Gabriel na bandeja. — **prova:** `Test-Path "$env:LOCALAPPDATA\Reco Novo\uninstall.exe"` → `False`; depois `Start-Process $setup -ArgumentList '/S' -Wait; Test-Path $exe` → `True`
    **reprova se:** o velho ou o "Reco Novo" ainda está vivo (parar: pode estar gravando), o "Reco Novo" segue instalado ou no Menu Iniciar, `False` no fim, ou SmartScreen/Defender bloqueia.
+   - Com os dois apps fechados, antes de instalar: as checagens que gravam do bloco "Herdado da Fase 3" (acima); depois
+     de instalar, o resto daquele bloco, antes do passo 10.
    - Antes de tudo: `Get-Process | ? Path -like '*\Reco*\*'` → vazio (pega `dist\Reco\Reco.exe`, a reserva e a pasta `Reco Novo`).
      Se não vier vazio, pedir ao Gabriel que saia pela bandeja: a sessão nunca mata app em uso (pode estar gravando).
    - Se `Test-Path "$env:LOCALAPPDATA\Reco Novo\uninstall.exe"` já der `False`, o "Reco Novo" não está instalado: pular a desinstalação.

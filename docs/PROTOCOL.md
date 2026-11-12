@@ -77,7 +77,10 @@ Notas por comando:
 - `rec.start` recusa com `busy` fora de `idle` (inclusive `stopped`: concluir antes), e `nota` também
   com transcrição em curso. Dispositivos: resolvidos pelo config na hora (`no_device` se nenhum).
   Ao vivo liga se `config.live` e não há transcrição (`live_suprimido:true` se havia). `nota` grava só
-  o mic, mono, prefixo `nota`/`note`, nunca ao vivo.
+  o mic, mono, prefixo `nota`/`note`, nunca ao vivo. Desde 12/11/2026, `live_suprimido:true` também vem quando o
+  ao vivo da gravação anterior, parado sem esperar (erro fatal de captura, falha no start ou no stop), ainda
+  termina o trecho em curso: ele segura a vaga até acabar (no máximo 120 s), e nesse intervalo `transcribe.file`
+  e a nota também levam `busy`.
 - `rec.stop` sem áudio capturado responde `no_audio` e volta a `idle`.
 - `rec.conclude` age sobre o `last_rec` no estado `stopped` (`refused` em outro estado). Se a
   gravação sumiu do disco (ex.: `library.delete`), responde `not_found` e o estado vai a `idle`.
