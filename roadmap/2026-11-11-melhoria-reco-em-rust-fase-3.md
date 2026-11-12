@@ -93,6 +93,10 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
 - `rec.set_gain` → `{applied}` (0 a 10); `transcribe.cancel` → `{found}`.
 - `config.get`/`config.set` → `{config:{…}, output_dir_efetivo, lang_efetivo}`: a preferência mora em
   `data.config.casco_atalho` (passo 10). `casco_*` aceita qualquer valor (sem validação de tipo no motor).
+- **Preferências do casco (decisão do dono, 11/11 ~22:40):** `casco_atalho` (bool), `casco_tema`
+  (`sistema|claro|escuro`) e **`casco_skin`** (`a|b|c`, padrão `a` = direção A "Fita"; B "Caderno" e C
+  "Instrumento" ficam como skins em Opções, sem poda). A interface aplica `data-direcao="<skin>"` no `<html>`,
+  igual ao condutor da vitrine. Todas gravadas pelo motor via `config.set` (prefixo `casco_`, F2-D16); o Rust só lê.
 - `library.list` → `{folder, items:[{name, path, mtime, bytes, duration_s, txt, resumo}]}`; `library.search` →
   `{q, items}`; `library.delete` → `{path, deleted}`.
 - `convert.extract_mp3` → `{path, src_bytes, dst_bytes}`, `progress` com `pct` inteiro e `text: null`.
@@ -202,7 +206,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      NSIS `currentUser` em `PortugueseBR` e `English`, `targets: ["nsis"]`.
    - Capability: a do Lacre (`core:event:allow-listen`, `allow-unlisten`) mais `core:window:allow-start-dragging`
      para a barra de título própria. Nada de permissão de plugin para a webview: plugins rodam só do Rust.
-4. [ ] Ponte com o motor: copiar `engine.rs` do Lacre **dividido** em `app/src-tauri/src/motor/` (`router.rs`, `processo.rs`, `log.rs`, `prazos.rs`, `testes.rs`) — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml motor` → `test result: ok`, 11 ou mais testes
+4. [x] Ponte com o motor: copiar `engine.rs` do Lacre **dividido** em `app/src-tauri/src/motor/` (`router.rs`, `processo.rs`, `log.rs`, `prazos.rs`, `testes.rs`) — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml motor` → `test result: ok`, 11 ou mais testes
    **reprova se:** algum teste do Router falha ou um arquivo de `motor/` passa de 500 linhas (`wc -l`).
    - De onde vem cada parte: Router `engine.rs:47-131`; Launch `:137-211`; processo, geração, backoff e shutdown
      `:217-523`; log com rotação de 2 MB e `truncate` `:542-591`; testes `:597-871`.
