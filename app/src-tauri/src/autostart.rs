@@ -85,12 +85,13 @@ mod reg {
         !matches!(marca, Ok(v) if marca_desabilitada(&v))
     }
 
-    /// Já ligado com outro valor (o sem aspas de um build anterior, ou outro caminho): regrava o certo.
+    /// Só troca o valor **antigo deste mesmo exe** (o sem aspas que o plugin gravava) pelo certo. Outro caminho fica
+    /// como está: um casco de build (`C:\pt\…`) aberto com o autostart ligado não pode tomar o boot do instalado.
     /// Desligado não cria nada. Devolve se regravou.
-    pub fn reparar(ch: &Chaves, valor: &str) -> Result<bool, String> {
+    pub fn reparar(ch: &Chaves, antigo: &str, certo: &str) -> Result<bool, String> {
         match valor_atual(ch) {
-            Some(atual) if atual != valor => {
-                CURRENT_USER.create(ch.run).and_then(|k| k.set_string(ch.nome, valor)).map_err(|e| e.to_string())?;
+            Some(atual) if atual == antigo => {
+                CURRENT_USER.create(ch.run).and_then(|k| k.set_string(ch.nome, certo)).map_err(|e| e.to_string())?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -111,19 +112,29 @@ mod reg {
     pub fn ligado(_: &Chaves) -> bool {
         false
     }
-    pub fn reparar(_: &Chaves, _: &str) -> Result<bool, String> {
+    pub fn reparar(_: &Chaves, _: &str, _: &str) -> Result<bool, String> {
         Ok(false)
     }
 }
 
-fn valor_deste_exe() -> Result<String, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    Ok(valor_run(&exe.display().to_string(), &ARGS))
+/// O valor que o `tauri-plugin-autostart` gravava (`format!("{} {}")` do `auto-launch` 0.6.0), para o reparo.
+pub fn valor_antigo_sem_aspas(exe: &str, args: &[&str]) -> String {
+    format!("{} {}", exe, args.join(" "))
 }
 
-/// Na partida: se já estava ligado com o valor velho (sem aspas), troca pelo certo. Erro só vai ao log.
+fn exe_atual() -> Result<String, String> {
+    Ok(std::env::current_exe().map_err(|e| e.to_string())?.display().to_string())
+}
+
+fn valor_deste_exe() -> Result<String, String> {
+    Ok(valor_run(&exe_atual()?, &ARGS))
+}
+
+/// Na partida: se já estava ligado com o valor velho **deste exe** (sem aspas), troca pelo certo. Erro só vai ao log.
 pub fn reparar_na_partida() {
-    match valor_deste_exe().and_then(|v| reg::reparar(&CHAVES_REAIS, &v)) {
+    let r = exe_atual()
+        .and_then(|exe| reg::reparar(&CHAVES_REAIS, &valor_antigo_sem_aspas(&exe, &ARGS), &valor_run(&exe, &ARGS)));
+    match r {
         Ok(true) => ::log::info!("[reco] iniciar com o Windows: valor do Run regravado com aspas"),
         Ok(false) => {}
         Err(e) => ::log::warn!("[reco] iniciar com o Windows: reparo falhou: {e}"),
@@ -169,7 +180,7 @@ mod testes {
     /// Contra o registro de verdade, mas numa chave só de teste (`HKCU\Software\RecoTeste`), nunca no `Run` real.
     #[cfg(windows)]
     mod registro {
-        use super::super::{reg, valor_run, Chaves, ARGS};
+        use super::super::{reg, valor_antigo_sem_aspas, valor_run, Chaves, ARGS};
         use super::EXE;
         use std::sync::Mutex;
         use windows_registry::{Type, CURRENT_USER};
@@ -254,14 +265,34 @@ mod testes {
             let sb = Sandbox::nova("reparar");
             let ch = sb.chaves();
             let certo = valor_run(EXE, &ARGS);
-            assert!(!reg::reparar(&ch, &certo).unwrap());
+            let antigo = valor_antigo_sem_aspas(EXE, &ARGS);
+            assert_eq!(antigo, format!("{EXE} --oculto"), "o formato do plugin");
+            assert!(!reg::reparar(&ch, &antigo, &certo).unwrap());
             assert_eq!(reg::valor_atual(&ch), None, "desligado continua desligado");
 
             // O que o build 0.3.0 com o plugin gravava.
-            CURRENT_USER.create(&sb.run).unwrap().set_string("Reco", format!("{EXE} --oculto")).unwrap();
-            assert!(reg::reparar(&ch, &certo).unwrap());
+            CURRENT_USER.create(&sb.run).unwrap().set_string("Reco", &antigo).unwrap();
+            assert!(reg::reparar(&ch, &antigo, &certo).unwrap());
             assert_eq!(reg::valor_atual(&ch).as_deref(), Some(certo.as_str()));
-            assert!(!reg::reparar(&ch, &certo).unwrap(), "já certo: nada a fazer");
+            assert!(!reg::reparar(&ch, &antigo, &certo).unwrap(), "já certo: nada a fazer");
+        }
+
+        #[test]
+        fn reparar_nao_toma_o_boot_de_outro_exe() {
+            let sb = Sandbox::nova("outro");
+            let ch = sb.chaves();
+            // Ligado pelo app instalado; quem abre é um casco de build noutro caminho.
+            let do_instalado = valor_run(EXE, &ARGS);
+            CURRENT_USER.create(&sb.run).unwrap().set_string("Reco", &do_instalado).unwrap();
+            let build = r"C:\pt\debug\reco.exe";
+            let mudou = reg::reparar(&ch, &valor_antigo_sem_aspas(build, &ARGS), &valor_run(build, &ARGS)).unwrap();
+            assert!(!mudou);
+            assert_eq!(reg::valor_atual(&ch).as_deref(), Some(do_instalado.as_str()), "o Run mudou de dono");
+            // Nem o valor sem aspas de outro exe.
+            let sem_aspas_do_instalado = valor_antigo_sem_aspas(EXE, &ARGS);
+            CURRENT_USER.create(&sb.run).unwrap().set_string("Reco", &sem_aspas_do_instalado).unwrap();
+            assert!(!reg::reparar(&ch, &valor_antigo_sem_aspas(build, &ARGS), &valor_run(build, &ARGS)).unwrap());
+            assert_eq!(reg::valor_atual(&ch).as_deref(), Some(sem_aspas_do_instalado.as_str()));
         }
     }
 }

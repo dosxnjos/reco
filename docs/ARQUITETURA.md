@@ -391,7 +391,8 @@ App novo da Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco
 - **Iniciar com o Windows** (`autostart.rs`, desde 12/11/2026): grava à mão `HKCU\…\CurrentVersion\Run` /v `Reco` =
   `"<exe>" --oculto`, **com aspas**, e desligar apaga também a marca em `…\Explorer\StartupApproved\Run`. Não voltar
   ao `tauri-plugin-autostart`: o `auto-launch` dele grava o caminho sem aspas (a pasta do usuário pode ter espaço) e
-  deixa a marca ao desligar. Na partida, um valor antigo diferente (já ligado) é regravado; desligado não cria nada.
+  deixa a marca ao desligar. Na partida, só o valor antigo sem aspas **deste mesmo exe** é regravado com aspas; outro
+  caminho fica como está (um casco de build em `C:\pt` não toma o boot do instalado) e desligado não cria nada.
   Os testes usam `HKCU\Software\RecoTeste`, nunca o `Run` real.
 - **Quem encadeia o parar** (F3-D13): `parar_gravacao` pede `rec.stop` e, com `auto` (nota ou passada final),
   o `rec.conclude` em segundo plano; o resultado vai à tela pelo evento `reco-conclusao`. Tela e bandeja param
