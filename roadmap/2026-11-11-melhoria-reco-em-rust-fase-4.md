@@ -348,6 +348,10 @@
 
 17. [ ] Executar o checklist de paridade abaixo com o app instalado e gravar o resultado de cada linha no relatório. — **prova:** `grep -c "| ✗ |" <relatório da fase>` → `0` e `grep -c "| ✓ |" <relatório da fase>` → número de linhas do checklist
     **reprova se:** alguma linha ✗, ou linha sem resultado. Linha que a Fase 3 tirou de propósito entra como ✓ com o motivo.
+    - Nota (2026-11-12, execução, build `84EE1142`, sem mouse, máquina carregada por outras sessões): 17 ✓, 9 ⏸, 0 ✗
+      (tabela no relatório, seção "Passos 9 a 17 — app instalado"). As ⏸ precisam da mão ou do olho do dono: P1 (arrastar),
+      P7, P8 (Abrir transcrição), P12 (trocar o padrão do Windows), P13, P18 e P21 (diálogos do Windows), P19 (comparar
+      com a Biblioteca do velho) e P22 (hover, clique e ícone). Fica `[ ]` até elas virarem ✓.
 18. [ ] Uso real: 6 gravações do Gabriel com o app novo (F4-D1), cada uma pela régua. — **prova:** `python tools/paridade.py <as 6> --exigir-txt` → 6 linhas `ok` ou `ALERTA` e `PASSOU`
     **reprova se:** alguma `FALHOU`, ou faltam G1 (≥ 60 min) ou G2 (fone).
     - Byte a byte em G3 e numa segunda gravação ≤ 10 min: `python tools/paridade.py <mp3> --txt-contra-script` → `script=igual`.

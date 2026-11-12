@@ -391,3 +391,55 @@ modelos 828 098 952 antes e depois; `reco.exe` `3B8CBE2947CA33440F78DD71BF949673
 - f) `--checar-gravando` → nenhuma; velho fechado por `taskkill /F`; mutex livre; `$setup` (`84EE1142`) `/S` → exit 0,
   `Test-Path $exe` `True`; `Reco.lnk` → `%LOCALAPPDATA%\Reco\reco.exe |` (o instalador sobrescreveu o `.lnk` do velho com
   tecla: F4-D5 confirmada). A 1ª rodada do ensaio (só os cliques por `BM_CLICK`) fez o mesmo e/f com o mesmo resultado.
+
+**Passo 17 — checklist de paridade (17:15 a 17:36, build `84EE1142`, online, sem mouse).** Uma sessão do app por CDP
+para P2 a P26, outra para P1, P8, P10 e P16, e o repasse do P25 com o app fechado. Toda gravação com o clipe tocando;
+todo arquivo de teste fora da pasta do dono no fim (`sobrou_na_pasta: []` nas duas sessões). **Máquina carregada** por
+outros processos durante toda a rodada (CPU total 79 a 85%, `node`/`python` de outras sessões): os tempos abaixo e o
+`desalinhado` do P10 saem sob essa carga. Marcas: ✓ provado; ⏸ pulado ou pendente do dono (sem mouse ou sem olho dele).
+
+| # | resultado | evidência |
+| --- | --- | --- |
+| P1 | ⏸ | por script: Minimizar no DOM → `IsIconic` verdadeiro; X → janela oculta, processo vivo, ícone na bandeja (também no passo 12). Arrastar e ver o minimizado voltar só pela bandeja: **pulado a pedido do dono: sem mouse** |
+| P2 | ✓ | 10 cliques no DOM (abas, modo, processar) → 1 tamanho só de janela (`GetWindowRect`) e de página (400×560); `testar-anti-pulo.cjs --url` no `ui:preview` do build → `0 diferenças em 23868 medições`; `testar-contrato.cjs --url` → `0 falhas` |
+| P3 | ✓ | ganho do mic no controle → `2,0×` na tela e `mic_gain` 2.0 no config; de volta → `3,0×` e 3.0 |
+| P4 | ✓ | 20 s, Pausar (cronômetro parado em `00:00:20` por 20 s), Continuar, até `00:00:40`, Parar → régua `dur=40.1 xing=ok … -> ok` |
+| P5 | ✓ | "Salvar e copiar caminho" → `Get-Clipboard` = `"…\gravacao_reco_2026-11-12_17-18-49.mp3"` entre aspas |
+| P6 | ✓ | Salvar + transcrever → `x.txt` nasce, MP3 fica; Transcrever e excluir → `x.txt` nasce, MP3 sai e está na Lixeira (`Shell.Application` `NameSpace(10)`); Excluir → MP3 na Lixeira, sem `.txt` |
+| P7 | ⏸ | abrir no player padrão toma a frente da tela do dono: **pulado** (olho do dono) |
+| P8 | ⏸ | status com `white-space: nowrap`, `text-overflow: ellipsis`, altura de 1 linha (16 px); "Abrir transcrição" abre o `.txt` no editor (toma a frente): pendente do dono |
+| P9 | ✓ | Salvar + transcrever de 30 s e "Parar transcrição" 0,8 s depois → nenhum `.txt` em 15 s; status "Transcrição parada. O áudio continua na pasta." |
+| P10 | ✓ | ao vivo ligado, 5 min com o clipe: painel com 37 / 488 / 655 / 783 / 1270 caracteres em 1 / 2 / 3 / 4 / 5 min; Parar → `x.txt` diarizado; régua `dur=300.8 xing=ok … txt=diarizado pior=3 -> ALERTA (desalinhado)` (salto sob carga, F4-D2); ao vivo desligado de novo |
+| P11 | ✓ | nota de 8 s → `.md` existe, clipboard com o `.md` entre aspas, nenhum `nota_*.mp3` na pasta |
+| P12 | ⏸ | "Auto comunicação" no select → `mic_device` `auto:comm`, de volta `auto:console` (script ✓); trocar o padrão do Windows e ver a gravação seguir: pendente do dono |
+| P13 | ⏸ | "Escolher" abre o diálogo de pasta do Windows: **pulado a pedido do dono: sem mouse** |
+| P14 | ✓ | Processar em GPU → `device` `GPU`; AUTO → `AUTO` |
+| P15 | ✓ | EN → botão principal `Record` (captura `p17-ingles.png`) e arquivo `recording_reco_2026-11-12_17-23-50.mp3`; PT → `Gravar` |
+| P16 | ✓ | Aparência escuro / claro / sistema → `data-tema` `escuro`, `claro` e sem tema (segue o sistema); skins `a`, `b`, `c` em Opções (Fases 1 e 3) |
+| P17 | ✓ | navegação pelas 4 abas no DOM (P2); gravando, a aba Arquivo fica `aria-disabled=true` com o motivo "Bloqueada enquanto grava ou transcreve" na própria aba (captura `p17-abas-gravando.png`); Biblioteca e Opções seguem livres |
+| P18 | ⏸ | "Escolher arquivo" abre o diálogo do Windows: **pulado a pedido do dono: sem mouse** (o caminho do motor está provado no P25 e no `--concluir`) |
+| P19 | ⏸ | a Biblioteca lista 108 itens (contador `108`; a pasta tem 106 `.mp3` e outros arquivos de áudio); comparar com a contagem do velho e cada ação exige a tela do velho (mouse): pendente do dono |
+| P20 | ✓ | Biblioteca → item → Resumo → `x.resumo.md` ao lado |
+| P21 | ⏸ | Converter também começa no diálogo de arquivo: **pulado a pedido do dono: sem mouse** |
+| P22 | ⏸ | menu por mensagem: Gravar (`WM_COMMAND 1000`) e Sair (`1003`) funcionam (P26, passos 9 a 16); hover, clique no ícone e ícone vermelho: **pulado a pedido do dono: sem mouse** |
+| P23 | ✓ | Opções `Reco 0.3.0 · motor 0.3.0`; 8 s depois do pronto, online, o botão "Baixar a {tag}" segue com `data-escondido` (nenhuma versão nova acusada); release Latest no GitHub `v0.2.0` |
+| P24 | ✓ | passos 11 e 12 (atalho sem tecla; mutex nos dois sentidos); a tecla física fica com o dono (passo 11) |
+| P25 | ✓ | `(Start-Process $exe -ArgumentList '--transcribe','<cópia em temp>','--diarize' -Wait -PassThru).ExitCode` → `0` em 59,8 s; `a_reco.txt` com 4 falas `Eu`/`Interlocutor(es)`; durante o repasse o mutex **não** existiu e nenhuma janela apareceu (responde à pendência da Fase 3) |
+| P26 | ✓ | Gravar pela bandeja, 16 s, Sair pela bandeja gravando → saiu em 12 s com código 0; régua `dur=16.0 xing=ok … -> ok` |
+
+Contagem: 17 ✓, 9 ⏸, 0 ✗. O passo 17 fica `[ ]` até o dono fazer as 9 linhas ⏸ (lista em "Com o dono", abaixo).
+
+**Config e pasta do dono:** os testes deixaram `language: "pt"` (antes nulo) e `casco_tema: "sistema"` (chave nova) no
+`~/.reco_config.json`; com os dois apps fechados, o config voltou da cópia das 16:45 (`cmp` → igual; a cópia já tinha o
+ganho do sistema 1,0 que o dono escolheu às 16:39). `Documents\Reco`: 214 arquivos, os mesmos da foto das 16:45 (o
+`.txt` do teste do dono das 16:39 incluído e intocado). Arquivos de teste em `temp/medicoes/f4/` (fora do git) ou na
+Lixeira (os que o próprio app manda para lá: nota, Transcrever e excluir, Excluir, o arquivo em inglês). Clipboard
+reposto depois de cada "copiar".
+
+**Com o dono (pendente):**
+
+- Passo 11: Ctrl+Shift+R por tecla física (ligar o atalho em Opções, app na bandeja; depois com o app fechado).
+- Passo 13: com o autostart ligado, reiniciar e ver o ícone subir sem janela (desligar depois, se não quiser).
+- Passo 14: "a frio" (3 reinícios) e a mediana a quente do build final com a máquina livre (a desta rodada saiu sob carga).
+- Passo 17: P1 (arrastar), P7 (player), P8 (Abrir transcrição), P12 (trocar o padrão do Windows), P13 (pasta), P18 e P21
+  (escolher arquivo), P19 (comparar a Biblioteca com a do velho) e P22 (hover, clique e ícone vermelho).
