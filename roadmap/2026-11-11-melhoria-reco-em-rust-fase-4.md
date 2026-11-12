@@ -91,6 +91,9 @@
 > Nota (2026-11-12, 18:28, conserto do autostart): o `$setup` foi refeito do `880c446` (SHA256 `96B45826…EA42D901`,
 > relatório, seção "Conserto do autostart"), **não instalado**. O app instalado e aberto continua o `84EE1142`; a
 > próxima reinstalação pelo `$setup` leva o conserto e reabre a prova do passo 13.
+>
+> Nota (2026-11-12, 18:34): o `96B45826` foi **instalado** por cima do `84EE1142` e é o app aberto desde 18:59. A prova
+> do passo 13 foi refeita e passou (relatório, seção "Reinstalação com o conserto do autostart").
 
 ### A. Reserva e régua, antes de instalar
 

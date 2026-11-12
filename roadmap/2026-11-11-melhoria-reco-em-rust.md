@@ -25,7 +25,7 @@ Pedido: reco-rust | Reco em Rust, com interface bonita e que não fica pulando |
 | 1 Identidade visual e contrato de tela | [fase-1](2026-11-11-melhoria-reco-em-rust-fase-1.md) | 0 (medições de tempo e da bandeja) | fechada (12/11) |
 | 2 Motor Python como servidor | [fase-2](2026-11-11-melhoria-reco-em-rust-fase-2.md) | 0 | fechada (12/11) |
 | 3 Casco Tauri e telas novas | [fase-3](2026-11-11-melhoria-reco-em-rust-fase-3.md) | 1 (direção escolhida) e 2 | fechada (12/11) |
-| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 | **em curso**: passos 1 a 13, 15 e 16 feitos em 12/11; o "Reco" 0.3.0 (`84EE1142`) está instalado e aberto desde 17:43 e o velho, fechado na reserva. Abertos: 14 (remedir com a máquina livre), 17 (11 linhas do Gabriel) e 18 em diante (uso real). Conserto do autostart (`be4664c`, `880c446`) com o instalador `96B45826` pronto para a próxima reinstalação (Pendente) |
+| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 | **em curso**: passos 1 a 16 feitos em 12/11. O "Reco" 0.3.0 `96B45826` (com o conserto do autostart `be4664c` e `880c446`) está instalado desde 18:34 e aberto desde 18:59, e o velho segue fechado na reserva. O 14 a quente deu mediana 0,773 s. Abertos: 17 (11 linhas do Gabriel) e 18 em diante (uso real) |
 | 5 Captura e MP3 em Rust | [fase-5](2026-11-11-melhoria-reco-em-rust-fase-5.md) | 4 | — |
 | 6 Transcrição em Rust (spike com portão) | [fase-6](2026-11-11-melhoria-reco-em-rust-fase-6.md) | 5 | — |
 | 7 Aposentar a interface Tk e propagar | [fase-7](2026-11-11-melhoria-reco-em-rust-fase-7.md) | 4 e 6 (o veredito do portão, aberto ou fechado) | — |
@@ -217,9 +217,9 @@ primeiro item herdado pela Fase 4 · [relatório](2026-11-11-melhoria-reco-em-ru
 - **Uso real do app novo (Fase 4, em curso):** desde 12/11/2026 ~17:43 o Reco novo está instalado e aberto e o velho,
   fechado na reserva. A fase só fecha com o Gabriel usando o app novo no dia a dia (6 gravações reais em pelo menos 5
   dias, F4-D1) e dizendo "aprovo". Também dependem dele: as 11 linhas do checklist do passo 17 que pedem a mão ou o olho
-  dele, o Ctrl+Shift+R por tecla física (11), os reinícios do Windows da medida "a frio" (14) e um momento sem gravar
-  para a sessão remedir o passo 14 com a máquina livre e reinstalar com o conserto do autostart (refazendo o passo
-  13). `dono: gabriel`.
+  dele, o Ctrl+Shift+R por tecla física (11), os reinícios do Windows da medida "a frio" (14) e um reinício com o
+  autostart ligado para ver o ícone subir sem janela (13). A reinstalação com o conserto do autostart e o 14 a quente
+  foram feitos em 12/11, das 18:34 às 18:59. `dono: gabriel`.
 - **Direção visual** (Fase 1): decidido em 11/11/2026: A "Fita" é o padrão e B "Caderno" e C "Instrumento"
   ficam como skins em Opções (preferência `casco_skin`). O passo 14 da Fase 1 (poda) virou "seletor de skin";
   a Fase 3 aplica `data-direcao` no `<html>` conforme a preferência.
