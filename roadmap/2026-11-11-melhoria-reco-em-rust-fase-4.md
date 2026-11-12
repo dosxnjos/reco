@@ -306,8 +306,9 @@
       a Fase 0 não tem número a frio (a rodada 1 dela já pega cache quente). Números no relatório, ao lado dos da Fase 0.
     - Nota (2026-11-12, execução): o laço do md sem CDP, janela visível. Build `76C890E8`, CPU 23–46% → 1,034 / 0,982 /
       0,797 s, mediana **0,982 s** (≤ 1,515 s). Build final `84EE1142` com a máquina carregada por outras sessões (CPU
-      79–85%) → 1,735 / 1,986 / 2,41 s, mediana 1,986 s: medida não comparável à da Fase 0 (máquina livre), repetida
-      quando a CPU baixar (relatório). Cláusula do Gravar (CDP, clique no mesmo `eval` que vê o botão habilitar):
+      79–85%) → 1,735 / 1,986 / 2,41 s, mediana 1,986 s: **o único número do build final não cumpre a régua**; a Fase 0
+      mediu com a máquina livre, então a sessão repete a quente (`passo14.ps1`) com a CPU livre antes de marcar.
+      Cláusula do Gravar (só no `76C890E8`; CDP, clique no mesmo `eval` que vê o botão habilitar):
       `ready` 45,093 → clique 45,193 → "Parar" 45,454 → cronômetro 00:00:01 às 46,476, antes de `aquecimento pronto`
       (46,854). "A frio" pendente do dono (reiniciar).
 15. [x] Contrato de falha (D11) no build instalado, não só no de desenvolvimento. — **prova:** gravar 40 s, `Get-Process | ? Path -eq $exe | Stop-Process -Force`, depois `python tools/paridade.py <esse mp3>` → `xing=ok` e `dur` ≈ 40
@@ -339,7 +340,7 @@
       d) `models` presente, config legível; e) feito pelo **equivalente por script** dos campos de `reco.py:4902-4908`
       (alvo `dist\Reco\Reco.exe`, `Ctrl+Shift+R`): os links de Opções do velho só respondem a clique real. Prova:
       `Get-Process -Name Reco` → só `C:\Dev\Reco\dist\Reco\Reco.exe`. A gravação do velho **não sai** por `BM_CLICK`
-      nem por `WM_LBUTTONDOWN/UP` postados (o Tk ignora); saiu pelo menu da bandeja dele aberto por mensagem
+      nem por `WM_LBUTTONDOWN/UP` postados (o Tk ignora; provavelmente porque lê o estado real do mouse, não conferido); saiu pelo menu da bandeja dele aberto por mensagem
       (`WM_APP+1` com `WM_RBUTTONUP` na `RecoTrayWindow`, e `WM_KEYDOWN` Down/Enter postados na janela do menu):
       "Gravar" → 30 s → "Parar" → `dur=31.7 xing=ok … alinhamento=ok -> ok`, `PASSOU`. f) velho fechado por `taskkill /F`
       depois de `--checar-gravando`; `$setup` `/S` → exit 0 e o `Reco.lnk` voltou ao exe novo sem tecla.
@@ -348,10 +349,11 @@
 
 17. [ ] Executar o checklist de paridade abaixo com o app instalado e gravar o resultado de cada linha no relatório. — **prova:** `grep -c "| ✗ |" <relatório da fase>` → `0` e `grep -c "| ✓ |" <relatório da fase>` → número de linhas do checklist
     **reprova se:** alguma linha ✗, ou linha sem resultado. Linha que a Fase 3 tirou de propósito entra como ✓ com o motivo.
-    - Nota (2026-11-12, execução, build `84EE1142`, sem mouse, máquina carregada por outras sessões): 17 ✓, 9 ⏸, 0 ✗
+    - Nota (2026-11-12, execução, build `84EE1142`, sem mouse, máquina carregada por outras sessões): 15 ✓, 11 ⏸, 0 ✗
       (tabela no relatório, seção "Passos 9 a 17 — app instalado"). As ⏸ precisam da mão ou do olho do dono: P1 (arrastar),
-      P7, P8 (Abrir transcrição), P12 (trocar o padrão do Windows), P13, P18 e P21 (diálogos do Windows), P19 (comparar
-      com a Biblioteca do velho) e P22 (hover, clique e ícone). Fica `[ ]` até elas virarem ✓.
+      P7, P8 (Abrir transcrição), P12 (trocar o padrão do Windows), P13, P18 e P21 (diálogos do Windows), P16 (ver os
+      temas), P19 (comparar com a Biblioteca do velho), P22 (hover, clique e ícone) e P23 (o botão escondido não prova
+      que a checagem rodou). Fica `[ ]` até elas virarem ✓.
 18. [ ] Uso real: 6 gravações do Gabriel com o app novo (F4-D1), cada uma pela régua. — **prova:** `python tools/paridade.py <as 6> --exigir-txt` → 6 linhas `ok` ou `ALERTA` e `PASSOU`
     **reprova se:** alguma `FALHOU`, ou faltam G1 (≥ 60 min) ou G2 (fone).
     - Byte a byte em G3 e numa segunda gravação ≤ 10 min: `python tools/paridade.py <mp3> --txt-contra-script` → `script=igual`.

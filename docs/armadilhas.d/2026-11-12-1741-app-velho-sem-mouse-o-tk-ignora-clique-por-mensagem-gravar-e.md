@@ -6,8 +6,9 @@ data: 2026-11-12
 no `Reco.exe` velho. `BM_CLICK` e `WM_LBUTTONDOWN/UP` postados no `Button` "Gravar" não fazem nada: a tela segue com 1
 botão e nenhum MP3 nasce. Os links de Opções do velho ("Remover/Criar atalho") também não respondem.
 
-**Causa:** o Tk monta o evento de clique a partir do estado real do mouse (botão de fato pressionado), não da mensagem;
-clique sem o mouse físico é descartado. O menu da bandeja do velho (`tray.py`) usa `TrackPopupMenu` com
+**Causa:** provável (não conferida no fonte do Tk): o Tk monta o evento de clique a partir do estado real do mouse
+(botão de fato pressionado), não da mensagem, e descarta o clique sem o mouse físico. Medido: nenhuma das duas
+mensagens muda a tela. O menu da bandeja do velho (`tray.py`) usa `TrackPopupMenu` com
 `TPM_RETURNCMD`, então `WM_COMMAND` na janela do ícone também não aciona nada (o do casco novo aciona).
 
 **O que fazer:** abrir o menu por mensagem e escolher por tecla postada no próprio menu, sem tocar o teclado físico:

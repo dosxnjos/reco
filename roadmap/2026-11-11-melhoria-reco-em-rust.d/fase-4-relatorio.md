@@ -330,7 +330,7 @@ Reinstalar `/S` → exit 0, `Test-Path $exe` `True`, soma 828 098 952, árvore i
 - 13: Run `/v Reco` rc 1 antes; Opções → autostart → `aria-checked=true` e `Reco REG_SZ
   %USERPROFILE%\AppData\Local\Reco\reco.exe --oculto`, rc 0; de novo → `false`, rc 1; `/v "Reco Novo"` rc 1. **Achados:**
   (1) o valor vai sem aspas e o home tem espaço: o `auto-launch` 0.6.0 grava `format!("{} {}", app_path, args)`
-  (`windows.rs:77`); o Windows resolve tentando `C:\Users\Gabriel.exe`, `…\Gabriel dos.exe`… até achar, então funciona,
+  (`windows.rs:77`); o Windows resolve tentando `C:\Users\<primeira palavra>.exe`, `…\<duas palavras>.exe`… até achar, então funciona,
   mas é o caminho sem aspas clássico (um `.exe` plantado num desses nomes subiria no lugar). Conserto possível no casco:
   passar o caminho já entre aspas ao plugin. A subida no boot fica para o dono. (2) O ligar cria `Reco` em
   `HKCU\…\Explorer\StartupApproved\Run` (`02 00…`, habilitado) e o desligar não apaga; apaguei à mão (`reg delete … /f`,
@@ -381,8 +381,8 @@ modelos 828 098 952 antes e depois; `reco.exe` `3B8CBE2947CA33440F78DD71BF949673
   respondem a clique real): apaguei o `Reco.lnk` e o recriei com os campos de `reco.py:4902-4908` → `…\dist\Reco\Reco.exe
   | Ctrl+Shift+R`.
 - Prova, entre e) e f): `Get-Process -Name Reco -EA 0 | Select -Expand Path` → só `C:\Dev\Reco\dist\Reco\Reco.exe`.
-- Gravação de 30 s do velho: `BM_CLICK` e `WM_LBUTTONDOWN/UP` postados no `Button` "Gravar" **não** gravam (o Tk lê o
-  estado real do botão do mouse; nada mudou na tela). Gravou pelo **menu da bandeja do velho, só por mensagens**:
+- Gravação de 30 s do velho: `BM_CLICK` e `WM_LBUTTONDOWN/UP` postados no `Button` "Gravar" **não** gravam (nada
+  mudou na tela; causa provável, não conferida: o Tk lê o estado real do botão do mouse). Gravou pelo **menu da bandeja do velho, só por mensagens**:
   `WM_APP+1` com `lParam=WM_RBUTTONUP` na `RecoTrayWindow` abre o `TrackPopupMenu` (itens `Gravar · Abrir · Sair`), e
   `WM_KEYDOWN` Down + Enter postados na janela do menu (`#32768`) escolhem o 1º item; 1 → 2 botões; 32 s; o mesmo
   para "Parar" (itens `Parar · Pausar · Abrir · Sair`) → 3 botões. Régua: `dur=31.7 xing=ok r_zero_inicio=0
@@ -415,19 +415,19 @@ outros processos durante toda a rodada (CPU total 79 a 85%, `node`/`python` de o
 | P13 | ⏸ | "Escolher" abre o diálogo de pasta do Windows: **pulado a pedido do dono: sem mouse** |
 | P14 | ✓ | Processar em GPU → `device` `GPU`; AUTO → `AUTO` |
 | P15 | ✓ | EN → botão principal `Record` (captura `p17-ingles.png`) e arquivo `recording_reco_2026-11-12_17-23-50.mp3`; PT → `Gravar` |
-| P16 | ✓ | Aparência escuro / claro / sistema → `data-tema` `escuro`, `claro` e sem tema (segue o sistema); skins `a`, `b`, `c` em Opções (Fases 1 e 3) |
+| P16 | ⏸ | por script só a troca do atributo: Aparência escuro / claro / sistema → `data-tema` `escuro`, `claro` e sem tema; skins `a`, `b`, `c` em Opções. A cor de fundo do `body` saiu igual nos três (transparente: a cor mora noutro elemento), então a mudança visual não está provada: olho do dono |
 | P17 | ✓ | navegação pelas 4 abas no DOM (P2); gravando, a aba Arquivo fica `aria-disabled=true` com o motivo "Bloqueada enquanto grava ou transcreve" na própria aba (captura `p17-abas-gravando.png`); Biblioteca e Opções seguem livres |
 | P18 | ⏸ | "Escolher arquivo" abre o diálogo do Windows: **pulado a pedido do dono: sem mouse** (o caminho do motor está provado no P25 e no `--concluir`) |
-| P19 | ⏸ | a Biblioteca lista 108 itens (contador `108`; a pasta tem 106 `.mp3` e outros arquivos de áudio); comparar com a contagem do velho e cada ação exige a tela do velho (mouse): pendente do dono |
+| P19 | ⏸ | a Biblioteca lista 108 itens (contador `108`); a pasta tem 106 `.mp3` e 1 `.m4a` (provavelmente o 108º é um `.txt` sem áudio ao lado, como o do teste do dono das 16:39; não conferido); comparar com a contagem do velho e cada ação exige a tela do velho (mouse): pendente do dono |
 | P20 | ✓ | Biblioteca → item → Resumo → `x.resumo.md` ao lado |
 | P21 | ⏸ | Converter também começa no diálogo de arquivo: **pulado a pedido do dono: sem mouse** |
 | P22 | ⏸ | menu por mensagem: Gravar (`WM_COMMAND 1000`) e Sair (`1003`) funcionam (P26, passos 9 a 16); hover, clique no ícone e ícone vermelho: **pulado a pedido do dono: sem mouse** |
-| P23 | ✓ | Opções `Reco 0.3.0 · motor 0.3.0`; 8 s depois do pronto, online, o botão "Baixar a {tag}" segue com `data-escondido` (nenhuma versão nova acusada); release Latest no GitHub `v0.2.0` |
+| P23 | ⏸ | Opções `Reco 0.3.0 · motor 0.3.0`; 8 s depois do pronto, online, o botão "Baixar a {tag}" segue com `data-escondido`; release Latest no GitHub `v0.2.0`. Não discrimina: o botão também fica escondido se o `app.update_check` nunca rodar, e ele não deixa linha no log (o `model.update_check` aparece como o GET ao `huggingface.co/api/models/…` no `engine.log`) |
 | P24 | ✓ | passos 11 e 12 (atalho sem tecla; mutex nos dois sentidos); a tecla física fica com o dono (passo 11) |
 | P25 | ✓ | `(Start-Process $exe -ArgumentList '--transcribe','<cópia em temp>','--diarize' -Wait -PassThru).ExitCode` → `0` em 59,8 s; `a_reco.txt` com 4 falas `Eu`/`Interlocutor(es)`; durante o repasse o mutex **não** existiu e nenhuma janela apareceu (responde à pendência da Fase 3) |
 | P26 | ✓ | Gravar pela bandeja, 16 s, Sair pela bandeja gravando → saiu em 12 s com código 0; régua `dur=16.0 xing=ok … -> ok` |
 
-Contagem: 17 ✓, 9 ⏸, 0 ✗. O passo 17 fica `[ ]` até o dono fazer as 9 linhas ⏸ (lista em "Com o dono", abaixo).
+Contagem: 15 ✓, 11 ⏸, 0 ✗. O passo 17 fica `[ ]` até as 11 linhas ⏸ virarem ✓ (lista em "Com o dono", abaixo).
 
 **Config e pasta do dono:** os testes deixaram `language: "pt"` (antes nulo) e `casco_tema: "sistema"` (chave nova) no
 `~/.reco_config.json`; com os dois apps fechados, o config voltou da cópia das 16:45 (`cmp` → igual; a cópia já tinha o
@@ -440,9 +440,14 @@ reposto depois de cada "copiar".
 
 - Passo 11: Ctrl+Shift+R por tecla física (ligar o atalho em Opções, app na bandeja; depois com o app fechado).
 - Passo 13: com o autostart ligado, reiniciar e ver o ícone subir sem janela (desligar depois, se não quiser).
-- Passo 14: "a frio" (3 reinícios) e a mediana a quente do build final com a máquina livre (a desta rodada saiu sob carga).
-- Passo 17: P1 (arrastar), P7 (player), P8 (Abrir transcrição), P12 (trocar o padrão do Windows), P13 (pasta), P18 e P21
-  (escolher arquivo), P19 (comparar a Biblioteca com a do velho) e P22 (hover, clique e ícone vermelho).
+- Passo 14: só o "a frio" (3 reinícios) é dele.
+- Passo 17: P1 (arrastar), P7 (player), P8 (Abrir transcrição), P12 (trocar o padrão do Windows), P13 (pasta), P16 (ver
+  os temas), P18 e P21 (escolher arquivo), P19 (comparar a Biblioteca com a do velho), P22 (hover, clique e ícone
+  vermelho) e P23 (ver o aviso de versão, ou uma prova que mostre o `app.update_check` rodando).
+
+**Com a sessão (pendente):** passo 14 a quente no build final com a máquina livre (`passo14.ps1`, 3 aberturas, e a
+cláusula do Gravar, que só foi provada no `76C890E8`). **O único número do build instalado final não cumpre a régua:**
+mediana 1,986 s contra 1,515 s, medida com a CPU em 79–85% por outras sessões; a do `76C890E8` (CPU 23–46%) foi 0,982 s.
 
 **Armadilhas novas** (commit `bdab7a5`): o Tk do velho ignora clique por mensagem (e o caminho pelo menu da bandeja);
 guardas por caminho do processo (Medal e a demora do `Get-Process` por `Path`); autostart sem aspas e a marca do
