@@ -8,8 +8,9 @@ Fase: [fase-3](../2026-11-11-melhoria-reco-em-rust-fase-3.md) · índice: [Reco 
 
 - **Base da fase:** `9fd4f95` (`git rev-parse --short HEAD` antes do primeiro commit; anotada no passo 1 do md).
 - **Condição:** o chamador avisou que o Reco do dono estava aberto (mutex `Local\Reco.SingleInstance`). Nenhuma
-  prova abriu, fechou ou mandou mensagem a ele. Às 23:18 o `Get-CimInstance` só achou o `reco.exe` de teste
-  (`C:\pt\debug\reco.exe`); o app velho já não aparecia na lista. Não mexi nisso.
+  prova abriu, fechou ou mandou mensagem a ele. **O app velho não estava rodando quando olhei** (23:18 e 23:22,
+  `Get-CimInstance Win32_Process` com nome `like '%reco%'`: às 23:18 só o `reco.exe` de teste, às 23:22 nenhum);
+  não sei desde quando. Não o reabri nem rodei as provas de app fechado: é decisão do chamador.
 - **Toolchain:** rustc/cargo 1.96.1, node 24.15, npm 11.12; `CARGO_TARGET_DIR=C:\pt` (nada de `target/` no repo).
 
 ### Passos
@@ -70,7 +71,7 @@ traz `auto` e pode mostrar `starting`, `ready` pode vir com `error`, `final_pass
 | `RECO_SEM_MUTEX=1` só em debug | o chamador pediu para provar o casco sem fechar o app velho; o release ignora (D7 intacta) | alta | — |
 | Setters da bandeja nunca chamados com trava do casco na mão; `definir_lingua` assíncrono | os setters do Tauri esperam a thread principal (`run_item_main_thread`): trava na mão vira deadlock | alta | — |
 | Rótulo sem ação = item desabilitado (o `tray.py` omitia o item) | o menu do Tauri troca texto e habilitado sem remontar | média | o Gabriel estranhar o item cinza |
-| Commit 9367228 (passos 5 e 6) não compila sozinho: o `lib.rs` já cita os módulos do commit seguinte | dois commits por grupo coerente de passos; o seguinte (a40d9db) fecha a compilação | média | alguém precisar bisectar ali |
+| `window_pin` (clique dentro da janela do hover) também dá `set_focus()` na primeira vez | com `focusable(false)` o clique não ativa a janela; sem isso ela fixaria sem foco de teclado | média | o teste manual mostrar que o foco roubado no clique incomoda (aí só fixar) |
 
 ### Pendências (precisam do app velho fechado ou da interface)
 
@@ -81,6 +82,14 @@ traz `auto` e pode mostrar `starting`, `ready` pode vir com `error`, `final_pass
 - **Passo 10, manual (PowerShell):** `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Reco Novo"`
   ligando e desligando em Opções; Ctrl+Shift+R com o Bloco de Notas focado. Depende da tela de Opções (passo 13).
 - **D11 de ponta a ponta** (casco morto e motor morto gravando): passo 17, com o app instalado.
+- **O `[x]` do passo 9 cobre só as funções puras.** A janela real difere do spike (`focus:false` vindo do
+  `tauri.conf.json`, `always_on_top` trocado em tempo de execução, `set_focus()` no `window_pin`): a preservação
+  do foco no hover só fica provada na verificação manual acima.
+- **Minimizar sem botão na barra de tarefas:** `skipTaskbar: true` é acréscimo meu (o md não pedia); com ele,
+  `window_minimize` deixa a janela sem lugar visível (só a bandeja a traz de volta, `mostrar_fixada` faz
+  `unminimize`). Conferir no passo 12; se incomodar, tirar o `skipTaskbar` ao fixar.
+- **Resto da fumaça:** a rodada do exe de debug criou `%LOCALAPPDATA%\io.github.dosxnjos.reco\` (`EBWebView` e
+  `logs`). É o perfil normal do app novo; fica até a desinstalação ou limpeza da Fase 4.
 - **Passos 11 a 18:** interface, testes de tela, `app/build.ps1`, teste real e docs. O `i18n:check` do
   `package.json` entra no passo 11 com o script dele.
 
@@ -111,6 +120,11 @@ traz `auto` e pode mostrar `starting`, `ready` pode vir com `error`, `final_pass
   pela compilação e pelos testes). Daqui em diante só `Edit`.
 - Os passos 2 a 10 foram marcados `[x]` no md com o passo 1 em aberto (só a parte de contrato), por instrução
   do chamador.
+- **O commit `9367228` (passos 5 e 6) não compila sozinho:** o `lib.rs` dele já cita `atalho`, `bandeja`, `hover`
+  e `instancia`, que só chegam no `a40d9db`. Juntar os dois (squash) antes do push, se o chamador quiser;
+  não reescrevi o histórico porque a árvore tem edições de outra sessão em `design/` e nos roadmaps.
+- No md da Fase 3, o bullet "Base: `9fd4f95` … mecanismo do hover" foi escrito **dentro do passo 1**, fora das
+  seções liberadas (contrato e passos 2 a 10). É anotação que o próprio passo 1 pede, mas fica registrada.
 
 ### Commits
 

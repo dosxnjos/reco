@@ -120,14 +120,18 @@ pub fn mostrar_fixada<R: Runtime>(app: &AppHandle<R>) {
     let _ = w.set_always_on_top(false);
 }
 
-/// Fixa sem mexer no foco (a tela chama em todo clique dentro dela, como `_pin`, `reco.py:5054`).
+/// Fixa a janela aberta pelo hover (a tela chama em todo clique dentro dela, como `_pin`, `reco.py:5054`). Com
+/// `focusable(false)` o clique não ativa a janela; por isso o foco de teclado vem daqui, como no clique que
+/// fixa pelo ícone (o único caminho que o spike da Fase 0 provou).
 pub fn fixar<R: Runtime>(app: &AppHandle<R>) {
-    if let Some(h) = app.try_state::<HoverEstado>() {
-        h.fixada.store(true, Ordering::SeqCst);
-    }
+    let Some(h) = app.try_state::<HoverEstado>() else { return };
+    let ja_fixada = h.fixada.swap(true, Ordering::SeqCst);
     if let Some(w) = app.get_webview_window(JANELA) {
-        let _ = w.set_focusable(true);
-        let _ = w.set_always_on_top(false);
+        if !ja_fixada {
+            let _ = w.set_focusable(true);
+            let _ = w.set_focus();
+            let _ = w.set_always_on_top(false);
+        }
     }
 }
 
