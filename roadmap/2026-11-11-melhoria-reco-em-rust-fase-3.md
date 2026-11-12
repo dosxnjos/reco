@@ -383,7 +383,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      atrasada mexer na Vista. `i18n:check` (`app/scripts/i18n-check.cjs`) também barra hexadecimal em `app/ui/src`.
      Desvio: o motor caído gravando (D11) usa o estado `erro` com título e saída próprios ("Abrir pasta"), sem estado
      novo no `DESIGN.md` (fora dos arquivos desta frente).
-12. [ ] Tela Gravar completa, com áreas de altura reservada — **prova:** `node app/ui/tests/gravar.cjs` → `falhas 0`
+12. [x] Tela Gravar completa, com áreas de altura reservada — **prova:** `node app/ui/tests/gravar.cjs` → `falhas 0`
    **reprova se:** algum fluxo do mock (gravar, pausar, continuar, parar, cada saída, nota) não chega ao estado esperado, ou a checagem de atualização pontual (abaixo) acusa nó criado.
    - O `gravar.cjs` também confere a atualização pontual: `MutationObserver` por 3 s gravando, com zero `childList` vindo
      do VU, até 4 mudanças de texto no cronômetro e a raiz com os mesmos filhos do início.
@@ -406,6 +406,14 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - Depois de parar (F3-D8): botão principal "Salvar e copiar caminho" (`rec.conclude save` + `copy_path`),
      Excluir, Reproduzir e "Mais" com as outras saídas num menu sobreposto, que não empurra nada.
    - Ao vivo: painel de altura fixa sempre presente na tela; desligado, mostra o aviso de rascunho desligado.
+   - **Execução (12/11):** `gravar.cjs` → `gravar: falhas 0 em 53 verificações` (inclui D11 pelo `derrubar()` do backend
+     falso, `reco-atalho` com foco no principal, rótulos sem corte na fileira de 3 botões nas 3 skins em PT e EN e a
+     1ª linha inteira do ao vivo, porte do `rolarAoVivo`). Desvios: o VU não é `canvas`: as barras da vitrine recebem
+     `--nivel`/`--pico` num laço de `requestAnimationFrame` (zero nó criado, provado pelo MutationObserver), para as
+     três skins manterem a forma dos medidores do `DESIGN.md`; as saídas depois de parar seguem o `DESIGN.md` aprovado
+     (as 4 à vista no painel, com Ouvir no secundário), não o menu "Mais" do F3-D8. Corte de "Abrir transcrição" e
+     "Copiar caminho": o rótulo quebra em até 2 linhas na fileira de 3 (`estilo/gravar.css`); o controle negativo com
+     a regra antiga (uma linha) acusa os dois nas 3 skins.
 13. [ ] Abas Biblioteca, Arquivo e Opções ao lado de Gravar, em abas fixas (F1-D4, F1-D7, F3-D12), todas no mesmo tamanho de janela — **prova:** `node app/ui/tests/telas.cjs` → `falhas 0`
    **reprova se:** alguma ação da aba não chama o comando certo no mock, ou, gravando ou transcrevendo, a aba que conflita não fica desabilitada com o motivo visível nela.
    - Arquivo (F1-D4): uma origem escolhida (`pick_file`) e duas ações sobre ela.

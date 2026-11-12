@@ -16,6 +16,8 @@ export interface ControleMock {
   /** O condutor de estados assumiu: nenhuma resposta pendente volta mais (o controle não mexe na Vista dele). */
   congelado: boolean;
   derrubar(): void; emitir(e: EngineEvent): void; estado(): string; config: Args;
+  /** Evento do casco como o Rust mandaria (reco-atalho, reco-versao-nova…). */
+  casco(nome: EventoCasco, p?: unknown): void;
 }
 
 class MotorFalso {
@@ -209,6 +211,7 @@ export function criarMock(): Backend {
       setTimeout(() => { avisar("engine-status", { running: true }); void motor.ligar(); }, 400 / ctl.velocidade);
     },
     emitir: (e) => avisar("engine-event", { v: 1, ...e }),
+    casco: (nome, p) => avisar(nome, p ?? null),
     estado: () => motor.rec,
     get config() { return motor.config; },
   };
