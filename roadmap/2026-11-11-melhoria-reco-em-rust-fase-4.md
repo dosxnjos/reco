@@ -93,7 +93,7 @@
      Cargo (`reco`), ou seja `reco.exe` (a Fase 3 o viu instalado em `%LOCALAPPDATA%\Reco Novo\reco.exe`). A versão
      estava em `0.1.0` e subiu para `0.3.0` em `tauri.conf.json`, `Cargo.toml`, `Cargo.lock` (pacote `reco`),
      `package.json` e `package-lock.json` (as duas entradas). O `condutor.ts` (dados inventados do backend falso) segue com `0.1.0`.
-2. [ ] Congelar uma cópia da reserva em `%LOCALAPPDATA%\Reco-reserva\Reco` (F4-D3). — **prova:** a conferência do primeiro sub-item → `True`
+2. [x] Congelar uma cópia da reserva em `%LOCALAPPDATA%\Reco-reserva\Reco` (F4-D3). — **prova:** a conferência do primeiro sub-item → `True`
    **reprova se:** sai `False`, erro de caminho, ou falta `_internal` ou `models` na cópia.
    - Conferência: `$r="$env:LOCALAPPDATA\Reco-reserva"; $a=(Get-FileHash "$r\Reco\Reco.exe").Hash; $b=(Get-FileHash C:\Dev\Reco\dist\Reco\Reco.exe).Hash; ($a -eq $b) -and (Test-Path "$r\Reco\_internal") -and (Test-Path "$r\models")`.
    - Copiar: `robocopy C:\Dev\Reco\dist\Reco "$env:LOCALAPPDATA\Reco-reserva\Reco" /E /NFL /NDL` (código < 8 = ok).
@@ -103,7 +103,7 @@
      linha `transcription_available=True` (`reco.py:5132-5146`; sai antes do mutex, não incomoda o app aberto).
    - Por quê: `dist/` é ignorado pelo git, `build.ps1 -Clean` o apaga e um build com o app aberto falha no meio de
      `_internal` (`docs/ARQUITETURA.md:19-23`); a reserva quebraria sem aviso. Anotar hash e data do `Reco.exe`.
-3. [ ] Fotografar o que o instalador vai tocar, para a volta do passo 16. — **prova:** os 4 comandos abaixo → 4 valores anotados no relatório
+3. [x] Fotografar o que o instalador vai tocar, para a volta do passo 16. — **prova:** os 4 comandos abaixo → 4 valores anotados no relatório
    **reprova se:** algum comando falha ou um dos 4 valores fica em branco.
    - Atalho: `$l="$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Reco.lnk"; if(Test-Path $l){$s=(New-Object -ComObject WScript.Shell).CreateShortcut($l); "$($s.TargetPath) | $($s.HotKey)"} else {"sem lnk"}`.
    - Autostart: `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Reco; $LASTEXITCODE` (esperado: `1` = não existe; `0` = existe, anotar o valor).
