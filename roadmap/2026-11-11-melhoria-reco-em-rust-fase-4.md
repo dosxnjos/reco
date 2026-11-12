@@ -206,7 +206,7 @@
      (`engine/reco_engine/server.py:178-179`), então a linha nasce `<data hora> INFO reco_engine.boot: ready em <n> s`, e o
      `^ready em ` do passo 14 nunca casaria. A linha entra por `log.info` em `boot._announce` (só no `ready` sem erro), e o
      passo 14 casa `'reco_engine.boot: ready em '`.
-9. [ ] Desinstalar o "Reco Novo" e só então instalar o "Reco", em silêncio, com os dois apps fechados pelo Gabriel na bandeja. — **prova:** `Test-Path "$env:LOCALAPPDATA\Reco Novo\uninstall.exe"` → `False`; depois `Start-Process $setup -ArgumentList '/S' -Wait; Test-Path $exe` → `True`
+9. [x] Desinstalar o "Reco Novo" e só então instalar o "Reco", em silêncio, com os dois apps fechados pelo Gabriel na bandeja. — **prova:** `Test-Path "$env:LOCALAPPDATA\Reco Novo\uninstall.exe"` → `False`; depois `Start-Process $setup -ArgumentList '/S' -Wait; Test-Path $exe` → `True`
    **reprova se:** o velho ou o "Reco Novo" ainda está vivo (parar: pode estar gravando), o "Reco Novo" segue instalado ou no Menu Iniciar, `False` no fim, ou SmartScreen/Defender bloqueia.
    - Com os dois apps fechados, antes de instalar: as checagens que gravam do bloco "Herdado da Fase 3" (acima); depois
      de instalar, o resto daquele bloco, antes do passo 10.
@@ -222,7 +222,16 @@
      `reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "Reco Novo"` (`$LASTEXITCODE` → `1`; se `0`, `reg delete` dessa chave com `/f`).
    - A soma dos modelos do passo 3 continua igual depois de desinstalar o "Reco Novo".
    - Bloqueio do Defender ou do Smart App Control: anotar e seguir `C:\Dev\lacre\docs\LIMITATIONS.md`; vira armadilha (passo 23).
-10. [ ] Provar que instalar e desinstalar não apagam os modelos que moram na mesma pasta (F4-D4). — **prova:** a soma do passo 3 medida duas vezes, cada uma só depois de a ação terminar (sub-itens) → igual à anotada nas duas vezes
+   - Nota (2026-11-12, execução, 16:37 a 16:51): o dono autorizou ("Já pode instalar sim") e, antes da sessão fechar o
+     velho, ele mesmo saiu do velho e abriu o "Reco Novo" instalado (`aac7ca7`) pelo Menu Iniciar às 16:39, gravou um
+     teste curto e mudou o ganho do sistema (0,5 → 1,0, mantido). Esse build antigo **baixou uma revisão nova do modelo**
+     às 16:39:45 (`4929ae8` → `b568445`, 828 097 157 → 828 098 952 bytes): a soma de referência do passo 10 passou a
+     ser a nova, e a `Reco-reserva\models` fica na revisão anterior. Fechado pela sessão só depois de motor ocioso (CPU
+     0,1% em 25 s, `--checar-gravando` duas vezes) e pelo Sair da bandeja por mensagem (`saída: Ocioso`). O guarda
+     `Get-Process | ? Path -like '*\Reco*\*'` acusa também o gravador do Medal (`…\Medal\recorder-…\`): falso positivo
+     que se lê pelo caminho. Config copiado para a reserva às 16:53 (depois de instalar; hashes iguais). Detalhe no relatório,
+     seção "Passos 9 a 17 — app instalado".
+10. [x] Provar que instalar e desinstalar não apagam os modelos que moram na mesma pasta (F4-D4). — **prova:** a soma do passo 3 medida duas vezes, cada uma só depois de a ação terminar (sub-itens) → igual à anotada nas duas vezes
     **reprova se:** a soma cai ou `models\` some. Parar e repor com `robocopy "$env:LOCALAPPDATA\Reco-reserva\models" "$env:LOCALAPPDATA\Reco\models" /E` antes de seguir.
     - Desinstalar: `$u="$env:LOCALAPPDATA\$prod\uninstall.exe"; Start-Process $u -ArgumentList '/S'`, depois esperar até 120 s
       (o desinstalador do NSIS se copia e volta antes de terminar):
