@@ -349,8 +349,9 @@ sendo o que se usa; nada do motor entra no `Reco.exe`.
 - **Orquestração reimplementada** (os métodos do `App` não são importáveis): `recording.py`
   (`_start_rec`, `_stop_rec`, pausa, erro de canal, `_quit`), `conclude.py` (Salvar/Excluir/Transcrever,
   passada final do ao vivo, modo nota), `transcribe.py` (`_run_transcriber`, `_autosave_txt`),
-  `library.py`, `extras.py`, `modelo.py` (`model.update_check`: a consulta ao hub não ocupa a vaga da
-  transcrição; só a troca, com revisão nova e o motor ocioso), `cli.py`. Estado comum em `core.py`.
+  `library.py`, `extras.py`, `modelo.py` (`model.update_check`: a consulta ao hub, com prazo de 15 s, e o
+  download da revisão nova não ocupam a vaga da transcrição; só a troca de pasta, com o motor ocioso), `cli.py`.
+  Estado comum em `core.py`.
 - **Transcritor único** por processo (`make_transcriber()` uma vez), compartilhado com o ao vivo e as
   passadas finais; um `pipe.generate` por vez (`busy`).
 - **O motor é o dono do config** (D6): `config.set` relê o arquivo cru, faz merge, aceita só chaves de
