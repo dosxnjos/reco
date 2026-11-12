@@ -111,11 +111,13 @@ test on it (hello, ready without error, device list, clean shutdown), then `npm 
 and `tauri build` (Rust and Node required). It takes about 25 minutes, most of it compressing the ~500 MB
 engine into the installer. The installer is called **"Reco Novo"** so it never replaces the current app's
 shortcut. Both apps share one single-instance lock: only one runs at a time, and opening the second just
-brings the first one up.
+brings the first one up. It creates only the Start Menu shortcut: the silent install (`/S`) leaves no Desktop
+shortcut, and the install with a window offers the box unchecked (`app/src-tauri/windows/hooks.nsh`, proved
+by `python tools/test_nsis_atalho.py`).
 
 To work on the interface without the shell: `npm --prefix app install`, `npm --prefix app run ui:build`
 and `npm --prefix app run ui:preview` (port 1431) open it in a browser with a fake engine. Its tests are
-`node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs` and `paridade.cjs`, plus the
+`node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs`, `passo17.cjs` and `paridade.cjs`, plus the
 `design/testar-*.cjs` ones with `--url`.
 
 ### How it works
@@ -248,11 +250,13 @@ motor congelado (hello, ready sem erro, lista de dispositivos e saída limpa) e 
 interface e o `tauri build` (precisa de Rust e Node). Leva uns 25 minutos, quase tudo comprimindo os ~500 MB
 do motor no instalador. O instalador se chama **"Reco Novo"** para nunca trocar o atalho do app atual. Os
 dois apps dividem a mesma trava de instância única: só um roda por vez, e abrir o segundo só traz o primeiro
-para a frente.
+para a frente. Ele cria só o atalho do Menu Iniciar: a instalação silenciosa (`/S`) não deixa atalho na Área de
+Trabalho, e a instalação com tela oferece a caixa desmarcada (`app/src-tauri/windows/hooks.nsh`, provado por
+`python tools/test_nsis_atalho.py`).
 
 Para mexer na interface sem o casco: `npm --prefix app install`, `npm --prefix app run ui:build` e
 `npm --prefix app run ui:preview` (porta 1431) abrem a interface no navegador com um motor falso. Os testes
-são `node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs` e `paridade.cjs`, mais os
+são `node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs`, `passo17.cjs` e `paridade.cjs`, mais os
 `design/testar-*.cjs` com `--url`.
 
 ### Como funciona
