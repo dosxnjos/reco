@@ -449,10 +449,13 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      `c=0` (3 skins, 3 escalas, 2 temas, PT/EN longo, versão nova); controle negativo → `anti-pulo=1` (1920 diferenças),
      `contrato=1` (981 falhas). Nenhum ajuste nos testes da Fase 1. O `ui:preview` ganhou `preview.host: 127.0.0.1` no
      `vite.config.ts` (só com `--port` o Vite subia em `::1` e o `127.0.0.1` da prova não respondia).
-15. [ ] Tabela de paridade (abaixo) vira verificação: cada linha "tela" tem `data-paridade="<id>"` no elemento — **prova:** `node app/ui/tests/paridade.cjs` → `17 de 17 presentes`
+15. [x] Tabela de paridade (abaixo) vira verificação: cada linha "tela" tem `data-paridade="<id>"` no elemento — **prova:** `node app/ui/tests/paridade.cjs` → `17 de 17 presentes`
    **reprova se:** falta id (função do app velho sem tela no novo) ou sobra id que não está na tabela.
    - As 2 linhas "rust" (`bandeja`, `instancia`) não têm elemento na tela: a prova delas são os `cargo test` dos passos 7 a 9.
    - O script lê os ids da própria tabela deste md, para a tabela e o teste não divergirem.
+   - **Execução (12/11):** `node app/ui/tests/paridade.cjs` → `linhas da tabela: 19 (17 tela, 2 rust: bandeja, instancia)`,
+     `17 de 17 presentes`, saída 0. Controle negativo (`PARIDADE_MD` com uma cópia do md): linha inventada a mais →
+     `17 de 18 presentes`, saída 1; linha `resumo-ia` a menos → `sobra [data-paridade="resumo-ia"]`, saída 1.
 16. [ ] `app/build.ps1`: congela o motor (Fase 2), smoke `hello`, `npm ci`, build da interface e `tauri build` — **prova:** `powershell -ExecutionPolicy Bypass -File app/build.ps1` → última linha `Instalador: ...\nsis\Reco Novo_<versão>_x64-setup.exe`
    **reprova se:** o script segue sem o motor congelado (o `build.rs` do release deveria parar) ou pega o instalador do Lacre.
    - Falha com mensagem clara se o motor não existir ou o smoke não responder; não copia o instalador para
