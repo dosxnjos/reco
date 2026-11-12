@@ -35,6 +35,11 @@ Fase: [fase-4](../2026-11-11-melhoria-reco-em-rust-fase-4.md) · índice: [Reco 
   quatro turnos curtos iguais ("sim" / "sim" / "sim" / "sim") dariam `pior=4` e FALHOU. Agora mede fala a fala (uma
   linha por fala, como o `test_antiloop` vê um canal só) e pega o maior. Prova em cópia com `x.txt` de mentira: quatro
   turnos "sim" → `pior=1 -> ok`; uma fala `a b a b a b a b` → `pior=4 -> FALHOU (loop)`.
+- **Segundo conserto depois do advisor:** com `--txt-contra-script`, `script=erro` (o transcritor falhou) e
+  `script=sem-txt` saíam `ok`. Agora tudo que não for `igual` reprova. Prova: cópia sem `x.txt` + a flag →
+  `… script=sem-txt -> FALHOU (script-sem-txt)`, `REPROVOU`, rc 1. As provas dos passos 4 e 5 rodaram de novo no
+  código final, com as mesmas linhas da tabela (`ok`, `ok`, `PASSOU`, rc 0; `FALHOU (xing, cauda-corrompida)`,
+  `FALHOU (nao-estereo)`, rc 1).
 - **Achado no passo 4:** a gravação mais nova com `x.txt` do app velho tem um token alucinado pelo Whisper (fora do
   português) repetido 4 vezes **dentro de uma fala só** (a de 555 palavras): `pior=4`, `FALHOU (loop)`, com a régua
   nas duas versões. A régua segue o md (`pior` > 3 reprova); é defeito real do app
@@ -86,10 +91,13 @@ As 10 gravações `gravacao_reco_*` mais recentes da pasta do app (sem `_alinhad
 - **Build** (`app/build.ps1` completo, porque o motor mudou; feito do `818c257`, e o `60122c7` só muda `tools/` e
   roadmap): `exit=0`; smoke do motor congelado `ready ok=True` em 1,67 / 0,47 / 0,53 s e `devices ok=True (1, 2)`; tempos:
   motor 94,9 s, `npm ci` 2,8 s, interface 2,1 s, `tauri build` 555 s, total 655,8 s. Pasta instalada calculada: 495,5 MB.
+  O motor **congelado** deste build, com `hello` + `shutdown` → stderr `… INFO reco_engine.boot: ready em 0.59 s` e
+  `encerrando (shutdown)`, exit 0: a linha que o passo 14 casa está no exe que vai no instalador.
 - **Hashes (SHA256):**
   - Instalador `C:\pt\release\bundle\nsis\Reco_0.3.0_x64-setup.exe`: 128,8 MB (135022313 bytes), 16:20:10,
     `76C890E88B2B10BC6CBBAB191DB0CB6BECB5E6D097E4A98D7209C1875B1A4D90`.
-  - Casco `C:\pt\release\reco.exe`: 4513792 bytes, `E0309C6F7339082F9118ECE615958F7E548A9C7B164A648E55D58B38445A9B77`.
+  - Casco `C:\pt\release\reco.exe` (o arquivo de saída do build, com data 1 s depois do instalador; não conferi se é
+    byte a byte o que vai dentro dele): 4513792 bytes, `E0309C6F7339082F9118ECE615958F7E548A9C7B164A648E55D58B38445A9B77`.
   - Motor `engine\dist\reco-engine\reco-engine.exe`: 25162376 bytes, 16:10:43,
     `214822A8331C349ED94A8321E14DE4E1DBD71F37E2D825E0622D51CF220BCEE0`.
   - Substitui o `a06809a6…a0f4f422` (`Reco Novo_0.1.0`) da Fase 3 como instalador a usar no passo 9.
@@ -98,7 +106,9 @@ As 10 gravações `gravacao_reco_*` mais recentes da pasta do app (sem `_alinhad
   `!include …\windows\hooks.nsh`. Nenhum `FindProcess`/`KillProcess` no `installer.nsi` nem no `utils.nsh` (0 e 0): o
   `CheckIfAppIsRunning` registra no Restart Manager **o caminho** `$INSTDIR\reco.exe`, então o `Reco.exe` do dono em
   `dist\` (mesmo nome de imagem) não é alvo. A desinstalação só apaga `$SMPROGRAMS\Reco.lnk` se o alvo dele for o exe
-  instalado (`IsShortcutTarget`). A pasta de instalação passa a ser `%LOCALAPPDATA%\Reco`, a dos modelos (F4-D4): o
+  instalado (`IsShortcutTarget`). Apagão recursivo (`RmDir /r`) só em `$APPDATA\${BUNDLEID}` e
+  `$LOCALAPPDATA\${BUNDLEID}` (`installer.nsi:8083-8084`, só com a caixa "apagar dados"); o `$INSTDIR` sai com
+  `RMDir` sem `/r` (`:8021`) depois de apagar arquivo por arquivo o que instalou. A pasta de instalação passa a ser `%LOCALAPPDATA%\Reco`, a dos modelos (F4-D4): o
   passo 10 prova que instalar e desinstalar não os apagam.
 - **Nota do frescor:** o `app_name` estava no `lib.rs`, não no `atalho.rs`; o `^ready em ` do passo 14 não casaria com o
   formato do log (os dois corrigidos no md por nota datada).

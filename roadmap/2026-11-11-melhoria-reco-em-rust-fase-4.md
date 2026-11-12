@@ -80,6 +80,10 @@
 >   do vermelho quando o motor cai gravando, o clique dentro da janela do hover (fixa e foca), minimizar com
 >   `skipTaskbar` (a janela só volta pela bandeja) e se o repasse `--transcribe` pega o mutex.
 
+> Nota (2026-11-12, passo 8 feito): o instalador a usar no passo 9 é o `Reco_0.3.0_x64-setup.exe` (SHA256 no relatório
+> da Fase 4, seção "Passo 8"), não mais o `Reco Novo_0.1.0` da Fase 3. Onde o bloco acima diz `Reco Novo.log`, o log
+> do casco instalado passa a ser `Reco.log`.
+
 ### A. Reserva e régua, antes de instalar
 
 1. [x] Resolver `$prod`, `$ver`, `$ident` e o binário em `app/src-tauri/tauri.conf.json`; anotar no relatório. — **prova:** `node -p "const c=require('./app/src-tauri/tauri.conf.json');[c.productName,c.version,c.identifier,c.mainBinaryName].join(' ')"` → 4 valores, versão ≥ `0.3.0`

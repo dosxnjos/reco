@@ -19,7 +19,7 @@ Uma linha por arquivo:
   da mesma gravação, com o modelo, o device e o idioma do app (o script ignora os do config, por isso as flags).
 
 FALHOU: Xing errado; não estéreo; sistema em zero o arquivo inteiro (sem `--sem-sistema`); mic em zero o arquivo inteiro;
-erro de leitura (o arquivo cortado no meio de um frame sai `leitura=ERRO`, com o Xing medido mesmo assim); `pior` > 3; `script=DIFERENTE`; com `--exigir-txt`, `x.txt` ausente ou corrido.
+erro de leitura (o arquivo cortado no meio de um frame sai `leitura=ERRO`, com o Xing medido mesmo assim); `pior` > 3; com `--txt-contra-script`, `script` diferente de `igual` (`DIFERENTE`, `erro`, `sem-txt`); com `--exigir-txt`, `x.txt` ausente ou corrido.
 ALERTA (não reprova): `r_zero_inicio` >= 60 s (o maior em reunião boa foi 73 s); alinhamento `salto` ou `desalinhado`.
 `--anonimo` troca o nome por G01, G02… na ordem dada (para relatório em repo público).
 Saída: 0 = PASSOU, 1 = alguma FALHOU, 2 = uso errado.
@@ -158,8 +158,8 @@ def julgar(m: dict, txt: str, p: int | None, script: str | None, flags: set) -> 
         julgar_canais(m, flags, falhas, alertas)
     if p is not None and p > PIOR_MAX:
         falhas.append("loop")
-    if script == "DIFERENTE":
-        falhas.append("script")
+    if script is not None and script != "igual":   # DIFERENTE, ou a comparação pedida não rodou (erro, sem-txt)
+        falhas.append(f"script-{script}")
     if "--exigir-txt" in flags and txt in ("ausente", "corrido"):
         falhas.append(f"txt-{txt}")
     if falhas:
