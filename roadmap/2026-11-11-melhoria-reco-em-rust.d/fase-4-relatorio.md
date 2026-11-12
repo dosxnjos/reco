@@ -4,7 +4,7 @@
 > `84EE1142`) está **instalado e aberto** na bandeja desde 17:42:58 (pid 38448) e o dono já o usa; o Reco velho está
 > fechado e guardado na reserva (`dist\Reco` e `%LOCALAPPDATA%\Reco-reserva`). Abertos: o 14 (remedir a quente com a
 > máquina livre), o 17 (11 linhas que pedem a mão ou o olho do dono) e do 18 em diante (uso real). O conserto do
-> autostart do passo 13 saiu no `be4664c` e tem instalador pronto (seção "Conserto do autostart"), **não instalado**: a
+> autostart do passo 13 saiu no `be4664c` e `880c446` e tem instalador pronto, o `96B45826` (seção "Conserto do autostart"), **não instalado**: a
 > próxima reinstalação só acontece quando o dono não estiver gravando. Detalhe por rodada nas seções abaixo, em ordem.
 >
 > **Rodada dos passos 1 a 8 (texto original):** adianta os passos 1 a 8 que não dependem do dono. Condição: o Reco velho do dono **aberto**
@@ -277,7 +277,9 @@ congelado novo, com `hello` + `shutdown` → `"engine_version":"0.3.0"`.
 | `60122c7` | passos 6 e 7 e o `pior` fala a fala |
 | `9b6294b` | revisão, achado 4: motor 0.3.0 (o instalador `84EE…` sai deste código) |
 | `d837de2` | revisão, achados 1, 2, 3 e 5: régua, `tools/test_paridade.py`, notas no md |
-| `be4664c` | passo 13, conserto: autostart com aspas e limpeza do `StartupApproved` (o instalador `74730218…` sai deste código) |
+| `be4664c` | passo 13, conserto: autostart com aspas e limpeza do `StartupApproved` |
+| `43d38df` | registros em dia (app novo instalado e aberto, passos feitos e abertos) |
+| `880c446` | passo 13: o reparo na partida só troca o valor sem aspas do próprio exe (o instalador `96B45826…` sai deste código) |
 
 ### Passos 9 a 17 — app instalado (12/11/2026, a partir das 16:37)
 
@@ -500,12 +502,16 @@ nenhum mouse ou teclado; o registro real só lido (`reg query`).
     (se o Gerenciador de Tarefas tinha desabilitado, ligar em Opções vence).
   - Desligar apaga o `Run` **e** a marca em `…\Explorer\StartupApproved\Run`; nada a apagar não é erro.
   - Ligado = valor no `Run` e a marca sem o bit de desabilitado (1º byte `03`/`07`).
-  - Na partida, um valor existente diferente do certo (o sem aspas de um build anterior) é regravado; desligado
-    não cria nada.
+  - Na partida, só o valor antigo sem aspas **deste mesmo exe** (`valor_antigo_sem_aspas`, o formato do plugin) é
+    regravado com aspas; desligado não cria nada. Ajuste do `880c446`, depois do advisor: o `be4664c` regravava
+    qualquer valor diferente, então um casco de build (`C:\pt\…`) aberto com o autostart ligado tomaria o boot do
+    instalado. Teste novo `reparar_nao_toma_o_boot_de_outro_exe`: reprova com a condição larga
+    (`atual != certo` → `FAILED`) e passa com a estreita.
   - Os comandos `autostart_ligado`/`definir_autostart` mantêm o nome, e a interface não mudou.
 - **Testes:** 5 novos; os 3 de registro usam `HKCU\Software\RecoTeste\<teste>-<pid>` (um de cada vez, a chave apagada
   no fim), com a chave do `StartupApproved` criada antes e a marca semeada antes do desligar, para a limpeza não
-  passar vazia. `cargo test -- --include-ignored` (com `CARGO_TARGET_DIR=C:\pt`) → `ok. 48 passed` (eram 43);
+  passar vazia. `cargo test -- --include-ignored` (com `CARGO_TARGET_DIR=C:\pt`) → `ok. 48 passed` (eram 43) no
+  `be4664c` e `ok. 49 passed` no `880c446` (6 do autostart);
   `cargo clippy --all-targets` → 0 avisos. Os ignorados não tocam o mutex real nem o `Reco.Show` (o do mutex usa nome
   por pid; o `motor_real_hello` só manda `hello`).
 - **Reprova sem o conserto:**
@@ -518,21 +524,27 @@ nenhum mouse ou teclado; o registro real só lido (`reg query`).
 - **Docs:** `docs/ARQUITETURA.md` § Casco ganhou o item "Iniciar com o Windows". A armadilha nova
   (`2026-11-12-1757-…`) traz o estado consertado e o aviso de que o instalado ainda tem o defeito; as de 00:14 e 17:41
   ficam como estão (fragmentos imutáveis).
-- **Instalador** (só build; **não instalado**): `app/build.ps1 -SemCongelar` do `be4664c`. O motor não mudou desde o
-  `9b6294b` (`git diff --stat 9b6294b HEAD -- engine reco.py tray.py` → vazio), então o `engine\dist` foi reaproveitado.
-  O smoke rodou: `ready ok=True` em 0,55 / 0,47 / 0,51 s e `devices ok=True (1, 2)`. Tempos: `tauri build` 753,7 s, com a
-  máquina carregada. A pasta instalada calculada é de 495,5 MB.
-  - Instalador `C:\pt\release\bundle\nsis\Reco_0.3.0_x64-setup.exe`: 135004369 bytes, 18:11:11,
-    `747302184A22FA9996A2E2BC919F02060929236A71D569DFA4ACA99B1B564E98`. Cópia em
-    `temp/instaladores/Reco_0.3.0_x64-setup.747302184A22FA99.exe`, com o SHA conferido.
-  - Casco `C:\pt\release\reco.exe`: 4489728 bytes, `67FB5DF8BDE7B05888B21EC8A204579D132C293EE92A478AC8A9EB7FD0B29B0B`.
-    Leva `StartupApproved` e nada de `auto_launch`/`auto-launch` (busca nos bytes).
+- **Instalador** (só build; **não instalado**): `app/build.ps1 -SemCongelar` do `880c446`, das 18:19:25 às 18:28:20,
+  `exit=0`. O motor não mudou desde o `9b6294b` (`git diff --stat 9b6294b HEAD -- engine reco.py tray.py` → vazio),
+  então o `engine\dist` foi reaproveitado. O smoke rodou: `ready ok=True` em 0,82 / 0,68 / 0,90 s e
+  `devices ok=True (1, 2)`. Tempos: `tauri build` 518,4 s. A pasta instalada calculada é de 495,5 MB.
+  - Instalador `C:\pt\release\bundle\nsis\Reco_0.3.0_x64-setup.exe`: 134994516 bytes, 18:28:19,
+    `96B458263E862832E4FCD26F16BDAAFBEA8445505D1B9AD8D191B9A0EA42D901`. Cópia em
+    `temp/instaladores/Reco_0.3.0_x64-setup.96B45826.exe`, com o SHA conferido.
+  - Casco `C:\pt\release\reco.exe`: 4490240 bytes, `7633B68C161F406183B68A25BBCD77AC29258F998A8BBB4003571AA5FF146C6D`.
+    Busca nos bytes: leva a mensagem de log do módulo novo (`valor do Run regravado com aspas`), que o `reco.exe`
+    instalado (`84EE1142`) não tem, e não leva `auto_launch`. O `StartupApproved` aparece nos dois e não discrimina.
   - Motor `reco-engine.exe`: o mesmo `281A0D76…4098A5F` do `84EE1142`.
-  - Substitui o `84EE1142` no caminho do `$setup`. O app instalado e aberto segue sendo o `84EE1142` (cópia em
-    `temp/instaladores/`), **ainda com o defeito**: autostart desligado nele (rc 1), então não há valor sem aspas
-    gravado.
+  - Antes dele, o `be4664c` gerou o `747302184A22FA99…` (18:11:11). Ele saiu de uso porque tinha o reparo largo; a
+    cópia foi apagada e ele nunca foi instalado.
+  - O `96B45826` substitui o `84EE1142` no caminho do `$setup`. O app instalado e aberto segue sendo o `84EE1142`
+    (cópia em `temp/instaladores/`), **ainda com o defeito**. Como o autostart está desligado nele (rc 1), não há
+    valor sem aspas gravado.
 - **Na próxima reinstalação** (só com o dono sem gravar e de acordo): `$setup` `/S` por cima. Depois refazer o passo 13
   com o valor `"…\reco.exe" --oculto` entre aspas, o rc 0 e o rc 1 nas duas chaves depois de desligar, e conferir que
   Opções segue mostrando o estado certo.
-- **Máquina no fim (18:12):** o app do dono intocado (pid 38448 e motor 46184, os dois desde 17:42:58, no caminho
-  instalado); `Run /v Reco` rc 1.
+- **Máquina no fim (18:30):** o app do dono intocado (pid 38448 e motor 46184, os dois desde 17:42:58, no caminho
+  instalado); `Run /v Reco` e `StartupApproved\Run /v Reco` rc 1; `HKCU\Software\RecoTeste` rc 1.
+- **Diário:** a página `cerebro/pessoal/diario/2026-11-12.md` foi regenerada no disco com o fragmento desta rodada,
+  mas ficou fora do commit. O gate do cofre a reprova por um link quebrado que vem do fragmento de outra sessão (o do
+  painel pessoal). O fragmento, o hub e a linha do tempo foram commitados.
