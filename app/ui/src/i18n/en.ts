@@ -219,6 +219,7 @@ export const en: Record<Chave, string> = {
   "av.ao-vivo": "Live text: {texto}",
   "av.atalho": "Ctrl+Shift+R: the main button has the focus.",
   "av.nada-gravado": "Nothing was recorded: no audio arrived.",
+  "av.parando": "Stopping… closing the recording file.",
   "av.parado-salvo": "The recording stayed in the recordings folder: {nome}",
 
   "erro.bad_args": "Invalid request",

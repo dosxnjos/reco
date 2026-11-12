@@ -164,12 +164,41 @@ async function cacheAparencia(browser, base) {
   const page = await ctx.newPage();
   await page.goto(base);
   await page.waitForFunction(() => window.__recoMock && window.vitrine);
+  // o motor (dono do config) diz outra coisa: Caderno e tema do sistema (casco_tema ausente)
+  await page.evaluate(() => { window.__recoMock.config.casco_skin = 'b'; });
   const dcl = await page.evaluate(() => window.__noDCL);
   p.conferir('skin e tema do cache já no primeiro desenho (antes do motor responder)', dcl[0] === 'c' && dcl[1] === 'escuro', JSON.stringify(dcl));
   await esperarEstado(page, 'gravar', 'pronto');
-  const depois = await page.evaluate(() => [document.documentElement.dataset.direcao, document.documentElement.dataset.tema]);
-  p.conferir('depois do config do motor: a escolha guardada continua (sem trocar de cara)', depois[0] === 'c' && depois[1] === 'escuro', JSON.stringify(depois));
+  await page.waitForTimeout(100);
+  const depois = await page.evaluate(() => [document.documentElement.dataset.direcao, document.documentElement.dataset.tema ?? null, localStorage.getItem('reco.aparencia')]);
+  p.conferir('depois do config do motor: o motor vence (Caderno, tema do sistema) e o cache passa a dizer o mesmo',
+    depois[0] === 'b' && depois[1] === null && depois[2] === JSON.stringify({ skin: 'b', tema: 'sistema' }), JSON.stringify(depois));
   await ctx.close();
+}
+
+async function readyComErro(page) {
+  await page.evaluate(() => window.__recoMock.emitir({ event: 'ready', import_s: 0.1, error: "ModuleNotFoundError: No module named 'x'" }));
+  await page.waitForTimeout(100);
+  const r = await vista(page);
+  p.conferir('ready com erro: "O motor não carregou" e Gravar desabilitado', r.e === 'erro' && r.d && r.titulo === 'O motor não carregou', JSON.stringify(r));
+  await page.evaluate(() => window.__recoMock.emitir({ event: 'ready', import_s: 0.1 }));
+  p.conferir('ready limpo depois: o aviso some e Gravar habilita', await esperarEstado(page, 'gravar', 'pronto') && !(await vista(page)).d);
+}
+
+async function parandoNoStatus(page) {
+  await clicar(page, 'principal');
+  await esperarEstado(page, 'gravar', 'gravando');
+  await page.waitForTimeout(200);
+  // o motor falso fica 200 ms / velocidade em `stopping`: com 0,2, um segundo, como o motor real fechando o MP3
+  await page.evaluate(() => { window.__recoMock.velocidade = 0.2; });
+  await clicar(page, 'principal');
+  await page.waitForTimeout(300);
+  const st = await statusTexto(page);
+  const vu = await page.evaluate(() => document.querySelector('[data-ref=barra-mic]').style.getPropertyValue('--nivel'));
+  p.conferir('stopping do motor: status "Parando…" e medidores parados enquanto o arquivo fecha', /Parando/.test(st) && vu === '0%', st + ' ' + vu);
+  await esperarEstado(page, 'gravar', 'parado');
+  await page.evaluate(() => { window.__recoMock.velocidade = 10; });
+  await limparParado(page);
 }
 
 (async () => {
@@ -186,6 +215,8 @@ async function cacheAparencia(browser, base) {
     await bandejaComNota(page);
     await conclusaoAntes(page);
     await bibliotecaMotivo(page);
+    await parandoNoStatus(page);
+    await readyComErro(page);
     await motorFora(page);
     await caiuParando(page);
     p.conferir('nenhum erro de página', !erros.length, erros.join(' | '));

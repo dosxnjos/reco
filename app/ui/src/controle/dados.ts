@@ -23,8 +23,9 @@ export function aplicarConfig(app: App, c: ConfigProto): void {
   v.o.aoVivo = !!cfg.live; v.g.aoVivo = !!cfg.live;
   v.o.atalho = cfg.casco_atalho === true;
   v.g.ganhoMic = Number(cfg.mic_gain ?? 1); v.g.ganhoSis = Number(cfg.sys_gain ?? 1);
-  if (cfg.casco_skin === "a" || cfg.casco_skin === "b" || cfg.casco_skin === "c") v.skin = cfg.casco_skin as Skin;
-  if (cfg.casco_tema === "sistema" || cfg.casco_tema === "claro" || cfg.casco_tema === "escuro") v.tema = cfg.casco_tema as Tema;
+  // o config do motor vence o cache local (aparencia.ts): chave ausente ou inválida é o padrão, não o que estava guardado
+  v.skin = cfg.casco_skin === "b" || cfg.casco_skin === "c" ? (cfg.casco_skin as Skin) : "a";
+  v.tema = cfg.casco_tema === "claro" || cfg.casco_tema === "escuro" ? (cfg.casco_tema as Tema) : "sistema";
   guardarAparencia(v.skin, v.tema);
   v.o.selMic = String(cfg.mic_device ?? "auto:console"); v.o.selSis = String(cfg.sys_device ?? "auto:console");
 }

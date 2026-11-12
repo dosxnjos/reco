@@ -134,6 +134,8 @@ export async function aoEstadoMotor(app: App, s: string): Promise<void> {
   if (s === "recording" && !GRAVANDO.has(e) && e !== "transcrevendo") await gravandoDeFora(app);
   else if (s === "recording" && e === "pausado") app.ir("gravar", estadoGravando(app));
   else if (s === "paused" && GRAVANDO.has(e) && e !== "pausado") { zerarNiveis(); app.ir("gravar", "pausado"); }
+  // o motor drena e fecha o MP3 (segundos com o motor real): medidores parados e o motivo no status, nada se move
+  else if (s === "stopping" && GRAVANDO.has(e)) { zerarNiveis(); app.diz("espera", "av.parando"); }
   else if (s === "stopped" && GRAVANDO.has(e) && !parandoAgora) {
     lendoParada = true;
     try {

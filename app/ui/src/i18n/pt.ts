@@ -226,6 +226,7 @@ export const pt = {
   "av.ao-vivo": "Texto ao vivo: {texto}",
   "av.atalho": "Atalho Ctrl+Shift+R: o botão principal está com o foco.",
   "av.nada-gravado": "Nada foi gravado: o áudio não chegou.",
+  "av.parando": "Parando… fechando o arquivo da gravação.",
   "av.parado-salvo": "A gravação ficou na pasta das gravações: {nome}",
 
   // códigos de erro do protocolo (docs/PROTOCOL.md) e do casco

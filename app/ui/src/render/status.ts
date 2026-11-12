@@ -9,7 +9,7 @@ const pct = (p: number | null) => (p == null ? "…" : `${p}%`);
 
 function gravar(v: Vista): [Sinal, string] {
   const g = v.g, disp = t("st.disp", { mic: g.mic, sis: g.sis });
-  const ausente = g.sisAusente ? " " + t("st.ausente", { padrao: g.padraoSis }) : "";
+  const ausente = g.sisAusente ? ". " + t("st.ausente", { padrao: g.padraoSis }) : "";
   const rec: Sinal = g.sisAusente ? "aviso" : "rec";
   switch (v.estado.gravar) {
     case "motor-subindo": return ["espera", t("st.g.motor-subindo")];
