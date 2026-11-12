@@ -41,6 +41,12 @@ pub fn fuso_do_log() -> tauri_plugin_log::TimezoneStrategy {
     tauri_plugin_log::TimezoneStrategy::UseLocal
 }
 
+/// O plugin de log do casco, montado num lugar só (o `run()` usa este). Os campos do `Builder` do plugin são
+/// privados e o `split` pede um `AppHandle`: o teste confere a montagem pelo fonte (`log_do_casco_usa_o_fuso`).
+pub fn plugin_de_log() -> tauri_plugin_log::Builder {
+    tauri_plugin_log::Builder::new().level(::log::LevelFilter::Info).timezone_strategy(fuso_do_log())
+}
+
 /// Como rodar o motor:
 /// 1. debug: `RECO_ENGINE=<reco-engine.exe>` roda o congelado (testar o PyInstaller sem instalador);
 /// 2. debug: `python -m reco_engine` em `engine/` do repo;
@@ -191,7 +197,7 @@ pub fn run() {
     let oculto = args.iter().any(|a| a == "--oculto");
 
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().level(::log::LevelFilter::Info).timezone_strategy(fuso_do_log()).build())
+        .plugin(plugin_de_log().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -283,5 +289,20 @@ mod testes {
         let local = time::UtcOffset::current_local_offset().expect("fuso local do Windows");
         assert!(matches!(super::fuso_do_log(), tauri_plugin_log::TimezoneStrategy::UseLocal));
         assert_eq!(super::fuso_do_log().get_now().offset(), local);
+    }
+
+    /// Revisão adversarial: o teste acima só via a função do fuso, e tirar o `.timezone_strategy(...)` do `run()`
+    /// voltava o log a UTC com tudo verde. Os campos do `Builder` são privados, então a prova é pelo fonte (sem o
+    /// módulo de testes): o plugin só é montado em `plugin_de_log`, com o fuso, e o `run()` usa essa função.
+    #[test]
+    fn log_do_casco_usa_o_fuso() {
+        let fonte = include_str!("lib.rs");
+        let codigo = fonte.split("#[cfg(test)]").next().expect("fonte");
+        let compacto: String = codigo.chars().filter(|c| !c.is_whitespace()).collect();
+        assert_eq!(compacto.matches("tauri_plugin_log::Builder::new()").count(), 1, "plugin de log montado fora de plugin_de_log");
+        let corpo = compacto.split("pubfnplugin_de_log()->tauri_plugin_log::Builder{").nth(1).expect("plugin_de_log");
+        let corpo = corpo.split('}').next().expect("corpo");
+        assert!(corpo.contains(".timezone_strategy(fuso_do_log())"), "plugin_de_log sem o fuso local: {corpo}");
+        assert!(compacto.contains(".plugin(plugin_de_log().build())"), "run() não usa plugin_de_log");
     }
 }
