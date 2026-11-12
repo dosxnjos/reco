@@ -78,8 +78,12 @@ async function comecar(app: App): Promise<void> {
   try {
     const r = await app.pedir<Inicio>("rec.start", { mode: g.modo === "nota" ? "nota" : "rec" });
     // o motor pode mandar `name: null` (sem dispositivo resolvido naquele canal): nunca deixar o painel vazio
-    g.mic = r.mic.name ?? t("o.auto-console"); g.sis = r.sys.via === "ausente" ? g.padraoSis : r.sys.name ?? t("o.auto-console");
-    g.sisAusente = r.sys.via === "ausente";
+    g.mic = r.mic.name ?? t("o.auto-console");
+    // a nota não grava o sistema (o motor manda `sys` vazio, `via: auto`): a Saída fica com o nome que já tinha
+    if (g.modo !== "nota") {
+      g.sis = r.sys.via === "ausente" ? g.padraoSis : r.sys.name ?? t("o.auto-console");
+      g.sisAusente = r.sys.via === "ausente";
+    }
     g.aoVivo = r.live; g.segundos = 0; g.falas = []; app.v.ocupado = true; app.v.estado.opcoes = "durante-gravacao";
     app.ir("gravar", estadoGravando(app));
   } catch (e) {

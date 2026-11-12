@@ -146,7 +146,9 @@ class MotorFalso {
     if (this.modo === "nota" && this.trabalho) falha("busy", "transcrição em curso");
     this.live = this.modo === "rec" && !!this.config.live && !this.trabalho;
     this.elapsed = 0; this.rec = "recording"; this.estadoEv(); this.correr();
-    return { mic: this.nomeDispositivo("microphone", "mic_device"), sys: this.nomeDispositivo("speaker", "sys_device"), live: this.live, live_suprimido: false };
+    // como o motor (`recording._resolve`): a nota não resolve o sistema
+    const sys = this.modo === "nota" ? { id: null, name: null, via: "auto" } : this.nomeDispositivo("speaker", "sys_device");
+    return { mic: this.nomeDispositivo("microphone", "mic_device"), sys, live: this.live, live_suprimido: false };
   }
   c_rec_pause() { if (this.rec !== "recording") falha("refused"); this.rec = "paused"; this.estadoEv(); return { elapsed_s: this.elapsed }; }
   c_rec_resume() { if (this.rec !== "paused") falha("refused"); this.rec = "recording"; this.estadoEv(); return { elapsed_s: this.elapsed }; }

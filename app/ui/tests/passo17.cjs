@@ -3,7 +3,8 @@
 // Cobre: (1) `busy` no Gravar (nota logo depois de abrir, com a checagem do modelo ocupando a vaga) nunca some calado:
 // a tela fica em Pronto com o motivo no status, e o clique seguinte grava; (2) Entrada, Saída e o status de Pronto com
 // os nomes dos dispositivos antes da 1ª gravação (o motor manda o NOME do padrão em `console`/`comm`, não o id), e
-// "Automático (padrão do Windows)" quando o Windows não diz o padrão.
+// "Automático (padrão do Windows)" quando o Windows não diz o padrão; (3) depois de uma nota (que não resolve o
+// sistema), a Saída segue com o nome do alto-falante (revisão adversarial dos consertos).
 'use strict';
 const { playwright, servir, placar, abrir, esperarEstado, clicar, statusTexto } = require('./comum.cjs');
 
@@ -24,6 +25,9 @@ async function busyNaoSomeCalado(page) {
   await clicar(page, 'principal');
   await esperarEstado(page, 'gravar', 'transcricao-pronta', 10000);
   await page.click('[data-acao="modo"][data-modo="gravacao"]');
+  // a nota não resolve o sistema (o motor manda `sys` sem nome): a Saída segue com o nome do alto-falante
+  const sis = await texto(page, 'info-sis');
+  p.conferir('depois de uma nota, a Saída segue com o nome do alto-falante', sis === 'Alto-falantes (Realtek(R) Audio)', sis);
   await page.evaluate(() => { window.__recoMock.recusar['rec.start'] = 'busy'; });
   await clicar(page, 'principal');
   await page.waitForTimeout(300);
