@@ -168,7 +168,7 @@
 
 ### B. Instalar e trocar
 
-8. [ ] Renomear "Reco Novo" para "Reco" (troca que a F3-D3 deixou para cá) e gerar o instalador NSIS `currentUser`, PT-BR e EN, só `nsis` (F4-D7). — **prova:** `grep -rln "Reco Novo" app --exclude-dir=node_modules` → nada, e `ls C:/pt/release/bundle/nsis/` → `Reco_${ver}_x64-setup.exe`
+8. [x] Renomear "Reco Novo" para "Reco" (troca que a F3-D3 deixou para cá) e gerar o instalador NSIS `currentUser`, PT-BR e EN, só `nsis` (F4-D7). — **prova:** `grep -rln "Reco Novo" app --exclude-dir=node_modules` → nada, e `ls C:/pt/release/bundle/nsis/` → `Reco_${ver}_x64-setup.exe`
    **reprova se:** sobra `Reco Novo` em `app/` (ex.: o `.app_name` do autostart, Fase 3 passo 10), o instalador sai com outro nome, só sai MSI, ou o build falha.
    - Trocar `productName` para `Reco` em `app/src-tauri/tauri.conf.json` e `.app_name("Reco Novo")` para `.app_name("Reco")` em `app/src-tauri/src/atalho.rs`. O `identifier` não muda.
    - Por quê: o NSIS usa o `productName` no `.lnk` do Menu Iniciar e na pasta `%LOCALAPPDATA%\<productName>`, e o autostart grava a chave Run com o `app_name`.

@@ -70,6 +70,50 @@ As 10 gravações `gravacao_reco_*` mais recentes da pasta do app (sem `_alinhad
 - Só 3 das 10 têm o `x.txt` do app; as outras 7 têm só o `x.mp3.txt` do transcritor dos agentes (texto corrido antigo),
   que a régua não lê. Por isso o `--exigir-txt` do passo 18 vale para as gravações novas, não para esta base.
 
+### Passo 8: troca do nome e instalador (16:09 a 16:20)
+
+- **O que mudou** (commit `818c257`): `productName` `Reco`; `app_name("Reco")` do autostart (`lib.rs:207`); o texto da
+  versão em Opções (`Reco {app} · motor {motor}`, PT e EN); comentários do `lib.rs`, `atalho.rs`, `build.ps1` e
+  `hooks.nsh` (este segue só ASCII); `boot.py` loga `ready em <n> s`. `identifier` (`io.github.dosxnjos.reco`) e
+  `instancia.rs` (mutex `Local\Reco.SingleInstance`) intocados: `git diff 037ef65 HEAD -- app/src-tauri/src/instancia.rs`
+  → vazio.
+- **Provas antes do build:** `npm --prefix app run ui:build` → `built`; `i18n:check` → `237 chaves PT, 237 EN … 0 faltando`;
+  `gravar.cjs` 0 em 53, `telas.cjs` 0 em 50, `revisao.cjs` 0 em 21, `paridade.cjs` 17 de 17, `passo17.cjs` 0 em 9;
+  `cargo test … -- --include-ignored` → `ok. 43 passed` (inclui os 2 de `instancia`); `cargo clippy --all-targets` → 0
+  avisos; `python tools/test_nsis_atalho.py` → `falhas 0`; `python tools/test_engine_protocol.py` (rodada padrão, sem
+  as que gravam) → 13 linhas `OK`. O motor do fonte, com `hello` + `shutdown` → stderr
+  `… INFO reco_engine.boot: ready em 0.17 s` e `encerrando (shutdown)`, exit 0.
+- **Build** (`app/build.ps1` completo, porque o motor mudou; feito do `818c257`, e o `60122c7` só muda `tools/` e
+  roadmap): `exit=0`; smoke do motor congelado `ready ok=True` em 1,67 / 0,47 / 0,53 s e `devices ok=True (1, 2)`; tempos:
+  motor 94,9 s, `npm ci` 2,8 s, interface 2,1 s, `tauri build` 555 s, total 655,8 s. Pasta instalada calculada: 495,5 MB.
+- **Hashes (SHA256):**
+  - Instalador `C:\pt\release\bundle\nsis\Reco_0.3.0_x64-setup.exe`: 128,8 MB (135022313 bytes), 16:20:10,
+    `76C890E88B2B10BC6CBBAB191DB0CB6BECB5E6D097E4A98D7209C1875B1A4D90`.
+  - Casco `C:\pt\release\reco.exe`: 4513792 bytes, `E0309C6F7339082F9118ECE615958F7E548A9C7B164A648E55D58B38445A9B77`.
+  - Motor `engine\dist\reco-engine\reco-engine.exe`: 25162376 bytes, 16:10:43,
+    `214822A8331C349ED94A8321E14DE4E1DBD71F37E2D825E0622D51CF220BCEE0`.
+  - Substitui o `a06809a6…a0f4f422` (`Reco Novo_0.1.0`) da Fase 3 como instalador a usar no passo 9.
+- **Sem colisão com o Reco velho, lido no `installer.nsi` gerado** (`C:\pt\release\nsis\x64\`): `PRODUCTNAME "Reco"`,
+  `VERSION "0.3.0"`, `INSTALLMODE "currentUser"`, `MAINBINARYNAME "reco"`, `BUNDLEID "io.github.dosxnjos.reco"`,
+  `!include …\windows\hooks.nsh`. Nenhum `FindProcess`/`KillProcess` no `installer.nsi` nem no `utils.nsh` (0 e 0): o
+  `CheckIfAppIsRunning` registra no Restart Manager **o caminho** `$INSTDIR\reco.exe`, então o `Reco.exe` do dono em
+  `dist\` (mesmo nome de imagem) não é alvo. A desinstalação só apaga `$SMPROGRAMS\Reco.lnk` se o alvo dele for o exe
+  instalado (`IsShortcutTarget`). A pasta de instalação passa a ser `%LOCALAPPDATA%\Reco`, a dos modelos (F4-D4): o
+  passo 10 prova que instalar e desinstalar não os apagam.
+- **Nota do frescor:** o `app_name` estava no `lib.rs`, não no `atalho.rs`; o `^ready em ` do passo 14 não casaria com o
+  formato do log (os dois corrigidos no md por nota datada).
+
+### Decisões técnicas — Fase 4 (esta rodada)
+
+| decisão | motivo | confiança | o que reverteria |
+| --- | --- | --- | --- |
+| Gravações do dono só por cópia em pasta temporária; nomes como G01 a G10 | regra da tarefa e repo público; o `--forcar` na pasta do app reescreveria o `x.txt` dele | alta | — |
+| `pior` fala a fala no `x.txt` diarizado | o arquivo inteiro sem rótulos acusaria turnos curtos iguais como loop (achado do advisor) | alta | o passo 18 mostrar loop que atravessa falas e escapa |
+| Duração tolerante a pacote final quebrado na régua | o corte no meio de um frame derrubava a leitura antes de medir o Xing; o arquivo de processo morto pode ter o mesmo rabo | média | preferir que todo rabo quebrado saia só como erro de leitura (também FALHOU) |
+| Linha `ready em <n> s` com o `import_s` (do início da thread do import até o `ready`) e só no `ready` sem erro | o passo 14 casa a linha no `engine.log`; `ready` com erro não é "pronto" | alta | o passo 14 precisar do tempo desde o início do processo (o laço já mede de fora, pelo cronômetro) |
+| README: só as duas frases que o nome novo deixaria falsas (nome do instalador e o atalho que "nunca trocava"), sem prometer nada sobre desinstalar e modelos | o passo 20 reescreve o resto; o passo 10 ainda não provou a desinstalação | alta | — |
+| `reco.py` intocado; o aviso de versão contra o `reco.APP_VERSION` só anotado (F4-D9) | "O que esta fase NÃO faz": o `reco.py` não cresce; hoje P23 passa | média | decidir o release público (Pendente) |
+
 ### Passos
 
 | passo | estado | prova (comando → o que veio) |
@@ -81,3 +125,49 @@ As 10 gravações `gravacao_reco_*` mais recentes da pasta do app (sem `_alinhad
 | 5 prova negativa | [x] | `python tools/paridade.py trunc_reco.mp3 mono.mp3` → `trunc_reco.mp3 dur=252.2 xing=ERRADO leitura=ERRO txt=ausente pior=- -> FALHOU (xing, cauda-corrompida)`, `mono.mp3 dur=26.2 xing=ok canais=nao-estereo … -> FALHOU (nao-estereo)`, `REPROVOU`, rc 1. Controle extra: corte em fronteira de frame → `xing=ERRADO r_zero_inicio=0 … -> FALHOU (xing)`; flag desconhecida → rc 2 |
 | 6 linha de base | [x] | 10 linhas (tabela "Linha de base"), `vereditos: ok=6, ALERTA=2, FALHOU=2 \| alinhamento: ok=6, salto=3, sem_correlacao=1`; nenhum FALHOU por leitura. Comando do md trocado por cópias e lista entre aspas (nota no md) |
 | 7 determinismo do transcritor | [x] | cópia da G05 (271 s, fala dos dois lados, `x.txt` do app ao lado) em pasta temporária; 2 rodadas seguidas `python tools/transcrever.py <cópia> --forcar --modelo large-v3-turbo --device AUTO` (o config: `large-v3-turbo`, `AUTO`; modo `diarizado + AEC`) → rc 0 em 95 s e 105 s; `cmp det1.txt det2.txt && echo IGUAL` → `IGUAL` (3215 bytes). Extra: `cmp det1.txt <x.txt do app>` → igual. Linha de base do byte a byte: `python tools/paridade.py <a cópia> --txt-contra-script` → `dur=271.4 xing=ok … pior=3 script=igual -> ok`, `PASSOU`, rc 0 (1 min 46 s, com o build do passo 8 rodando ao lado) |
+| 8 nome "Reco" e instalador | [x] | depois do build: `grep -rln "Reco Novo" app --exclude-dir=node_modules` → nada (rc 1); `ls C:/pt/release/bundle/nsis/` → `Reco_0.3.0_x64-setup.exe` (o `Reco Novo_0.1.0_x64-setup.exe` antigo continua lá, sem uso); `powershell -ExecutionPolicy Bypass -File app/build.ps1` → `exit=0`, última linha `Instalador: C:\pt\release\bundle\nsis\Reco_0.3.0_x64-setup.exe`. **Não instalado nem aberto** |
+
+### O que falta (passos 9 a 25) e com quem
+
+- **Dono (Gabriel), na ordem:**
+  1. Sair do Reco velho pela bandeja, sem gravação em curso, quando puder ficar uns 30 a 60 min sem gravar. Com ele
+     fechado, a sessão roda as checagens que gravam (`test_engine_protocol.py --gravar 5 --concluir` e `--eof 25`,
+     herdadas da Fase 3), desinstala o "Reco Novo" (`aac7ca7`, ainda instalado) e instala o `Reco_0.3.0` (passos 9 e 10).
+     **Ele não deve rodar o instalador novo por conta própria**: o passo 9 desinstala o "Reco Novo" antes e confere os
+     modelos.
+  2. Os testes que pedem a mão dele: atalho Ctrl+Shift+R por tecla física (11), hover e clique no ícone, minimizar
+     (herdado), reiniciar o Windows 3 vezes para o "a frio" do passo 14 (combinar a hora), e o checklist manual do 17.
+  3. Usar o app novo no dia a dia por 5 dias ou mais, com as 6 gravações G1 a G6 de F4-D1, e dizer "aprovo" (18).
+- **Sessão (técnico, depois do passo 9):** passos 10 a 16 (modelos, atalho, mutex nos dois sentidos, autostart, D12, D11
+  no instalado, ensaio da volta), 17 e 19 (paridade e ouvido dos agentes), 20 a 25 (README completo com screenshot,
+  ARQUITETURA, CLAUDE.md, armadilhas, hub e fechamento).
+- **Decisão pendente que esta rodada achou:** antes de um release público `v0.3.0`, o aviso de versão do app novo
+  compara com o `reco.APP_VERSION` (0.2.0) e ficaria acusando versão nova para sempre (nota na F4-D9 do md).
+
+### completei:
+
+- Soma da árvore inteira da reserva (4010 arquivos e os 46 dos modelos), além do `Reco.exe` que o md pedia.
+- Régua com `--anonimo`, contagem dos vereditos e do alinhamento, duração tolerante a pacote final quebrado e `pior` fala
+  a fala; controles negativos extras (corte em fronteira de frame, loop de mentira, quatro turnos curtos).
+- `cmp` do transcritor contra o `x.txt` do app (igual), além das duas rodadas.
+- README nas duas línguas sem as duas frases que o nome novo tornaria falsas.
+- Leitura do `installer.nsi` gerado: nenhum fechamento de processo por nome que pegaria o `Reco.exe` do dono.
+
+### Máquina no fim
+
+- Reco velho aberto e intocado: pid 29256, `C:\Dev\Reco\dist\Reco\Reco.exe` (conferido depois do build).
+- `Documents\Reco`: os mesmos 213 arquivos, nenhum novo, sumido ou com tamanho/data mudados (foto das 15:55 contra o
+  fim). `~/.reco_config.json` igual à cópia das 15:55 (`cmp`).
+- Cópias das gravações (linha de base, determinismo, prova negativa) no scratchpad da sessão, fora do repo; nada de
+  áudio ou transcrição no git. `%LOCALAPPDATA%\Reco-reserva` fica (F4-D3, até a Fase 7).
+- Reco Novo `aac7ca7` segue instalado; nenhum instalador ou desinstalador rodou.
+
+### Commits
+
+| hash | o quê |
+| --- | --- |
+| `037ef65` | passo 1 (0.3.0) e as notas de frescor do md |
+| `7f21ea0` | passos 2 e 3 (reserva e foto) |
+| `5037e1f` | passos 4 e 5 (`tools/paridade.py`, `docs/TOOLS.md`) |
+| `818c257` | passo 8, fonte (nome `Reco`, `ready em`, README) — o instalador sai deste código |
+| `60122c7` | passos 6 e 7 e o `pior` fala a fala |
