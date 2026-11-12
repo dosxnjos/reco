@@ -118,8 +118,8 @@ o Tk centralizar a janela; na rodada o centro do Gravar fica em 1152,441.
 
 **As 3 rodadas de 23:28 foram descartadas** (movidas para `temp/medicoes/partida-descartada.jsonl`): todas
 recusaram o clique com `ponto 1152,441 coberto por outra janela`. O código que rodou já levava a janela de
-teste a `HWND_TOPMOST`; então quem cobria o ponto estava numa faixa acima do topmost comum ou também era
-topmost (janelas de outras conversas na tela). Na retomada o ponto era da janela de teste antes e depois
+teste a `HWND_TOPMOST`, e a mensagem não dizia quem cobria: **a janela que cobria às 23:28 não foi
+identificada** (só se sabe que venceu um topmost comum; havia janelas de outras conversas na tela). Na retomada o ponto era da janela de teste antes e depois
 do topmost (diagnóstico com `WindowFromPoint` + `GetAncestor`). Correção sem afrouxar a guarda
 (`tools/medir_partida_win.py`): o clique continua recusado se o ponto não for do pid de teste; antes de
 recusar, (1) põe só a janela de teste em topmost, (2) leva só ela aos cantos da área útil e relê o botão, e
@@ -129,7 +129,8 @@ referência: `abrir_pronta_s` 1,855 / 1,756 / 1,527 e `ram_repouso_mb` 113,1 / 1
 
 `python tools/medir_partida.py --rodadas 3 --segundos 35` → 3 linhas, código 0, `trava_detectada=true` nas 3,
 MP3 movidos para `temp/medicoes/`. Cliques: Gravar `direto, topmost, direto`; Parar `topmost, direto,
-direto`.
+direto`. O caminho `movida` (levar a janela de teste a um canto) não precisou rodar em nenhuma rodada: está
+escrito, não exercitado.
 
 | medida (sem som) | 1ª rodada | mediana das 3 | faixa |
 | --- | --- | --- | --- |
@@ -154,9 +155,11 @@ direto`.
 Sem eco, o `_pump` só solta o áudio quando desiste de alinhar (`ALIGN_DESISTE_S = 20`), então o arquivo
 aparece a ~20,7 s do clique. Isso contradiz o comentário de `reco.py:1660-1662` e a regra 3 do `CLAUDE.md` ("o
 arquivo nasce no `start()`"). Consequências:
-- a checagem de gravação em curso do passo 4 (e do passo 9) é **cega nos primeiros ~11 a 21 s** de uma
-  gravação: não há arquivo para estar preso. A F0-D7 continua segura porque o Sair salva antes de sair
-  (`reco.py:5088-5111`), mas a premissa "a trava cobre a retenção" (passo 4) caiu;
+- uma chamada **única** de `--checar-gravando` (passo 4) é **cega nos primeiros ~11 a 21 s** de uma
+  gravação: não há arquivo para estar preso. O protocolo do passo 9 (duas checagens a 25 s) ainda cobre,
+  porque aos 21 s o arquivo já existe; e o Sair salva antes de sair (`reco.py:5088-5111`). Etapa que usar a
+  checagem única como guarda antes de encerrar processo precisa repetir a checagem depois de 25 s; a
+  premissa "a trava cobre a retenção" (passo 4) caiu;
 - um crash nos primeiros ~20 s não deixa MP3 parcial.
 Nenhuma mudança no `reco.py` nesta fase (fora do escopo); vai para as Fases 2 e 5 e para a ARMADILHAS no
 passo 17.
@@ -183,9 +186,11 @@ Rodadas válidas, `python tools/medir_partida.py --rodadas 2 --segundos 35 --toc
 - **Prova literal não fecha** (`clique_mp3_cresce_s` entre 9 e 14 s): pelo Achado 1, o número que o md quer
   ("o áudio chega ao disco") é o `clique_arquivo_criado_s`. Ele dá **11,0–11,2 s quando o eco foi detectado**
   (dentro de 9–14 s; 2 de 5 rodadas com som) e 20,7 s quando não foi (o eco não chegou ao mic). O
-  `clique_mp3_cresce_s` de 26–33 s mede o buffer de escrita do FFmpeg (o arquivo cresce em blocos), não o
-  alinhamento. Passo 12 fica `[ ]` com esta nota: o md precisa trocar a chave da prova.
-- `ram_gravando_mb` é maior quando o alinhamento desistiu (317 MB) do que quando fechou em 10 s (226 MB).
+  `clique_mp3_cresce_s` de 26–33 s não é o tempo de alinhamento (provado: o arquivo já existia de 10 a 22 s
+  antes). Por que ele demora tanto a crescer depois de nascer **não está explicado**: o buffer de escrita do
+  FFmpeg é uma hipótese, não medida, e não fecha bem com o pareamento parado do Achado 2. Passo 12 fica `[ ]` com esta nota: o md precisa trocar a chave da prova.
+- `ram_gravando_mb` por condição: com som e alinhamento fechado em ~10 s, 226–228 MB; sem som (desistiu a
+  20 s), 246–247 MB; com som e alinhamento que desistiu, 316–317 MB.
 - Outras rodadas com som, guardadas no `partida.jsonl` e fora da tabela:
   - 23:40, rodada 1 (`tocou=true`): pronta 1,557 s, arquivo a 11,029 s, `cresce=null`, RAM 228,2 MB, parar
     0,302 s. Rodada 2: `tocou=false` (`Error 0x800401f0`, COM não iniciado na thread nova).
@@ -194,7 +199,8 @@ Rodadas válidas, `python tools/medir_partida.py --rodadas 2 --segundos 35 --toc
   - 23:44, rodada 1: pronta 1,893 s, arquivo 20,719 s, cresce 30,058 s, RAM 316,3 MB, parar 0,302 s.
     Rodada 2: **o clique em Parar não pegou** (`parar_*=null` em 30 s; o MP3 de teste cresceu até 512 KiB e
     a instância foi encerrada gravando). Causa não achada; o clique foi `direto` (o ponto era do pid de
-    teste). Não se repetiu nas 6 rodadas seguintes.
+    teste). Não se repetiu nas rodadas seguintes. A rodada saiu com código 0 e sem `erro`; corrigido: agora
+    `parar_ui_parado_s=null` vira `erro` e código 7.
 
 ### Passo 13 — exclusão mútua spike × Reco (D7, F0-D5)
 

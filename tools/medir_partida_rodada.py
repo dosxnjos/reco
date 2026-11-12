@@ -218,6 +218,8 @@ def _parar(r: dict, proc, hwnd, mp3) -> None:
         "parar_arquivo_fechado_s": lambda: mp3 is not None and mp3.exists() and not w.arquivo_preso(mp3),
         "parar_ui_parado_s": lambda: len(w.botoes_visiveis(hwnd)) == 3,    # Salvar, Excluir, Reproduzir
     }, t, 30))
+    if r["parar_ui_parado_s"] is None:      # 23:44 de 11/11: o Parar não pegou e a rodada saía código 0
+        r["erro"] = "o clique em Parar não pegou em 30 s (a instância de teste é encerrada gravando)"
 
 
 def _mover_um(p) -> bool:
