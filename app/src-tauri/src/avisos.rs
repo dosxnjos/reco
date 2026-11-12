@@ -17,6 +17,8 @@ pub enum Aviso {
     ErroDeGravacao { fatal: bool },
     TranscricaoPronta(String),
     NotaCopiada(String),
+    /// Gravar, Pausar ou Continuar pela bandeja falhou (nada grava e a janela pode estar escondida).
+    BandejaFalhou { cmd: &'static str },
 }
 
 pub fn texto(a: &Aviso, ingles: bool) -> String {
@@ -31,6 +33,10 @@ pub fn texto(a: &Aviso, ingles: bool) -> String {
         (Aviso::TranscricaoPronta(n), true) => format!("Transcription ready: {n}"),
         (Aviso::NotaCopiada(n), false) => format!("Nota salva — caminho copiado: {n}"),
         (Aviso::NotaCopiada(n), true) => format!("Note saved — path copied: {n}"),
+        (Aviso::BandejaFalhou { cmd: "rec.start" }, false) => "A gravação não começou. Abra o Reco para ver o motivo.".into(),
+        (Aviso::BandejaFalhou { cmd: "rec.start" }, true) => "Recording did not start. Open Reco to see why.".into(),
+        (Aviso::BandejaFalhou { .. }, false) => "Não deu para pausar ou continuar. Abra o Reco para ver o motivo.".into(),
+        (Aviso::BandejaFalhou { .. }, true) => "Could not pause or resume. Open Reco to see why.".into(),
     }
 }
 
@@ -87,5 +93,7 @@ mod testes {
         assert_eq!(aviso_da_resposta("rec.conclude", &json!({"action": "save"}), &json!({"path": "a"})), None);
         assert_eq!(aviso_da_resposta("library.list", &json!({}), &d), None);
         assert!(texto(&Aviso::GravacaoInterrompida, false).starts_with("A gravação foi interrompida"));
+        assert!(texto(&Aviso::BandejaFalhou { cmd: "rec.start" }, false).starts_with("A gravação não começou"));
+        assert!(texto(&Aviso::BandejaFalhou { cmd: "rec.pause" }, true).starts_with("Could not pause"));
     }
 }

@@ -28,6 +28,15 @@ pub fn gravando(rec_state: &str) -> bool {
     matches!(rec_state, "recording" | "paused" | "starting")
 }
 
+/// `stopping`: um `rec.stop` (da tela ou da bandeja) já está drenando e fechando o MP3. Não é "gravando" (um
+/// `rec.stop` novo levaria `refused`), mas o arquivo ainda está aberto: a saída espera ele sair desse estado.
+pub fn fechando(rec_state: &str) -> bool {
+    rec_state == "stopping"
+}
+
+/// Intervalo entre os `state` enquanto a saída espera um `stopping` terminar.
+const PASSO_ESPERA_FECHAR: Duration = Duration::from_millis(200);
+
 /// O que a saída fez (para log e teste).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Saida {
@@ -37,6 +46,25 @@ pub enum Saida {
     Ocioso,
     /// Gravando: `rec.stop` respondeu (ok ou erro) antes do `shutdown`.
     FechouGravacao { ok: bool },
+    /// Um `rec.stop` em curso (`stopping`): esperou o estado sair dele (`ok`) ou o prazo vencer, sem novo `rec.stop`.
+    EsperouFechar { ok: bool },
+}
+
+/// Pergunta o `state` a cada `PASSO_ESPERA_FECHAR` até sair de `stopping` (true) ou vencer `PRAZO_REC_STOP`.
+async fn esperar_fechar(engine: &Arc<Engine>) -> bool {
+    let limite = tokio::time::Instant::now() + PRAZO_REC_STOP;
+    while tokio::time::Instant::now() < limite {
+        tokio::time::sleep(PASSO_ESPERA_FECHAR).await;
+        match engine.request(engine.new_id(), "state", json!({}), PRAZO_STATE_NA_SAIDA).await {
+            Ok(st) if fechando(st.get("rec_state").and_then(Value::as_str).unwrap_or("")) => continue,
+            Ok(_) => return true,
+            Err(e) => {
+                ::log::warn!("[reco] state esperando o arquivo fechar: {e}");
+                return false;
+            }
+        }
+    }
+    false
 }
 
 /// Sai com segurança: pergunta o `state`; se há gravação aberta, pede `rec.stop` e espera a resposta (até
@@ -53,6 +81,11 @@ pub async fn sair_com_seguranca(engine: &Arc<Engine>, graca: Duration) -> Saida 
                     ::log::warn!("[reco] rec.stop na saída falhou: {e}");
                 }
                 Saida::FechouGravacao { ok: r.is_ok() }
+            }
+            Ok(st) if fechando(st.get("rec_state").and_then(Value::as_str).unwrap_or("")) => {
+                // Parar seguido de Sair: o shutdown agora cortaria o close() do MP3 (D11). Espera o rec.stop em curso.
+                ::log::info!("[reco] Sair com o arquivo fechando: espera sair de stopping antes do shutdown (D11)");
+                Saida::EsperouFechar { ok: esperar_fechar(engine).await }
             }
             Ok(_) => Saida::Ocioso,
             Err(e) => {
@@ -112,6 +145,23 @@ mod testes {
         for s in ["idle", "stopping", "stopped", ""] {
             assert!(!gravando(s), "{s}");
         }
+        // stopping não pede rec.stop de novo (levaria refused), mas a saída espera o arquivo fechar
+        assert!(fechando("stopping"));
+        for s in ["idle", "recording", "paused", "starting", "stopped", ""] {
+            assert!(!fechando(s), "{s}");
+        }
+    }
+
+    /// Parar e logo Sair: o motor responde `stopping` (o rec.stop em curso drena e fecha o MP3). O casco não manda
+    /// outro `rec.stop` nem o `shutdown` até o `state` sair de `stopping` (o falso responde `stopped` no 4º).
+    #[tokio::test]
+    #[ignore = "precisa de `python` no PATH"]
+    async fn sair_espera_o_stopping() {
+        let (engine, _seen, dir) = falso::subir("sair-parando", Falso { rec_state: "stopping", ..Default::default() });
+        let saida = sair_com_seguranca(&engine, Duration::from_secs(5)).await;
+        assert_eq!(saida, Saida::EsperouFechar { ok: true });
+        assert_eq!(falso::cmds(&dir), vec!["state", "state", "state", "state", "shutdown"]);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

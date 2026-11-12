@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use serde_json::Value;
 
 use crate::motor::router::lock;
-use crate::motor::saida::{gravando, PrimeiroReady};
+use crate::motor::saida::{fechando, gravando, PrimeiroReady};
 
 /// O que o casco faz em resposta a um evento ou a uma troca de status do motor.
 #[derive(Debug, PartialEq, Eq)]
@@ -117,7 +117,8 @@ impl EstadoCasco {
         if self.saindo() || antes == "idle" {
             return vec![];
         }
-        if gravando(&antes) {
+        // `stopping` também: o motor caiu enquanto fechava o MP3, e o arquivo pode ter ficado sem o cabeçalho
+        if gravando(&antes) || fechando(&antes) {
             vec![Acao::Bandeja, Acao::GravacaoInterrompida]
         } else {
             vec![Acao::Bandeja]
@@ -142,6 +143,11 @@ mod testes {
 
         e.no_evento(&json!({"event": "state", "state": "paused", "elapsed_s": 3}));
         assert_eq!(e.no_status(false), vec![Acao::Bandeja, Acao::GravacaoInterrompida], "pausado também");
+
+        // Parar pela bandeja e o motor cai fechando o MP3: a tela precisa do alarme (revisão adversarial, achado 13)
+        e.no_evento(&json!({"event": "state", "state": "stopping", "elapsed_s": 9}));
+        assert_eq!(e.no_status(false), vec![Acao::Bandeja, Acao::GravacaoInterrompida], "stopping também");
+        assert_eq!(e.rec_state(), "idle");
     }
 
     #[test]

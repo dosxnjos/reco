@@ -146,13 +146,16 @@ fn no_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
     }
 }
 
-/// Pedido ao motor em segundo plano (o resultado chega à tela pelos eventos `state`/`rec.error`).
+/// Pedido ao motor em segundo plano (o resultado chega à tela pelos eventos `state`/`rec.error`). Falhou (sem
+/// dispositivo, ocupado, motor fora): aviso com a janela escondida, como o `rec.error` (nada grava sem ninguém saber).
 fn pedir<R: Runtime>(app: &AppHandle<R>, cmd: &'static str, args: serde_json::Value) {
     let Some(engine) = engine_de(app) else { return };
+    let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let t = motor::prazos::prazo(cmd, &args);
         if let Err(e) = engine.request(engine.new_id(), cmd, args, t).await {
             ::log::warn!("[reco] {cmd} pela bandeja: {e}");
+            avisos::se_escondida(&app, &avisos::Aviso::BandejaFalhou { cmd });
         }
     });
 }

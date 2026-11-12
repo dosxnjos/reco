@@ -32,6 +32,7 @@ pub(crate) mod falso {
 import json, os, sys, threading, time
 log_path, rec_state, auto, ready, update = sys.argv[1:6]
 lock = threading.Lock()
+n_state = [0]
 def out(o):
     with lock:
         sys.stdout.write(json.dumps(o) + "\n"); sys.stdout.flush()
@@ -44,7 +45,12 @@ def handle(req):
     i, cmd, args = req["id"], req["cmd"], req.get("args") or {}
     anota(cmd, args)
     if cmd == "hello": ok(i, {"engine_version":"0.0.0","protocol":1,"ready":True})
-    elif cmd == "state": ok(i, {"ready":True,"rec_state":rec_state,"elapsed_s":3,"transcribing":False,"live":False,"last_rec":None,"auto":None})
+    elif cmd == "state":
+        st = rec_state
+        if rec_state == "stopping":   # o rec.stop em curso termina: stopped a partir do 4º state
+            n_state[0] += 1
+            st = "stopping" if n_state[0] < 4 else "stopped"
+        ok(i, {"ready":True,"rec_state":st,"elapsed_s":3,"transcribing":False,"live":False,"last_rec":None,"auto":None})
     elif cmd == "rec.stop":
         time.sleep(0.3)
         anota("rec.stop:respondido", {})
