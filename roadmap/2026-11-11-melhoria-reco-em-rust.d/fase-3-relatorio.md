@@ -331,6 +331,126 @@ README nas duas línguas (seção do app novo em construção e como gerar o ins
 `_INDICE`, CLAUDE.md (1 linha e meia), duas armadilhas (`visoes.py novo`), hub e diário no C:\Dev (`9a02b019`).
 Commit dos docs: `4ab9a3c`. O passo **fica `[ ]`**: o que falta depende do 17 (abaixo).
 
+### Passo 17 — teste real (12/11/2026, 11:50 a 12:22)
+
+Condição: Reco velho fechado pela sessão principal antes de começar, sem gravação em curso (o dono autorizou:
+"Fica à vontade para fechar, não estou usando"). Antes de cada abertura, guarda pelo **mutex**
+`Local\Reco.SingleInstance` (`OpenMutexW`) e pelos processos `reco.exe`/`reco-engine.exe` por caminho. Fala do PC:
+`temp/bench-voz/clip10.wav` em laço no alto-falante (`Clipe` de `tools/engine_checks_rec.py`). Config real do dono
+(ganho mic 3,0, sistema 0,5, dispositivos `auto:console`, `live: false`), com `HF_HUB_OFFLINE=1` para a checagem
+de modelo não baixar nada no meio. Scripts descartáveis no scratchpad da sessão (`p17lib.py`, `driver.cjs`
+persistente por CDP, `cenario.py`, `d12.py`, `diag_nota.py`); logs em `temp/medicoes/p17/`, capturas em
+`temp/provas/2026-11-12/p17/` (fora do git).
+
+**Sem mouse nem teclado (pedido do dono, ~11:40, chegou durante a execução):** até ~11:56 a fumaça e as rodadas
+de partida usaram `SendInput` (hover, clique no ícone, menu da bandeja com o botão direito) e abriram a janela
+visível 7 vezes (cada abertura e cada clique no ícone tomaram o foreground). Parei a rodada em curso assim que o pedido chegou (a 5ª não abriu; nada
+ficou aberto). **Daí em diante, tudo sem mouse e sem teclado:** o casco abre com `--oculto` e
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9351`, cliques por `el.click()` no DOM via CDP
+(sem `pointerdown`, então sem `window_pin` roubando o foco) e itens da bandeja por `PostMessageW(WM_COMMAND)` na
+janela `tray_icon_app` (Gravar = 1000, Sair = 1003; armadilha nova). Hover, clique no ícone e "Parar pela bandeja"
+(que mostra a janela fixada e toma o foco) **pulados a pedido do dono: sem mouse** no build final; ficam os
+números do build anterior abaixo e a prova do passo 9.
+
+**Builds:** a primeira rodada (11:50 a 12:14) foi no instalador do passo 16 (SHA256 `72e98338…`, `reco.exe`
+`3585c344…`). A outra frente refez o instalador no `aac7ca7` (revisão adversarial); desinstalei
+(`uninstall.exe /S` → exit 0, pasta, atalho do Menu Iniciar e exe removidos; `%LOCALAPPDATA%\io.github.dosxnjos.reco`
+fica) e instalei o final (`/S` → exit 0; SHA256 do instalador `75d02dae0fcd31a3997e54e4d7c7f79587a7cff6b2bcf20b7e7e18bc0e729872`
+conferido, `reco.exe` instalado `b1eef36604e09524f63e3457342cea6866cda205d2b30864728a6cdfea3d9dbd`). **O `[x]` vale
+pelo build final**; o anterior fica como referência.
+
+**Instalação** (`/S`, 16,2 s na primeira): `%LOCALAPPDATA%\Reco Novo\reco.exe` + `engine\` + `uninstall.exe`;
+cria `Reco Novo.lnk` no Menu Iniciar **e na Área de Trabalho** (o NSIS do Tauri cria o da área de trabalho no
+modo silencioso, `installer.nsi:4330-4335`); apaguei o da área de trabalho nas duas instalações. Não abre o app
+sozinho (sem `/R`). `Reco.lnk`: `False` antes e depois.
+
+**Prova do passo (build final, 12:20, `cenario.py principal`):**
+
+- Gravar (clique no DOM) → "Parar" na hora; 30 s pelo cronômetro com o clipe tocando; Parar → "Salvar e copiar
+  caminho" em **0,469 s de "Parando…"** (0,452 s na rodada de 12:16); clique no principal → status `Caminho copiado:
+  "…"`.
+- `Get-Clipboard` → `"%USERPROFILE%\Documents\Reco\gravacao_reco_2026-11-12_12-20-24.mp3"` (entre aspas).
+- `ffprobe -v error -show_entries stream=channels,sample_rate:format=duration` → `sample_rate=16000 channels=2
+  duration=30.101313`; cronômetro ao parar `00:00:30` (diferença 0,1 s). PyAV: declarada 30,101 = decodificada
+  30,101 (cabeçalho certo).
+- Lados por dado (`lados()` do `engine_checks_rec.py`): clipe×R **0,737** > clipe×L 0,446 (voz do PC no direito).
+  Na rodada de 12:16 deu clipe×R 0,409 > L 0,374, abaixo do mínimo de 0,5, com o RMS do R no dobro (0,081 contra
+  0,045 de todas as outras): som de outro programa do PC entrando no loopback com o dono usando a máquina. Repeti
+  e passou; as rodadas de D11 e Sair também passaram (R 0,72 a 0,78).
+- Transcrever pela Biblioteca (aba, item, Transcrever, tudo no DOM) → `gravacao_reco_…_12-20-24.txt` ao lado,
+  mesmo nome do velho, 2 linhas com rótulo `Eu:`/`Interlocutor(es):` (diarizado), status "Transcrição salva".
+
+**Nota (build final, 12:17):** o `.md` nasce em `Documents\Reco` (`nota_dir` nulo) e `Get-Clipboard` →
+`"%USERPROFILE%\Documents\Reco\nota_2026-11-12_12-17-30.md"`; o mp3 da nota vai à Lixeira pelo motor. **Defeito:**
+o primeiro "Gravar nota" ~2 s depois de abrir não grava (abaixo).
+
+**D11, casco morre gravando (build final, 12:18):** 30 s, `Stop-Process -Id <casco>` (pid achado como pai do
+`reco-engine.exe`) → o motor saiu sozinho em 0,72 s; arquivo com declarada 30,827 = decodificada 30,827, 2 canais,
+16000 Hz, lados R 0,749 > L 0,611. (Build anterior: 0,72 s, 30,72 = 30,72.)
+
+**D11, motor morre gravando (build final, 12:18):** 30 s, `Stop-Process -Id <reco-engine>` → a tela saiu de
+"Gravando" em 0,11 s para "Erro" com "A gravação foi interrompida" e "Abrir pasta", medidores zerados (no build
+anterior ficavam com o último nível, achado 5 corrigido); o ícone da bandeja cinza (captura `08-…png`); o motor
+voltou sozinho e **não** religou a gravação (8 s depois: principal "Gravar", status "O motor reiniciou; a tela
+foi atualizada."). O arquivo do motor morto: declarada 19,45 s × decodificada 20,88 s (sem a contagem final e
+sem os últimos ~9 s, que estavam no buffer do encode, como o md previa) → Lixeira; `reparar_duracao.py` não rodou.
+
+**Bandeja grava e Sair gravando (build final, 12:19):** `WM_COMMAND 1000` (Gravar do menu) → a tela foi a
+"Parar"; 30 s; `WM_COMMAND 1003` (Sair) → o casco saiu com código 0 em 0,51 s; log do casco `Sair com gravação
+aberta: rec.stop antes do shutdown (D11)` e `saída: FechouGravacao { ok: true }`; arquivo declarada 30,016 =
+decodificada 30,016, 2 canais, 16000 Hz, lados R 0,719 > L 0,596.
+
+**Repasse `--transcribe` (build final, 12:21):** cópia `a_reco.mp3` em `temp/medicoes/p17/build-novo/repasse/`,
+`reco.exe --transcribe <cópia> --diarize` esperado até o fim → exit 0 em 19,1 s, `a_reco.txt` ao lado (2 linhas
+rotuladas), fim de `%TEMP%\reco_transcribe_log.txt` = `OK -> …\a_reco.txt`; nenhuma janela visível de nenhum
+processo Reco durante a execução; o `reco-engine.exe` rodou como filho; o mutex não foi pego.
+
+**D12 — abrir até pronto para gravar (régua: velho `abrir_pronta_s` mediana 1,515 s):**
+
+| build e método | visível | Gravar habilitado |
+| --- | --- | --- |
+| passo 16, janela visível, sem CDP, pela cor do botão (`d12.py`, 5 rodadas, CPU 5% a 18%) | 0,302 a 0,358 s, mediana **0,306 s** | 1,074 a 1,313 s, mediana **1,156 s** |
+| passo 16, 1ª abertura depois de instalar (com CDP) | 0,393 s | ≤ 1,048 s |
+| final `aac7ca7`, `--oculto` + CDP, 6 aberturas (teto: inclui conectar o CDP) | — | 0,644 a 0,823 s, mediana **0,781 s** |
+
+- Os dois métodos ficam abaixo de 1,515 s. O da cor conta o fim da transição de cor do botão (~0,12 s), então é
+  conservador. Não repeti a abertura visível no build final: ela toma o foreground do dono.
+- Ícone até a janela (só no build do passo 16, com mouse, antes do pedido): cursor entra no ícone → janela visível
+  em 0,047 a 0,048 s (5 de 5 **sem** tirar o foco de quem estava na frente); clique no ícone → foco na janela em
+  0,067 a 0,074 s.
+- "Parando…" real (achado da revisão): 0,452 e 0,469 s do clique em Parar até "Salvar e copiar caminho".
+
+**Defeitos e observações:**
+
+1. **"Gravar nota" logo depois de abrir não grava** (os dois builds; 3 vezes). O casco pede `model.update_check`
+   1,5 s depois do `ready`; a checagem ocupa a vaga da transcrição (`engine/reco_engine/extras.py:7`) e o
+   `rec.start {mode: nota}` recusa com `busy` (`recording.py:140-141`). No build anterior a tela mostrava "O motor
+   está ocupado com outra tarefa: transcrição em andamento"; no final o clique some calado (volta a "Pronto"). O
+   segundo clique grava. Com rede de verdade (sem `HF_HUB_OFFLINE`) a janela é maior, e com modelo novo para baixar
+   a nota fica travada pelo download. Gravação comum não sofre. Armadilha nova; a correção é da frente do app.
+   - Efeito no teste: no build anterior, meu roteiro esperava 2 min antes do 2º clique, e duas notas gravaram o
+     microfone com o dono falando (uma de ~5 min). Não li nem copiei o texto para cá; os `.md` foram à Lixeira.
+2. **Entrada e Saída vazias antes da primeira gravação** com `auto:console`: o painel mostra "Entrada"/"Saída" sem
+   nome e o status sai "Pronto para gravar. Microfone:  · Sistema: " (os dois builds); os nomes aparecem quando a
+   gravação começa (a resposta do `rec.start`).
+3. **Log do casco em UTC**: `Reco Novo.log` marca 14:55 para 11:55 locais (o `engine.log` está em hora local).
+4. **Sair encerra o motor por EOF, não por `shutdown`**: no `engine.log`, a maioria das saídas (ociosa e gravando)
+   registra `encerrando (eof)`. Nada se perde (a gravação fechou antes, pelo `rec.stop`), mas o `shutdown(8 s)` do
+   casco parece não chegar ao motor antes de o processo sair. Não investiguei.
+5. Instalação silenciosa cria atalho na Área de Trabalho (acima); a instalação com tela oferece a caixa.
+6. Sair durante a passada final de uma nota curta (só no diagnóstico) deixou o mp3 e um `.md` de 14 bytes na pasta:
+   nada perdido; os dois foram à Lixeira.
+
+**Máquina no fim (12:22):** nenhum `reco.exe`/`reco-engine.exe` do app novo e mutex livre antes de reabrir o velho;
+`Documents\Reco` com os mesmos 213 arquivos de antes (nenhum novo, sumido ou com tamanho mudado; todas as gravações,
+`.txt` e `.md` de teste foram à Lixeira, as cópias do repasse também); `cmp ~/.reco_config.json
+temp/medicoes/reco_config.antes-p17.json` → igual (nenhuma chave `casco_*`); `reg query …\Run /v "Reco Novo"` e
+`…\StartupApproved\Run` → não acha (rc 1), atalho global nunca ligado; `IsPromoted` que eu gravei na entrada do ícone
+do app novo foi apagado (não existia antes); `Reco.lnk` `False`; atalho da área de trabalho apagado; clipboard do
+dono reposto (o texto de antes, conferido). App novo **instalado** (Fase 4 usa) e fechado. Reco velho reaberto:
+`Start-Process …\dist\Reco\Reco.exe` → `python tools/medir_partida.py --ram-viva` → `{"pid": 29256, "ws_mb": 56.0,
+"privado_mb": 487.7, "cpu_pct": 15.6}`, `ExecutablePath` `C:\Dev\Reco\dist\Reco\Reco.exe`.
+
 ### O que falta para fechar a Fase 3
 
 1. **Passo 17, com o Reco velho fechado pela bandeja (Sair) e sem gravar** — precisa do dono na máquina:

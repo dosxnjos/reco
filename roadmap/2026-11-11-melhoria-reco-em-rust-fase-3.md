@@ -475,7 +475,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      `aac7ca7` → `exit=0`, `Instalador: C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`, 128,8 MB, SHA256
      `75d02dae…e729872` (inteiro no relatório). O smoke agora reprova `ready` com erro e `devices.list` que falha.
      É este o instalador do passo 17.
-17. [ ] Teste real manual, app velho fechado: instalar, gravar 30 s com fala e vídeo, parar, clicar no principal — **prova:** `Get-Clipboard` → `.mp3` entre aspas; `ffprobe -v error -show_entries stream=channels,sample_rate:format=duration <arq>` → `2`, `16000`, duração do cronômetro ±1 s
+17. [x] Teste real manual, app velho fechado: instalar, gravar 30 s com fala e vídeo, parar, clicar no principal — **prova:** `Get-Clipboard` → `.mp3` entre aspas; `ffprobe -v error -show_entries stream=channels,sample_rate:format=duration <arq>` → `2`, `16000`, duração do cronômetro ±1 s
    **reprova se:** o colar sai sem aspas, o arquivo tem 1 canal ou outra taxa, ou a duração difere mais de 1 s do cronômetro ao parar (sem o cabeçalho do container ela sai muito maior ou zero).
    - Manual porque precisa de microfone, som tocando e o Gabriel ou o executor na máquina.
    - **Antes de instalar**, anotar `Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Reco.lnk"`
@@ -497,6 +497,17 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
        `Get-ChildItem "$env:LOCALAPPDATA\Reco Novo" -Filter *.exe` (sem `-Recurse`: o `reco-engine.exe` mora em `engine\`).
      - Reprova o passo: exit diferente de 0, nenhum `.txt`, ou uma janela do app abre (o repasse deveria sair antes do `Builder`).
    - Ao fim: Sair do novo pela bandeja, conferir iniciar com o Windows desligado e reabrir o velho para o Gabriel.
+   - **Execução (12/11, 11:50 a 12:22, instalador final do `aac7ca7`, SHA256 `75d02dae…`):** sem mouse nem teclado
+     depois do pedido do dono (cliques por `el.click()` no DOM via CDP, bandeja por `WM_COMMAND`) →
+     `Get-Clipboard` → `"%USERPROFILE%\Documents\Reco\gravacao_reco_2026-11-12_12-20-24.mp3"`; `ffprobe` →
+     `sample_rate=16000 channels=2 duration=30.101313` com o cronômetro em `00:00:30`; lados por dado R 0,737 > L
+     0,446. Nota (`"…nota_….md"` no colar), Transcrever (`x.txt` diarizado), Sair gravando (30,016 = 30,016 s),
+     casco morto (motor sai em 0,72 s, 30,827 = 30,827 s), motor morto (alarme em 0,11 s, sem religar) e repasse
+     (exit 0, `.txt`, sem janela) passaram. D12: Gravar habilitado em 0,78 s (mediana, `--oculto` com CDP) e 1,156 s
+     (mediana, janela visível, build anterior) contra 1,515 s do velho. Hover e clique no ícone pulados no build
+     final a pedido do dono (sem mouse); no build anterior, 0,047 s sem roubar o foco. **Defeito aberto:** o
+     primeiro "Gravar nota" ~2 s depois de abrir não grava (`model.update_check` ocupa a vaga da transcrição;
+     armadilha nova). Máquina como estava, velho reaberto. Detalhe no relatório, seção "Passo 17".
 18. [ ] Documentar e fechar — **prova:** `git diff --stat <base da fase anotada no passo 1> -- docs/ARQUITETURA.md README.md CLAUDE.md` → os três arquivos listados, e `pre-commit run gate-claude-md --files CLAUDE.md` → `Passed`
    **reprova se:** algum dos três não aparece no diff (a doc ficou para trás; vale também depois do commit), ou o gate acusa mais de 6 KB.
    - A base é o HEAD do início desta fase, não `7c5c1a1`: as Fases 1 e 2 também mexem nesses arquivos.
