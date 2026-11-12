@@ -144,7 +144,7 @@
      caiu no meio de um frame: o último pacote não decodifica e o `declared_and_real` desiste nele (`InvalidDataError`). A
      régua mede o Xing pulando esse pacote e sai `xing=ERRADO leitura=ERRO … FALHOU (xing, cauda-corrompida)`; um corte em
      fronteira de frame (2 999 000 bytes) sai `xing=ERRADO … FALHOU (xing)`. Processo morto no meio de uma escrita pode deixar o mesmo rabo (não medido).
-6. [ ] Linha de base do app velho: rodar a régua nas 10 gravações mais recentes e anotar a contagem de vereditos. — **prova:** `cd "$HOME/Documents/Reco" && python C:/Dev/Reco/tools/paridade.py $(ls -t gravacao_reco_*.mp3 | grep -v _alinhado | head -10)` → 10 linhas e a contagem anotada
+6. [x] Linha de base do app velho: rodar a régua nas 10 gravações mais recentes e anotar a contagem de vereditos. — **prova:** `cd "$HOME/Documents/Reco" && python C:/Dev/Reco/tools/paridade.py $(ls -t gravacao_reco_*.mp3 | grep -v _alinhado | head -10)` → 10 linhas e a contagem anotada
    **reprova se:** menos de 10 linhas ou algum `FALHOU` por erro de leitura (aí a régua, não o app, precisa de conserto).
    - Pasta: se `output_dir` do config não for nulo, trocar `$HOME/Documents/Reco` por ela (em 11/11/2026 era nulo).
      Nomes sem espaço, por isso o `$(ls ...)` sem aspas funciona depois do `cd`.
@@ -153,7 +153,7 @@
      `$(ls ...)` sem aspas quebra. E a regra é ler as gravações só por **cópia**: copiar as 10 (com o `x.txt` ao lado, se
      houver, nomes originais) para uma pasta temporária fora do repo e passar a lista entre aspas. No relatório, nomes
      viram G01 a G10 (repo público).
-7. [ ] Provar que o transcritor dos agentes é determinístico antes de usá-lo como régua byte a byte. — **prova:** 2 rodadas `--forcar` (sub-itens), depois `cmp temp/det1.txt temp/det2.txt && echo IGUAL` → `IGUAL`
+7. [x] Provar que o transcritor dos agentes é determinístico antes de usá-lo como régua byte a byte. — **prova:** 2 rodadas `--forcar` (sub-itens), depois `cmp temp/det1.txt temp/det2.txt && echo IGUAL` → `IGUAL`
    **reprova se:** os dois diferem. Aí vale F4-D8: a comparação byte a byte sai da régua e fica só `pior` + diarizado.
    - Copiar antes a gravação para `temp/det/` (com o `x.txt` do app ao lado, para o último sub-item).
    - Rodada: `python tools/transcrever.py temp/det/gravacao_reco_<curta>.mp3 --forcar --modelo <model do config> --device <device do config>`,

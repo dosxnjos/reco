@@ -14,7 +14,7 @@ Uma linha por arquivo:
   sequência do mic.
 - `alinhamento`: veredito do `varrer_acervo` (`ok`, `salto`, `desalinhado`, `sem correlacao`), janela de 15 s.
 - `txt`: `diarizado`, `corrido`, `vazio` (o app grava "(no content recognized)") ou `ausente`; `pior`: maior repetição
-  consecutiva de um n-grama no `x.txt`, sem os rótulos de quem fala (`test_antiloop.pior`; só o número, nunca o texto).
+  consecutiva de um n-grama no `x.txt`, fala a fala e sem os rótulos (`test_antiloop.pior`; só o número, nunca o texto).
 - `script`: com `--txt-contra-script`, o `x.txt` do app comparado byte a byte com o que o `tools/transcrever.py` gera
   da mesma gravação, com o modelo, o device e o idioma do app (o script ignora os do config, por isso as flags).
 
@@ -99,9 +99,12 @@ def ler_txt(mp3: Path) -> tuple[str, int | None]:
     if texto.strip() in ("", SEM_CONTEUDO):
         return "vazio", 1
     estado = "diarizado" if transcrever.diarizada(txt) else "corrido"
-    if estado == "diarizado":   # diarizada() já montou o regex dos rótulos do app
-        texto = transcrever.RE_DIARIZADA.sub("", texto)
-    return estado, pior(texto)[0]
+    if estado == "corrido":
+        return estado, pior(texto)[0]
+    # Diarizado: uma fala por linha. Mede-se fala a fala (o `test_antiloop` vê um canal só), senão "sim" / "sim" / "sim" /
+    # "sim" em quatro turnos contaria como loop. diarizada() já montou o regex dos rótulos do app.
+    falas = transcrever.RE_DIARIZADA.sub("", texto).splitlines()
+    return estado, max((pior(f)[0] for f in falas if f.strip()), default=1)
 
 
 def idioma() -> str:
