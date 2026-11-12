@@ -414,7 +414,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      (as 4 à vista no painel, com Ouvir no secundário), não o menu "Mais" do F3-D8. Corte de "Abrir transcrição" e
      "Copiar caminho": o rótulo quebra em até 2 linhas na fileira de 3 (`estilo/gravar.css`); o controle negativo com
      a regra antiga (uma linha) acusa os dois nas 3 skins.
-13. [ ] Abas Biblioteca, Arquivo e Opções ao lado de Gravar, em abas fixas (F1-D4, F1-D7, F3-D12), todas no mesmo tamanho de janela — **prova:** `node app/ui/tests/telas.cjs` → `falhas 0`
+13. [x] Abas Biblioteca, Arquivo e Opções ao lado de Gravar, em abas fixas (F1-D4, F1-D7, F3-D12), todas no mesmo tamanho de janela — **prova:** `node app/ui/tests/telas.cjs` → `falhas 0`
    **reprova se:** alguma ação da aba não chama o comando certo no mock, ou, gravando ou transcrevendo, a aba que conflita não fica desabilitada com o motivo visível nela.
    - Arquivo (F1-D4): uma origem escolhida (`pick_file`) e duas ações sobre ela.
      - Transcrever: `transcribe.file`, parar (`transcribe.cancel`), progresso, abrir `.txt`.
@@ -429,6 +429,12 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - Navegação bloqueada (F1-D7): gravando, transcrevendo ou convertendo, a aba que conflita fica desabilitada com o
      motivo nela (ícone + texto, estado `durante-gravacao` do DESIGN.md); o velho só avisava no status (`reco.py:4308-4317`).
    - Conferido à parte, antes do commit: os dois testes da Fase 1 com `--url` (passo 14) seguem com 0.
+   - **Execução (12/11):** `telas.cjs` → `telas: falhas 0 em 50 verificações`; anti-pulo e contrato com `--url` em 0.
+     Bloqueio: gravando, transcrevendo na Gravar ou na Biblioteca, a aba Arquivo trava (cadeado, `title` e o motivo no
+     status ao clicar); transcrevendo ou convertendo no Arquivo, a Biblioteca segue navegável com o Transcrever dela
+     desabilitado (um `pipe.generate` por vez). Opções ganhou "Pasta das notas" (`nota_dir`) e "Iniciar com o Windows",
+     com Visual e Aparência no topo. Pegadinha: o Playwright trata `aria-disabled` como desabilitado e espera a aba
+     destravar antes de clicar (o teste usa `force`).
 14. [ ] Testes da Fase 1 na interface real, backend falso (F1-D12) — **prova:** `u=http://127.0.0.1:1431/; node design/testar-anti-pulo.cjs --url $u; echo "a=$?"; node design/testar-contrato.cjs --url $u; echo "c=$?"` → `anti-pulo: 0 diferenças em N medições`, `contrato: 0 falhas`, `a=0`, `c=0`
    **reprova se:** qualquer linha `FALHA`, diferença acima de 0 px, o teste não acha `window.vitrine.definir` (condutor ausente), ou o controle negativo (abaixo) sai com 0.
    - Antes da prova: `npm --prefix app run ui:build` e, em segundo plano, `npm --prefix app run ui:preview` (porta 1431,

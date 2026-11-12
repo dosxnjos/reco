@@ -2,6 +2,7 @@
 import { erroDe, type App } from "../app";
 import { nomeDe, pastaDe } from "../dom";
 import { t, textoErro } from "../i18n";
+import { GRAVANDO } from "../vista";
 import { recarregarBiblioteca } from "./dados";
 import type { EngineEvent } from "../tipos";
 
@@ -11,7 +12,8 @@ async function libTranscrever(app: App): Promise<void> {
   const b = app.v.b, item = b.sel != null ? b.itens[b.sel] : undefined;
   if (app.v.estado.biblioteca === "transcrevendo-item") { await app.pedir("transcribe.cancel"); return; }
   if (!item) return;
-  b.trPath = item.path; b.trPct = null; app.v.g.ocupadoFora = true;
+  // uma transcrição por vez no motor: enquanto esta anda, a aba Arquivo fica bloqueada com o motivo (F1-D7)
+  b.trPath = item.path; b.trPct = null; app.v.g.ocupadoFora = true; app.v.ocupado = true;
   app.ir("biblioteca", "transcrevendo-item");
   try {
     const d = await app.pedir<{ txt: string }>("transcribe.file", { path: item.path }, (ev) => { b.trPct = pctDe(ev); app.desenhar(); });
@@ -22,7 +24,7 @@ async function libTranscrever(app: App): Promise<void> {
     b.trPath = null; app.ir("biblioteca", "selecionada");
     if (erroDe(e).code === "cancelled") app.diz("info", "av.transcricao-parada"); else app.falhou(e);
   } finally {
-    app.v.g.ocupadoFora = false; app.desenhar();
+    app.v.g.ocupadoFora = false; app.v.ocupado = GRAVANDO.has(app.v.estado.gravar); app.desenhar();
   }
 }
 

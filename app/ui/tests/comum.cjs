@@ -66,7 +66,8 @@ async function esperarEstado(page, tela, estado, ms = 8000) {
 
 const estadoAgora = (page, tela) => page.evaluate((t) => window.vitrine.estado().estados[t], tela);
 const chamadas = (page) => page.evaluate(() => window.__recoMock.chamadas.map((c) => ({ cmd: c.cmd, args: c.args })));
-const clicar = (page, acao) => page.click(`.tela[data-ativa] [data-acao="${acao}"], .titulo [data-acao="${acao}"], .abas [data-acao="${acao}"]`);
+// o botão visível com essa ação (Arquivo tem "Escolher" e "Trocar" com a mesma ação, em camadas diferentes)
+const clicar = (page, acao) => page.locator(`.tela[data-ativa] [data-acao="${acao}"], .titulo [data-acao="${acao}"], .abas [data-acao="${acao}"] >> visible=true`).first().click();
 const statusTexto = (page) => page.$eval('[data-ref="status-texto"]', (e) => e.textContent);
 
 module.exports = { playwright, servir, placar, abrir, esperarEstado, estadoAgora, chamadas, clicar, statusTexto };

@@ -46,7 +46,7 @@ export function aplicarBiblioteca(v: Vista, r: Refs, raiz: HTMLElement): void {
   const trAndando = e === "transcrevendo-item";
   usar(r["lib-transcrever-icone"], trAndando ? "square" : "file-text");
   texto(r["lib-transcrever-texto"], t(trAndando ? "b.parar" : "b.transcrever"));
-  if (sel && !trAndando && v.ocupado) desabilitar(r["lib-transcrever"], true);
+  if (sel && !trAndando && (v.ocupado || v.g.ocupadoFora)) desabilitar(r["lib-transcrever"], true);
   if (sel && !sel.temTexto) { desabilitar(r["lib-abrir"], true); desabilitar(r["lib-resumo"], true); }
   texto(r["lib-resumo-texto"], t(e === "resumindo" ? "b.resumindo" : "b.resumo"));
   if (e === "resumindo") desabilitar(r["lib-resumo"], true);
