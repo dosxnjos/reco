@@ -435,7 +435,7 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      desabilitado (um `pipe.generate` por vez). Opções ganhou "Pasta das notas" (`nota_dir`) e "Iniciar com o Windows",
      com Visual e Aparência no topo. Pegadinha: o Playwright trata `aria-disabled` como desabilitado e espera a aba
      destravar antes de clicar (o teste usa `force`).
-14. [ ] Testes da Fase 1 na interface real, backend falso (F1-D12) — **prova:** `u=http://127.0.0.1:1431/; node design/testar-anti-pulo.cjs --url $u; echo "a=$?"; node design/testar-contrato.cjs --url $u; echo "c=$?"` → `anti-pulo: 0 diferenças em N medições`, `contrato: 0 falhas`, `a=0`, `c=0`
+14. [x] Testes da Fase 1 na interface real, backend falso (F1-D12) — **prova:** `u=http://127.0.0.1:1431/; node design/testar-anti-pulo.cjs --url $u; echo "a=$?"; node design/testar-contrato.cjs --url $u; echo "c=$?"` → `anti-pulo: 0 diferenças em N medições`, `contrato: 0 falhas`, `a=0`, `c=0`
    **reprova se:** qualquer linha `FALHA`, diferença acima de 0 px, o teste não acha `window.vitrine.definir` (condutor ausente), ou o controle negativo (abaixo) sai com 0.
    - Antes da prova: `npm --prefix app run ui:build` e, em segundo plano, `npm --prefix app run ui:preview` (porta 1431,
      passo 3); parar o servidor ao fim do passo. Fora do Tauri, a interface usa o backend falso (passo 11).
@@ -445,6 +445,10 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - Se a interface real precisar de algo que os testes da Fase 1 não aceitam (nome de área, estado novo), corrigir
      o DESIGN.md e o teste em commit próprio, com a vitrine ainda passando sem `--url`; nunca afrouxar a diferença 0.
    - A atualização pontual (VU sem criar nó, cronômetro) fica no `gravar.cjs` do passo 12.
+   - **Execução (12/11):** prova como escrita → `anti-pulo: 0 diferenças em 23868 medições`, `a=0`, `contrato: 0 falhas`,
+     `c=0` (3 skins, 3 escalas, 2 temas, PT/EN longo, versão nova); controle negativo → `anti-pulo=1` (1920 diferenças),
+     `contrato=1` (981 falhas). Nenhum ajuste nos testes da Fase 1. O `ui:preview` ganhou `preview.host: 127.0.0.1` no
+     `vite.config.ts` (só com `--port` o Vite subia em `::1` e o `127.0.0.1` da prova não respondia).
 15. [ ] Tabela de paridade (abaixo) vira verificação: cada linha "tela" tem `data-paridade="<id>"` no elemento — **prova:** `node app/ui/tests/paridade.cjs` → `17 de 17 presentes`
    **reprova se:** falta id (função do app velho sem tela no novo) ou sobra id que não está na tabela.
    - As 2 linhas "rust" (`bandeja`, `instancia`) não têm elemento na tela: a prova delas são os `cargo test` dos passos 7 a 9.
