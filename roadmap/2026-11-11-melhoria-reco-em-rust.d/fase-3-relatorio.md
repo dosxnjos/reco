@@ -187,17 +187,19 @@ Playwright e o coletor do WhatsApp). O `build.ps1` foi lido, conferido contra o 
 
 16 achados (5 altos, 4 médios, 7 baixos). Nenhum é falso: todos batem com o código. O de número 10 (aspas no
 modo falso) não pede código: fica para o passo 17. Commits: `7efcc33` (interface), `c42cc11` (casco), `bcd7d78`
-(smoke). O Reco do dono não foi aberto, fechado nem chamado: nenhuma prova sobe o casco (que pega o mesmo mutex).
+(smoke) e `aac7ca7` (conferência do advisor: o cache de skin e tema vencia o config do motor quando a chave
+faltava, faltava o ponto antes do aviso de saída ausente, e o `stopping` agora mostra "Parando…" com os
+medidores parados). O Reco do dono não foi aberto, fechado nem chamado: nenhuma prova sobe o casco (que pega o mesmo mutex).
 
 | # | achado | gravidade | o que foi feito |
 | --- | --- | --- | --- |
 | 1 | duplo clique em Parar com o motor em `stopping` mostra "interrompida" | alta | `cliques.ts` ignora `detail > 1`; `gravar.ts` tem a trava de pedido em voo (principal, secundário, Só salvar, Excluir; sem valer com o condutor); `refused`/`busy` no parar ressincronizam pelo `state` |
 | 2 | duplo clique em "Salvar e copiar" começa gravação nova | alta | mesma trava e mais: no principal, o clique de ponteiro cujo aperto começou antes da última troca de papel (`principalTrocouEm`) é ignorado (teclado passa) |
 | 3 | duplo clique em Gravar começa e para; `busy` no start vira erro falso | alta | mesma trava; `busy`/`refused` no `rec.start` ressincronizam |
-| 4 | motor caído ocioso ou `hello` que falha deixam a tela "Pronto" ou "Preparando" para sempre | alta | `Vista.motorFora` desabilita o principal; queda ocioso → aviso "O motor de gravação parou"; `hello` que falha ou `ready` com erro → "O motor não carregou"; 20 s em `motor-subindo` → "O motor está demorando"; o aviso (`doMotor`) some no `ready` e o alarme do D11 fica |
+| 4 | motor caído ocioso ou `hello` que falha deixam a tela "Pronto" ou "Preparando" para sempre | alta | `Vista.motorFora` desabilita o principal; queda ocioso → aviso "O motor de gravação parou"; `hello` que falha ou `ready` com erro → "O motor não carregou"; 20 s em `motor-subindo` → "O motor está demorando"; o aviso (`doMotor`) some no `ready` e o alarme do D11 fica. Provados no `revisao.cjs`: queda ocioso e volta, `ready` com erro e volta. **Lidos, sem prova:** `hello` que falha e o prazo de 20 s (`PRAZO_MOTOR_MS`) |
 | 5 | medidores acesos depois da queda; tempo gravado perdido | média | `mostrarInterrompida` zera os VUs (também no `rec.error` fatal) e põe "interrompida em 00:12:34" no status |
 | 6 | janela nasce em Fita e troca de skin e tema depois do `ready` | média | cache local `reco.aparencia` (`aparencia.ts`), lido na `vistaInicial` e por um script em linha no `index.html` antes do primeiro desenho; gravado no `config.get` e em Opções; o motor continua dono |
-| 7 | painel muda a ordem das linhas ao gravar | baixa | gravando também em Entrada, Saída, Pasta |
+| 7 | painel muda a ordem das linhas ao gravar | baixa | gravando também em Entrada, Saída, Pasta (`app/ui/index.html`). A vitrine (`design/vitrine.html`) não foi tocada e segue com Arquivo, Entrada, Saída gravando: a fonte do desenho diverge nessa camada até alguém alinhar (sem efeito nos testes, que medem caixas) |
 | 8 | textos com cara de rascunho e detalhe cru no status | baixa | `Microfone: X · Sistema: Y`, um espaço entre frases, ` · ` antes do nome, erro do `rec.start` por código (`no_device`, `unavailable`, outro), `refused`/`busy`/`internal` em frase humana, "Processar em" sem jargão; o detalhe cru vai só ao Detalhes e ao console (`app.falhou`) |
 | 9 | Transcrever da Biblioteca desabilitado sem motivo | baixa | status da seleção ganha "Transcrever volta quando a gravação ou a transcrição em curso terminar." |
 | 10 | aspas do colar não verificáveis no modo falso | baixa | sem código: o teste `aspas` do Rust (passo 6) cobre a montagem; o colar real fica no passo 17 |
@@ -212,10 +214,12 @@ modo falso) não pede código: fica para o passo 17. Commits: `7efcc33` (interfa
 
 - `npm --prefix app run ui:build` → `built`; `npm --prefix app run i18n:check` → `234 chaves PT, 234 EN … 0 faltando`.
 - `node app/ui/tests/gravar.cjs` → `falhas 0 em 53`; `telas.cjs` → `falhas 0 em 50`; `paridade.cjs` → `17 de 17
-  presentes`; **novo** `revisao.cjs` → `falhas 0 em 18` (duplo clique nos três papéis, motor lento no start e no
+  presentes`; **novo** `revisao.cjs` → `falhas 0 em 21` depois do `aac7ca7` (18 antes; duplo clique nos três papéis, motor lento no start e no
   stop, aperto antes da troca de papel, bandeja com a tela em Nota, conclusão antes do parar, motivo na Biblioteca,
-  motor caído ocioso e de volta, caído em `stopping` sem o evento, VUs zerados e tempo no alarme, ordem do painel,
-  skin e tema do cache no `DOMContentLoaded`).
+  motor caído ocioso e de volta, `ready` com erro e de volta, "Parando…" no `stopping`, caído em `stopping` sem o
+  evento, VUs zerados e tempo no alarme, ordem do painel, skin e tema do cache no `DOMContentLoaded` e o config do
+  motor vencendo depois do `ready`). As provas desta lista foram rodadas de novo depois do `aac7ca7`, com os mesmos
+  números (Fase 1 com `--url`: 0 e 0; sabotagens: 1 e 1).
 - Controle negativo do `revisao.cjs`: com a interface antiga (os arquivos de `HEAD` e o backend falso novo) →
   ordem do painel, os três duplos cliques e o stop lento em `FALHA` e o teste quebra no Excluir (a tela parou em
   erro); com a trava desligada (`false &&` por Edit, desfeito e conferido por `cmp`) → os dois "motor lento" em
@@ -304,3 +308,49 @@ instancia, bandeja, hover, atalho}.rs`, `src/motor/{mod, router, processo, log, 
 `src/comandos/{mod, motor, arquivos, janela}.rs`, os dois fragmentos de armadilha e este relatório.
 Alterados: `tools/tamanho.json`, `.pre-commit-config.yaml`, `.gitignore`, o md da Fase 3. Não tocados:
 `reco.py`, `tray.py`, `engine/`, `design/`, outros roadmaps.
+
+### Instalador depois da revisão adversarial (12/11/2026)
+
+O app mudou (interface e casco), então o passo 16 rodou de novo, duas vezes:
+
+- `powershell -ExecutionPolicy Bypass -File app/build.ps1` (completo, no `4ab9a3c`) → `exit=0`, smoke novo com
+  `ready ok=True` nas 3 rodadas e `devices ok=True (1, 2)` na última; motor 60,5 s, `tauri build` 278,1 s, 341,8 s no
+  total (o `makensis` foi bem mais rápido que os ~15 min de 03:34; não investiguei por quê).
+- Depois do `aac7ca7` (interface), `app/build.ps1 -SemCongelar` (o motor não mudou), 12:09 a 12:14 → `exit=0`,
+  smoke `ready ok=True` em 0,30 a 0,35 s e `devices ok=True (1, 2)`, `tauri build` 306 s, 311,3 s no total.
+- **Instalador final (o do passo 17):** `C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`, 128,8 MB
+  (135027126 bytes), gravado às 12:14:13 (depois do início da rodada), feito do `aac7ca7`, SHA256
+  `75d02dae0fcd31a3997e54e4d7c7f79587a7cff6b2bcf20b7e7e18bc0e729872`. O SHA256 da seção do passo 16 (03:58) é de um
+  instalador velho, substituído. Não instalado nem rodado; nenhum processo meu sobrou (conferido por caminho).
+
+### Passo 18 (12/11/2026, parcial)
+
+Prova como escrita: `git diff --stat 9fd4f95 -- docs/ARQUITETURA.md README.md CLAUDE.md` → os três arquivos (8,
+46 e 66 linhas mudadas); `pre-commit run gate-claude-md --files CLAUDE.md` → `Passed` (5948 bytes). Feitos:
+README nas duas línguas (seção do app novo em construção e como gerar o instalador), ARQUITETURA § Casco Tauri,
+`_INDICE`, CLAUDE.md (1 linha e meia), duas armadilhas (`visoes.py novo`), hub e diário no C:\Dev (`9a02b019`).
+Commit dos docs: `4ab9a3c`. O passo **fica `[ ]`**: o que falta depende do 17 (abaixo).
+
+### O que falta para fechar a Fase 3
+
+1. **Passo 17, com o Reco velho fechado pela bandeja (Sair) e sem gravar** — precisa do dono na máquina:
+   - `Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Reco.lnk"` antes e depois (mesmo valor).
+   - Instalar o "Instalador final" abaixo; anotar o tempo do clique no ícone até a janela e até Gravar habilitar
+     (D12, ao lado do 1,515 s do velho).
+   - Gravar 30 s com fala e vídeo, parar, clicar "Salvar e copiar caminho": `Get-Clipboard` → `.mp3` entre aspas
+     (achado 10); `ffprobe` → 2 canais, 16000 Hz, duração do cronômetro ±1 s.
+   - Nota (o `.md` nasce e o caminho vai ao colar), Transcrever a gravação (`x.txt` diarizado ao lado), bandeja
+     (hover sem foco, clique fixa, menu grava e para, ícone vermelho), Sair gravando (arquivo inteiro).
+   - Medir quanto dura o `stopping` real ao parar (a tela mostra "Parando…"; com o motor falso foi provado só o texto).
+   - D11: matar o casco gravando (o motor fecha o MP3) e matar o motor gravando (alarme, ícone sai do vermelho; o
+     arquivo vai à Lixeira).
+   - Repasse `--transcribe` do exe instalado numa cópia em pasta temporária (exit 0, `.txt` ao lado, sem janela).
+   - Ao fim: Sair do novo pela bandeja, iniciar com o Windows desligado, reabrir o velho, restaurar o config se
+     mudou, mandar os arquivos de teste à Lixeira.
+2. **Resto do passo 18**, depois do 17: README com como instalar (hoje diz que ainda não é o app de uso),
+   os dois tempos do app instalado neste relatório, e o `[x]` do 18.
+3. **Passo 1**: segue sem `[x]`. Rodada de novo em 12/11 → `--conferir-doc` OK (22 comandos), `anti-pulo: 0
+   diferenças`, mas `s=1` pelos 11 `data-direcao` dos `design/tokens.css`. Eles não são "direção não escolhida":
+   são as skins B e C, que ficaram por decisão do dono (11/11 ~22:40, a poda virou seletor). A prova do passo 1
+   está velha; quem fechar a fase troca o último termo por "a skin padrão é a A" e marca, com nota no md.
+4. Fechar: marcar 17 e 18, linha no índice, hub e diário.

@@ -471,6 +471,10 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      negativo: sem `engine/dist/reco-engine`, `-SemCongelar` → `ERROR: frozen engine not found …`, saída 1.
      **Fica para o passo 17** (precisa do app velho fechado): o tempo do clique no ícone até a janela e o tempo até
      Gravar habilitar no app instalado. Detalhe no relatório.
+   - **Rodado de novo depois da revisão adversarial (12/11, 12:09 a 12:14):** `app/build.ps1 -SemCongelar` no
+     `aac7ca7` → `exit=0`, `Instalador: C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`, 128,8 MB, SHA256
+     `75d02dae…e729872` (inteiro no relatório). O smoke agora reprova `ready` com erro e `devices.list` que falha.
+     É este o instalador do passo 17.
 17. [ ] Teste real manual, app velho fechado: instalar, gravar 30 s com fala e vídeo, parar, clicar no principal — **prova:** `Get-Clipboard` → `.mp3` entre aspas; `ffprobe -v error -show_entries stream=channels,sample_rate:format=duration <arq>` → `2`, `16000`, duração do cronômetro ±1 s
    **reprova se:** o colar sai sem aspas, o arquivo tem 1 canal ou outra taxa, ou a duração difere mais de 1 s do cronômetro ao parar (sem o cabeçalho do container ela sai muito maior ou zero).
    - Manual porque precisa de microfone, som tocando e o Gabriel ou o executor na máquina.
