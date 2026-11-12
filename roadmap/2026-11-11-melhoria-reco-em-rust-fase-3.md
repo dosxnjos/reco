@@ -510,6 +510,11 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
      final a pedido do dono (sem mouse); no build anterior, 0,047 s sem roubar o foco. **Defeito aberto:** o
      primeiro "Gravar nota" ~2 s depois de abrir não grava (`model.update_check` ocupa a vaga da transcrição;
      armadilha nova). Máquina como estava, velho reaberto. Detalhe no relatório, seção "Passo 17".
+   - **Defeitos do teste real corrigidos (12/11, à tarde, `adf3fc0` a `c6be9dc`):** nota logo depois de abrir,
+     Entrada e Saída vazias antes de gravar, log do casco em UTC, `eof` no lugar de `shutdown` ao Sair e atalho na
+     Área de Trabalho na instalação silenciosa, cada um com teste que reprova sem o conserto. Instalador novo, SHA256
+     `f3f2f391…f7861dc`, ainda não instalado: o reteste no app instalado espera o velho fechado. Detalhe no
+     relatório, seção "Defeitos do passo 17: correção".
 18. [ ] Documentar e fechar — **prova:** `git diff --stat <base da fase anotada no passo 1> -- docs/ARQUITETURA.md README.md CLAUDE.md` → os três arquivos listados, e `pre-commit run gate-claude-md --files CLAUDE.md` → `Passed`
    **reprova se:** algum dos três não aparece no diff (a doc ficou para trás; vale também depois do commit), ou o gate acusa mais de 6 KB.
    - A base é o HEAD do início desta fase, não `7c5c1a1`: as Fases 1 e 2 também mexem nesses arquivos.

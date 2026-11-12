@@ -457,6 +457,53 @@ dono reposto (o texto de antes, conferido). App novo **instalado** (Fase 4 usa) 
 `Start-Process …\dist\Reco\Reco.exe` → `python tools/medir_partida.py --ram-viva` → `{"pid": 29256, "ws_mb": 56.0,
 "privado_mb": 487.7, "cpu_pct": 15.6}`, `ExecutablePath` `C:\Dev\Reco\dist\Reco\Reco.exe`.
 
+### Defeitos do passo 17: correção (12/11/2026, commits de 14:43 a 14:53, build 14:50 a 15:01)
+
+Condição: o Reco velho do dono **aberto** (`C:\Dev\Reco\dist\Reco\Reco.exe`, pid 29256, conferido no fim) e o dono
+usando a máquina. Nada abriu o Reco Novo instalado nem o casco contra o motor real; nenhum mouse ou teclado; nenhuma
+prova que grava (as do `--gravar`/`--eof` abortam com o app velho aberto e não foram forçadas); `reco.py` intocado.
+Cada defeito tem teste que reprova sem o conserto (controle negativo rodado) e commit próprio com push.
+
+| # | defeito | causa achada | conserto | prova (e o controle negativo) | commit |
+| --- | --- | --- | --- | --- | --- |
+| 1 | "Gravar nota" logo depois de abrir não grava | `model.update_check` ocupava a vaga da transcrição durante a consulta inteira ao hub; a tela, com o `busy` do `rec.start`, ressincronizava e voltava a "Pronto" calada | `engine/reco_engine/modelo.py`: a consulta (revisão do hub × `.hf_revision`) não ocupa nada; só com revisão nova a troca espera o motor ocioso (`idle`, sem transcrição nem ao vivo), ocupa a vaga e chama o `reco.update_model_if_newer`. Na tela, `busy`/`refused` no Gravar e no Parar que o `state` não explica viram aviso com o motivo | `test_engine_protocol` rodada padrão: `OK modelo em voo` (consulta presa num hub falso local por `HF_ENDPOINT`, modelo de mentira no `LOCALAPPDATA` temporário → `state.transcribing=false`; hub responde 500 → ok calado, pasta intacta) e `OK modelo troca` (a troca espera gravação, `stopped` e transcrição); `app/ui/tests/passo17.cjs` (nota com `busy` → status "O Reco está ocupado com uma transcrição ou uma atualização do modelo…"; o clique seguinte grava). Controles: o motor de `ab2152d` → `transcribing: True`; a tela antiga → status "Pronto para gravar…" (2 FALHA) | `adf3fc0`, `c6be9dc` (teste com modelo de mentira, para o `--exe` também consultar); armadilha `superada_por: adf3fc0` em `ae14ee3` |
+| 2 | Entrada e Saída vazias e "Microfone:  · Sistema: " antes da 1ª gravação | a tela **já** pedia `devices.list` depois do `ready`; o motor manda em `console`/`comm` o **nome** do padrão (`reco.scan_device_state`), e a tela buscava por id. O backend falso mandava ids, por isso todo teste de tela passava | `dados.ts` usa o nome; sem padrão, "Automático (padrão do Windows)"; `name: null` no `rec.start` também cai nesse texto. Backend falso com nomes, como o motor; contrato no `PROTOCOL.md` e na rodada padrão (`console` é um dos nomes da lista) | `passo17.cjs`: nomes no painel e no status antes de gravar; Windows sem padrão → "Automático…". Controle com o `dados.ts` antigo → exatamente "Pronto para gravar. Microfone:  · Sistema: " (3 FALHA) | `f2952b2` |
+| 3 | `Reco Novo.log` em UTC (o `engine.log` em hora local) | o `tauri-plugin-log` usa `TimezoneStrategy::UseUtc` por padrão | `lib.rs`: `fuso_do_log()` = `UseLocal` no construtor do plugin. O `engine.log` já é local (`asctime` do Python) | `cargo test log_do_casco_na_hora_local` (deslocamento do carimbo = fuso local, UTC−3 aqui). Controle com `UseUtc` → `FAILED` | `410b316` |
+| 4 | Sair registra `encerrando (eof)` no motor | o casco **não** fecha o stdin antes: escreve o `shutdown` com `write_all` + `flush` síncronos e só então solta o stdin (`processo.rs`). A corrida era do motor: o `shutdown` rodava numa thread à parte e a leitora, lendo o EOF logo atrás, marcava `eof` primeiro. Nada se perdia (os dois fecham o MP3) | `server.py`: o `shutdown` roda na própria thread leitora, então o motivo fica marcado antes de ela ler o EOF | rodada padrão: `OK saída como o casco: shutdown + EOF imediato → encerrando (shutdown) nas 16 rodadas` (fonte e congelado). Antes do conserto: 1 em 8 deu `eof` no fonte e 4 em 8 no congelado (por isso 16 rodadas; depois dele é determinístico) | `416eda6` |
+| 5 | instalação silenciosa cria atalho na Área de Trabalho | o template do Tauri chama `CreateOrUpdateDesktopShortcut` sempre em `/S` e `/P`; não há opção de configuração | `app/src-tauri/windows/hooks.nsh` (`installerHooks`): o PREINSTALL lembra se o atalho já existia, o POSTINSTALL apaga só o que esta instalação silenciosa ou passiva criou; a caixa da página final vem desmarcada (`MUI_FINISHPAGE_SHOWREADME_NOTCHECKED`) | `python tools/test_nsis_atalho.py` → `falhas 0`: compila com o `makensis` do Tauri um instalador mínimo que faz o mesmo que o template, com o atalho numa pasta temporária, e roda `/S`: com os hooks não fica atalho; o que já existia fica; o controle sem os hooks deixa o atalho. O `.nsi` gerado pelo build inclui o hook (`installer.nsi:32`). **A instalação real com `/S` não foi refeita** (o app instalado é o do `aac7ca7`) | `db64f5d` |
+
+**Provas da Fase 3 que tocam o que mudou (todas depois do último código, `db64f5d`/`c6be9dc`):**
+
+- `python tools/test_engine_protocol.py` → 10 linhas `OK`, saída 0 (inclui as três novas); o mesmo com `--exe
+  engine/dist/reco-engine/reco-engine.exe` (motor congelado novo) → 10 `OK`, saída 0; `--conferir-doc` → `22 comandos
+  no registro, 22 na tabela`.
+- `npm --prefix app run ui:build` → `built`; `i18n:check` → `237 chaves PT, 237 EN … 0 faltando`; `gravar.cjs` →
+  `falhas 0 em 53`; `telas.cjs` → `falhas 0 em 50`; `revisao.cjs` → `falhas 0 em 21`; `paridade.cjs` → `17 de 17`;
+  **novo** `passo17.cjs` → `falhas 0 em 8`.
+- Fase 1 com `--url` (`ui:preview` na 1431, parado no fim pelo pid) → `anti-pulo: 0 diferenças em 23868 medições`,
+  `a=0`; `contrato: 0 falhas`, `c=0`; sabotagens → `anti-pulo=1`, `contrato=1`.
+- `cargo test --manifest-path app/src-tauri/Cargo.toml -- --include-ignored` → `test result: ok. 42 passed` (41 antes;
+  novo `log_do_casco_na_hora_local`); `cargo clippy --all-targets` → 0 avisos.
+- `python tools/test_nsis_atalho.py` → `nsis-atalho: falhas 0`.
+
+**Instalador novo** (`powershell -ExecutionPolicy Bypass -File app/build.ps1`, completo porque o motor mudou, no
+`db64f5d`, 14:50 a 15:01): `exit=0`, última linha `Instalador: C:\pt\release\bundle\nsis\Reco Novo_0.1.0_x64-setup.exe`;
+smoke `ready ok=True` em 0,27 a 0,50 s nas 3 rodadas e `devices ok=True (1, 2)`; motor 115,5 s, `tauri build` 512,8 s,
+631,3 s no total. Instalador de 128,7 MB (134972490 bytes), gravado às 15:01:00, SHA256
+`f3f2f3918f13ed4ef5e6195d1d51990a699a6c19f0e23a56ecbf97769ccb9f05`; casco `C:\pt\release\reco.exe` SHA256
+`3a11420a61566a27336129ea00a6656c33355e7f8d8fbb3bc7c73dd02f7861dc`; `reco-engine.exe` SHA256
+`3b37612b11af540527853039beaae29d5416c82ec61edbf481465b14bed8ab12`. **Substitui** o `75d02dae…` do passo 17. Não
+instalado nem aberto.
+
+**completei:** a resposta `name: null` do `rec.start` também cai em "Automático (padrão do Windows)"; o Parar com
+`busy` que o motor não explica também avisa; a caixa "criar atalho na Área de Trabalho" da instalação com tela vem
+desmarcada; o teste do motor fixa o contrato de `console`/`comm` como nome; o `PROTOCOL.md` diz como o
+`model.update_check`, o `shutdown` e o `devices.list` se comportam agora.
+
+**Fica para o reteste com o app velho fechado (dono na máquina):** instalar este instalador e conferir na prática a
+nota logo depois de abrir, os nomes de Entrada e Saída antes de gravar, o `Reco Novo.log` em hora local, o
+`encerrando (shutdown)` ao Sair e a ausência do atalho na Área de Trabalho depois do `/S`.
+
 ### O que falta para fechar a Fase 3
 
 1. **Passo 17, com o Reco velho fechado pela bandeja (Sair) e sem gravar** — precisa do dono na máquina:
