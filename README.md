@@ -113,6 +113,8 @@ and it uses `small` instead.
 - The model is downloaded once (or bundled in the `.exe`) and cached locally.
 - A windowless engine (`engine/`) runs the same recording and transcription code behind a JSON Lines
   protocol ([docs/PROTOCOL.md](docs/PROTOCOL.md)), in preparation for a new interface.
+- The new interface is being designed in [design/DESIGN.md](design/DESIGN.md): fixed-size window that
+  never jumps when you click; the real screen and a new screenshot come with the new app.
 
 ### License
 [MIT](LICENSE) © 2026 Gabriel dos Anjos
@@ -227,6 +229,8 @@ sem download, e usa o `small` no lugar.
 - O modelo é baixado uma vez (ou embutido no `.exe`) e fica em cache local.
 - Um motor sem janela (`engine/`) roda o mesmo código de gravação e transcrição por trás de um
   protocolo JSON Lines ([docs/PROTOCOL.md](docs/PROTOCOL.md)), em preparação para a interface nova.
+- A interface nova está em desenho em [design/DESIGN.md](design/DESIGN.md): janela de tamanho fixo, que não
+  pula a cada clique; a tela de verdade e o print novo chegam com o app novo.
 
 Scripts de apoio em `tools/` (rodam pelo fonte, não entram no executável): ver
 [docs/TOOLS.md](docs/TOOLS.md).

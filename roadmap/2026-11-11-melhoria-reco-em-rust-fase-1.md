@@ -249,7 +249,7 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
    - A matriz dos testes continua com as três direções (cada skin contra a própria linha de base).
    - Acabamento das pendências do passo 10 (relatório da Fase 1): a calha da margem da B não pode deslocar botões; a primeira linha do texto ao vivo não pode sair cortada na B e na C; o medidor da A deixa de repetir o fio da B.
    - Sem Artifact (decisão do Gabriel, 11/11: só HTML): entregar `design/vitrine.html` aberto no navegador dele e atualizar o relatório.
-15. [ ] Registrar a armadilha que gerou a fase, pelo gerador (nunca `Edit` na página gerada). — **prova:** `cd C:/Dev/Reco; python tools/visoes.py validar && ls docs/armadilhas.d | grep -c janela-sem; grep -c "(o que se vê\|(por que acontece" docs/armadilhas.d/*janela-sem*.md` → 1; depois 0
+15. [x] Registrar a armadilha que gerou a fase, pelo gerador (nunca `Edit` na página gerada). — **prova:** `cd C:/Dev/Reco; python tools/visoes.py validar && ls docs/armadilhas.d | grep -c janela-sem; grep -c "(o que se vê\|(por que acontece" docs/armadilhas.d/*janela-sem*.md` → 1; depois 0
    **reprova se:** a contagem de arquivos não é 1 (nenhum, ou `novo` rodou duas vezes), o `validar` acusa fragmento malformado, ou o esqueleto continua sem preencher (segundo número ≥ 1).
    - Criar uma vez só (não é a prova): `python tools/visoes.py novo "Janela sem tamanho fixo pula a cada clique (Tk e WebView)"`.
    - Uso do `novo` em `tools/visoes.py:13`; ele grava `docs/armadilhas.d/<data>-<HHMM>-<slug>.md` com o esqueleto `**Sintoma:** (o que se vê…)` e `**Causa:** (por que acontece)` (`cerebro/scripts/visoes_projeto.py:276-288`).
@@ -259,7 +259,8 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
      - sintoma: a janela muda de altura e largura a cada clique;
      - causa: toplevel sem tamanho acompanha o conteúdo, mais as 5 chamadas a `geometry("")` (`reco.py:3323, 3467, 3562, 3602, 4338`) e o status com quebra;
      - o que fazer: `design/DESIGN.md` R1–R8 e o teste anti-pulo.
-16. [ ] Documentar e fechar em 1–3 linhas cada, com caminho (textos abaixo). — **prova:** `cd C:/Dev/Reco; grep -c "design/DESIGN.md" CLAUDE.md README.md docs/_INDICE.md docs/ARQUITETURA.md; wc -c < CLAUDE.md` → ≥ 1 em cada um dos quatro; um número ≤ 6144
+   - 12/11: `validar` com exit 0, `1` arquivo (`2026-11-12-0037-janela-sem-tamanho-fixo-pula-a-cada-clique-tk-e-webview.md`) e `0` esqueleto.
+16. [x] Documentar e fechar em 1–3 linhas cada, com caminho (textos abaixo). — **prova:** `cd C:/Dev/Reco; grep -c "design/DESIGN.md" CLAUDE.md README.md docs/_INDICE.md docs/ARQUITETURA.md; wc -c < CLAUDE.md` → ≥ 1 em cada um dos quatro; um número ≤ 6144
    **reprova se:** algum arquivo sem a referência, ou o `CLAUDE.md` passa de 6144 bytes (o `gate-claude-md` barra o commit).
    - Hub conferido à parte: `grep -c "Direção visual\|design/DESIGN.md" C:/Dev/cerebro/projetos/reco.md` → ≥ 1 (o link do roadmap a Fase 0 já pôs; isto só a Fase 1 escreve).
    - Fase 3 conferida à parte: `cd C:/Dev/Reco/roadmap; grep -c "Transcrever, Converter, Gravações" *-fase-3.md; grep -c "testar-contrato.cjs --url" *-fase-3.md` → 0; depois ≥ 1.
@@ -277,6 +278,7 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
    - Commit no Reco: `git add` e depois `git commit -m "<mensagem>" -- <caminhos>`, com `CLAUDE.md README.md docs/_INDICE.md docs/ARQUITETURA.md design/` e o fragmento novo de `docs/armadilhas.d/`;
      - mais `roadmap/2026-11-11-melhoria-reco-em-rust.md`, este md, `roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-1-relatorio.md` e, só se foi preciso realinhar, o md da Fase 3. Depois `git push`.
    - Commit no C:\Dev: `git -C C:/Dev add cerebro/projetos/reco.md <fragmento do diário> <páginas geradas>` e `git -C C:/Dev commit -m "<mensagem>" -- <os mesmos caminhos>`.
+   - 12/11: `CLAUDE.md:1 README.md:2 docs/_INDICE.md:1 docs/ARQUITETURA.md:1`, `CLAUDE.md` com 5746 bytes; hub com "Direção visual" escolhida. Fase 3 (só registro; o md é de outra frente): `0` e `2`, alinhada; tem `casco_skin` e `data-direcao`.
 
 ## Decisões da fase
 
@@ -297,13 +299,12 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
 
 ## Pendente (dono: gabriel)
 
-- **Escolher a direção visual** na vitrine (passo 12): A "Fita", B "Caderno" ou C "Instrumento", ou uma mistura dita em palavras.
-  - Não bloqueia as Fases 0 e 2; bloqueia o fim desta fase e o começo da Fase 3.
+- ~~**Escolher a direção visual** na vitrine (passo 12)~~ decidido em 11/11: A "Fita" padrão, B "Caderno" e C "Instrumento" como skins (passo 13).
 - **Junto, se quiser:** o contrato tira todo movimento do clique (D4). Se depois de ver a vitrine ele quiser que o botão reaja com movimento, basta dizer; D4 reverte por pedido dele.
 
 ## Premissas não verificadas
 
-- **O relatório da Fase 0 ainda não existe** (o md da Fase 0 promete `fase-0-relatorio.md` no sidecar, passo 15 dele). Desta fase ele alimenta duas coisas:
+- ~~**O relatório da Fase 0 ainda não existe**~~ existe e fechou em 12/11 (`exe_selftest` ~1 s livre, 5,4 s carregada; `abrir_pronta_s` 1,515 s; D2 confirmada). Texto original: (o md da Fase 0 promete `fase-0-relatorio.md` no sidecar, passo 15 dele). Desta fase ele alimenta duas coisas:
   - `exe_selftest` (partida do motor congelado), que define a duração esperada do estado "motor subindo", e `abrir_pronta_s`, a régua de D12;
   - a prova da bandeja (mostrar a janela sem roubar o foco), que afeta só a âncora, não o desenho.
 - **`C:\Dev\lacre-wt-design` é worktree de PR em rascunho** e pode sumir. Dele só se usa o método; se sumir, o relatório 3 § 2 e § 5 descreve o suficiente.

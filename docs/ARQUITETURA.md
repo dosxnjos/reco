@@ -321,6 +321,16 @@ escolha manual refaz com 1 clique.
   de o exe novo existir faz o exe antigo regravar o id do padrão (ver ARMADILHAS,
   "Migração de config persistida antes do exe novo").
 
+## Contrato de tela da interface nova (11/11/2026)
+
+A interface nova (Tauri, Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco-em-rust.md))
+segue [design/DESIGN.md](../design/DESIGN.md): janela fixa, área com altura reservada, nada se move no
+clique (regras R1–R15), skin Fita por padrão e Caderno e Instrumento em Opções › Visual. As regras moram só
+lá; aqui fica o porquê: a janela Tk pula a cada clique
+([armadilha](armadilhas.d/2026-11-12-0037-janela-sem-tamanho-fixo-pula-a-cada-clique-tk-e-webview.md)).
+Prova: `node design/testar-anti-pulo.cjs` e `node design/testar-contrato.cjs` saem com 0 (com `--sabotar`,
+com 1); a Fase 3 roda os mesmos testes contra a interface real com `--url`.
+
 ## Motor (`engine/`) (11/11/2026)
 
 Motor sem janela que a interface nova (Tauri, Fase 3 do

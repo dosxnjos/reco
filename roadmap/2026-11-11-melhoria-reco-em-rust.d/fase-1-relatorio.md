@@ -1,8 +1,7 @@
 ## Relatório de execução — Fase 1 (2026-11-11, sessão 4c65eb01)
 
-> **Parcial:** passos 1 a 11 feitos (o 11 só como conferência da trava, sem commit: quem commita é a sessão
-> principal). Passos 12 em diante (publicar, esperar a escolha, podar, armadilha, docs) ficam com a sessão
-> principal.
+> **Fechada em 12/11/2026.** Passos 1 a 11 por subagente; 12 a 16 pela sessão principal (escolha do Gabriel
+> no 13, skins no 14b, armadilha e docs no 15 e 16, no fim deste arquivo).
 
 Vitrine: `design/vitrine.html` (abrir no navegador; standalone). Foi publicada como Artifact em 11/11/2026 e o
 Gabriel escolheu por ela (A padrão, B e C como skins). Na mesma noite ele decidiu voltar a só HTML, sem Artifact
@@ -201,3 +200,18 @@ A escolha do Gabriel resolve a maior parte: o que não for escolhido sai na poda
 
 - Regra "1ª linha do ao vivo inteira" (`rolarAoVivo`) só existe na vitrine: levar para o app.
 - "Transcrição pronta": a fileira de 3 botões corta "Abrir trans…" e "Copiar ca…" nas três skins.
+
+## Passos 15 e 16 (12/11)
+
+- Passo 15: `python tools/visoes.py novo "Janela sem tamanho fixo pula a cada clique (Tk e WebView)"` uma vez →
+  `docs/armadilhas.d/2026-11-12-0037-janela-sem-tamanho-fixo-pula-a-cada-clique-tk-e-webview.md`, preenchido
+  (sintoma, causa com as 5 `geometry("")`, o que fazer: DESIGN R1–R8 e os dois testes). Prova: `validar` exit
+  0, contagem `1`, esqueleto `0`.
+- Passo 16: `grep -c "design/DESIGN.md"` → `CLAUDE.md:1 README.md:2 docs/_INDICE.md:1 docs/ARQUITETURA.md:1`;
+  `wc -c < CLAUDE.md` → `5746` (≤ 6144). README nas duas línguas; `_INDICE` com a linha de `design/` (e a
+  correção: `armadilhas.d/` é versionado, a página gerada é que fica fora do git); ARQUITETURA com a seção
+  "Contrato de tela da interface nova", sem copiar as regras. Hub com a direção escolhida.
+- Fase 3 conferida só por grep (o md é de outra frente, não editado): `"Transcrever, Converter, Gravações"` →
+  `0`; `testar-contrato.cjs --url` → `2`; tem `casco_skin` e `data-direcao`. Alinhada.
+- Desvio: o gatilho "testes só com a direção escolhida" virou "testes com as três skins, cada uma contra a
+  própria linha de base", pela decisão do Gabriel (14b).
