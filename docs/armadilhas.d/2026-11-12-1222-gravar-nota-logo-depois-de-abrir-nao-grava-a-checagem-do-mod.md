@@ -1,6 +1,8 @@
 ---
 titulo: Gravar nota logo depois de abrir não grava: a checagem do modelo ocupa a vaga da transcrição
 data: 2026-11-12
+status: superada
+superada_por: adf3fc0
 ---
 **Sintoma:** no Reco Novo instalado, trocar para Nota e clicar em "Gravar nota" uns 2 s depois de abrir não
 grava nada. No instalador do passo 16 (SHA256 `72e98338…`) a tela mostrava "O motor está ocupado com outra tarefa: transcrição em
