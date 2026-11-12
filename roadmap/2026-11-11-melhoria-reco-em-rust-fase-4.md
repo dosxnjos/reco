@@ -83,6 +83,10 @@
 > Nota (2026-11-12, passo 8 feito): o instalador a usar no passo 9 é o `Reco_0.3.0_x64-setup.exe` (SHA256 no relatório
 > da Fase 4, seção "Passo 8"), não mais o `Reco Novo_0.1.0` da Fase 3. Onde o bloco acima diz `Reco Novo.log`, o log
 > do casco instalado passa a ser `Reco.log`.
+>
+> Nota (2026-11-12, revisão adversarial): o instalador no caminho do `$setup` foi refeito às 16:55:58 com o motor em
+> 0.3.0 (SHA256 `84EE1142…D92211CF`, relatório, seção "Revisão adversarial"). O app dos passos 9 e 10 foi instalado do
+> `76C890E8…` (motor 0.1.0); a única diferença é o número da versão do motor, e a próxima reinstalação pelo `$setup` leva o novo.
 
 ### A. Reserva e régua, antes de instalar
 

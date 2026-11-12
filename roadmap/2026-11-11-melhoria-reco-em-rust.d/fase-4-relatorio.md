@@ -63,7 +63,7 @@ As 10 gravações `gravacao_reco_*` mais recentes da pasta do app (sem `_alinhad
 | G07 | 1573,6 | ok | 0 | 0 | ok | ausente | - | ok |
 | G08 | 1286,8 | ok | 0 | 5 | salto | ausente | - | ALERTA (salto) |
 | G09 | 622,0 | ok | 0 | 0 | ok | ausente | - | ok |
-| G10 | 306,8 | ok | 0 | 0 | ok | ausente | - | ok |
+| G10 | 306,8 | ok | 0 | 2 | ok | ausente | - | ok |
 
 - **Contagem:** `ok=6, ALERTA=2, FALHOU=2`; alinhamento `ok=6, salto=3, sem_correlacao=1`. Salto em 3 de 9 medíveis
   (33%), perto dos 16 de 43 (37%) de 30/08. Xing certo nas 10; nenhum erro de leitura (a prova passa: 10 linhas).
@@ -172,6 +172,77 @@ As 10 gravações `gravacao_reco_*` mais recentes da pasta do app (sem `_alinhad
   áudio ou transcrição no git. `%LOCALAPPDATA%\Reco-reserva` fica (F4-D3, até a Fase 7).
 - Reco Novo `aac7ca7` segue instalado; nenhum instalador ou desinstalador rodou.
 
+### Revisão adversarial (12/11/2026, 16:30 a 17:10)
+
+Revisor em subagente, só com MP3 sintéticos (nenhuma gravação do dono lida por ele). Cinco achados: 1 alto, 2 médios,
+2 baixos; todos reais, com uma parte do 5 falsa (abaixo). Frescor antes do primeiro toque: `git diff --stat 7c5c1a1..HEAD`
+nos arquivos de `tools/` que os passos citam → vazio; as linhas que a revisão cita (`paridade.py:99-100`, `:138-141`,
+`:163`, `engine/reco_engine/__init__.py:7`, `motor.ts:65`) conferidas no código de hoje.
+
+- **1 (alto) Lado mudo passava quando o outro soa desde o 1º frame.** Reproduzido: sistema em zero e mic com seno desde
+  t=0 → `r_zero_inicio=0 … -> ok`; o espelhado → `mic_zero_max=59 -> ok`. Medido pelo próprio `reco.MP3Writer` (o
+  container do app), não só pelo encoder cru do revisor: `varrer_silencio.medir` → `r_total=59` de 60 e `mic_maior=59`
+  de 60; com ruído de banda larga saturado, 120 s → 335 amostras não-zero no lado mudo, a última em 0,0209 s. O
+  vazamento é do 1º frame e não cresce com o sinal, então a tolerância é de 1 s. **Conserto:** `limiar_mudo(seg)` =
+  `seg - 1` (com piso: arquivo de menos de 2 s exige todos os segundos, senão todo arquivo de 1 s sairia mudo); o
+  sistema usa `r_total >= limiar`, o mic `mic_maior >= limiar`. **Prova:** os 5 arquivos do revisor → `rmudo`,
+  `rmudo_cedo`, `rmudo_suave` `FALHOU (sistema-mudo)`, `micmudo_cedo` `FALHOU (mic-mudo)`, `bom` `ok`, rc 1. Linha de
+  base nas 10 cópias de novo → as 10 linhas `G…` idênticas às de antes (`diff` vazio), `ok=6, ALERTA=2, FALHOU=2`.
+  Passo 4 de novo (G05 e G03) → `ok`, `ok`, `PASSOU`, rc 0. **Limite que fica (só ALERTA, não reprova):** o mesmo
+  vazamento zera o `r_zero_inicio` quando o mic soa desde o 1º frame, e o ALERTA de sistema mudo no começo não sai
+  nesse caso (anotado no docstring e no `docs/TOOLS.md`). Candidata a armadilha no passo 23.
+- **2 (médio) A prova negativa do passo 5 passava com a régua quebrada.** Reproduzido o raciocínio: a prova só casava
+  veredito e rc. **Conserto:** `tools/test_paridade.py` (163 linhas), MP3 sintéticos pelo `reco.MP3Writer` numa pasta
+  temporária, 15 casos que casam veredito **e a lista exata de motivos** (mais 4 de rc do `main`). **Prova:**
+  `python tools/test_paridade.py` → `paridade: falhas 0`, rc 0, 17 s. Contra cópias da régua com uma linha mudada
+  (`--regua <cópia>`): Xing desligado → `falhas 2` (os dois cortes); estéreo desligado → `falhas 1` (mono); sem a
+  tolerância de 1 s → `falhas 2`; sem o piso → `falhas 1` (arquivo de 1 s); `vazio` fora do `--exigir-txt` → `falhas 1`;
+  loop desligado → `falhas 1`; sistema mudo desligado → `falhas 2`; a régua de antes da revisão (`git show HEAD:…`) →
+  `falhas 3` (sistema mudo, mic mudo, txt vazio). **Achado do teste:** o "rabo corrompido" é o **cabeçalho** do último
+  frame cortado (1 a 3 bytes depois da fronteira dão `InvalidDataError`; de 4 bytes em diante o decoder aceita o frame
+  curto). O truncado real da prova antiga terminava num pacote de 3 bytes. O md do passo 5 diz isso por nota datada, e
+  a prova do passo passa a ser o teste (repetível, sem gravação do dono).
+- **3 (médio) `x.txt` vazio passava com `--exigir-txt`.** Reproduzido: `gravacao_reco_vazio` + a flag →
+  `txt=vazio pior=1 -> ok`. **Conserto:** com `--exigir-txt`, `vazio` reprova, sem limiar de duração (a flag é do passo
+  18, reunião real). **Prova:** o mesmo arquivo → `FALHOU (txt-vazio)`, rc 1; sem a flag segue `ok` (caso do teste).
+- **4 (baixo) Motor em 0.1.0.** Real. **Conserto:** `engine/reco_engine/__init__.py` em `0.3.0`, junto com o casco;
+  `docs/PROTOCOL.md` (linha do `hello`) diz que o `engine_version` acompanha a versão do casco a cada instalador e que
+  `protocol` só sobe se o contrato quebrar. A checagem `tools/engine_checks_proto.py`, que tinha `"0.1.0"` cravado,
+  compara com o `__version__` lido do fonte (assim um motor congelado velho reprova). **Prova:** `python
+  tools/test_engine_protocol.py` (rodada padrão, sem gravar) → 13 linhas `OK`, rc 0. O motor mudou, então o build
+  foi refeito (abaixo).
+- **5 (baixo) Reserva incompleta.** Real em duas partes, falso numa:
+  - Config: copiado `~/.reco_config.json` para `%LOCALAPPDATA%\Reco-reserva\reco_config.json` às 16:51:39, `Get-FileHash`
+    igual nos dois, JSON válido (`_migracao` 2). Ele já não era o das 15:55: `sys_gain` 0.5 → 1.0, o ajuste que o dono
+    fez no Reco Novo às 16:39 (seção "Passos 9 a 17"), com o arquivo regravado às 16:51:38, durante a troca dos apps
+    daquela seção; nada desta revisão grava o config real. A outra frente recopiou às 16:53, depois de instalar, com
+    hashes iguais. Por isso o passo 9 ganhou nota para recopiar com os apps fechados, antes de instalar.
+    Observação dela que vale aqui: a `Reco-reserva\models` ficou na revisão anterior do modelo (o Reco Novo baixou uma
+    nova às 16:39); ela segue um modelo inteiro e conferido (soma do passo 2), só não é mais a revisão da pasta viva.
+  - Volta: o passo 16 d) ganhou nota datada: sem `%LOCALAPPDATA%\Reco\models`, `robocopy` da reserva; config ilegível,
+    copiar de volta o da reserva.
+  - **Falso:** "o `--selftest` da reserva lê os modelos de `%LOCALAPPDATA%\Reco\models`". O selftest
+    (`reco.py:5133-5146`) não lê modelo nenhum: só os imports, os devices do OpenVINO e o `resolve_device`. Ele prova o
+    exe; a cópia dos modelos foi provada pela soma da árvore (46 arquivos, mesma soma nos dois lados, passo 2). Nota
+    datada no passo 2 do md.
+- **Também corrigido:** a tabela da linha de base dizia `mic_zero_max` 0 na G10; a saída da régua (antes e depois) diz 2.
+
+**Instalador refeito** (só build; nada instalado nem aberto por esta revisão): `app/build.ps1` completo do `9b6294b`
+(o `d837de2` só muda `tools/` e roadmap), 16:43:09 a 16:55:58, `exit=0`; smoke do motor congelado `ready ok=True` em
+1,94 / 0,66 / 0,60 s e `devices ok=True (1, 2)`; tempos: motor 167 s, `tauri build` 591,3 s, total 768,7 s. O motor
+congelado novo, com `hello` + `shutdown` → `"engine_version":"0.3.0"`.
+
+- Instalador `C:\pt\release\bundle\nsis\Reco_0.3.0_x64-setup.exe`: 134992448 bytes, 16:55:58,
+  `84EE114218BF5FFD4318E37B8C12C1C559A0263D1C9312ADB616BFF8D92211CF`.
+- Casco `C:\pt\release\reco.exe`: 4513792 bytes, `11689B19900507056C52B9B470718F49A5FBA6651CB8DD6F7AB5DD94E731BBB5`.
+- Motor `engine\dist\reco-engine\reco-engine.exe`: 25162376 bytes, 16:45:46,
+  `281A0D76E3745159F6E67340E04455B1943D451763C73612D33882EBC4098A5F`.
+- Substitui o `76C890E8…5B1A4D90` do passo 8 no caminho do `$setup`. **Atenção:** o app instalado nos passos 9 e 10
+  (seção abaixo, outra frente, a partir das 16:37) é o `76C890E8…` (cópia em `temp/instaladores/`), com o motor 0.1.0;
+  a diferença para o novo é só o número da versão do motor (Opções mostra "motor 0.1.0"). A próxima reinstalação pelo
+  `$setup` (passo 16 f) leva o novo. Este build reescreveu o `engine\dist` de 16:43 a 16:46 e o `C:\pt\release` até
+  16:55:58, enquanto a outra frente testava; a cópia do instalador dela não foi tocada.
+
 ### Commits
 
 | hash | o quê |
@@ -181,3 +252,5 @@ As 10 gravações `gravacao_reco_*` mais recentes da pasta do app (sem `_alinhad
 | `5037e1f` | passos 4 e 5 (`tools/paridade.py`, `docs/TOOLS.md`) |
 | `818c257` | passo 8, fonte (nome `Reco`, `ready em`, README) — o instalador sai deste código |
 | `60122c7` | passos 6 e 7 e o `pior` fala a fala |
+| `9b6294b` | revisão, achado 4: motor 0.3.0 (o instalador `84EE…` sai deste código) |
+| `d837de2` | revisão, achados 1, 2, 3 e 5: régua, `tools/test_paridade.py`, notas no md |
