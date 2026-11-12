@@ -22,7 +22,6 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-global-shortcut = "2"
-tauri-plugin-autostart = "2"
 tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -31,6 +30,10 @@ log = "0.4"
 
 # Win32 direto: mutex Local\Reco.SingleInstance, mensagem Reco.Show (janela de topo escondida) e o vigia do hover.
 # Win32_Security: sem ela o windows-sys 0.59 esconde o CreateMutexW (E0432, pegadinha 8 da Fase 0).
+# Iniciar com o Windows gravado à mão (`autostart.rs`): o `tauri-plugin-autostart` gravava o caminho sem aspas.
+[target.'cfg(windows)'.dependencies.windows-registry]
+version = "0.6"
+
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.59"
 features = [

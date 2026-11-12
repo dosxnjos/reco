@@ -2,6 +2,7 @@
 //! hover sem foco, da instância única e da saída segura (D11). Molde: Lacre `src-tauri/src/lib.rs`.
 
 pub mod atalho;
+pub mod autostart;
 pub mod avisos;
 pub mod bandeja;
 pub mod comandos;
@@ -203,8 +204,6 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(atalho::no_atalho).build())
-        // Registrado, nunca ligado aqui: só o comando `definir_autostart`, a partir de Opções.
-        .plugin(tauri_plugin_autostart::Builder::new().app_name("Reco").arg("--oculto").build())
         .manage(Arc::new(EstadoCasco::default()))
         .manage(hover::HoverEstado::default())
         .manage(bandeja::BandejaEstado::<Wry>::default())
@@ -218,6 +217,7 @@ pub fn run() {
             app.manage(Arc::clone(&engine)); // antes do start: o primeiro `ready` já acha o motor no estado
             engine.start_or_retry();
             bandeja::criar(&handle, no_menu, no_icone)?;
+            autostart::reparar_na_partida(); // ligado por um build com o valor sem aspas → regrava com aspas
             #[cfg(windows)]
             {
                 let h = handle.clone();
@@ -256,8 +256,8 @@ pub fn run() {
             comandos::janela::definir_lingua,
             atalho::definir_atalho,
             atalho::atalho_registrado,
-            atalho::autostart_ligado,
-            atalho::definir_autostart,
+            autostart::autostart_ligado,
+            autostart::definir_autostart,
         ])
         .build(tauri::generate_context!())
         .expect("erro ao montar o Reco");

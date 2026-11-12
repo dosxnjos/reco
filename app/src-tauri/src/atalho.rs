@@ -1,17 +1,14 @@
-//! Atalho global e iniciar com o Windows, os dois opt-in em Opções (passo 10, F3-D6).
+//! Atalho global, opt-in em Opções (passo 10, F3-D6). O iniciar com o Windows mora em `autostart.rs`.
 //!
 //! - Atalho: Ctrl+Shift+R, desligado até o Gabriel ligar (paridade com o `.lnk` opt-in, `reco.py:4866-4912`).
 //!   Só mostra a janela com foco (a tela recebe `reco-atalho` e foca o botão principal). Falha ao registrar não
 //!   derruba nada: volta o código `hotkey_taken`. A preferência é `casco_atalho` no config, gravada pelo motor
 //!   (`config.set`, prefixo `casco_`, F2-D16): o Rust só lê (D6).
-//! - Iniciar com o Windows: plugin autostart com `app_name("Reco")` e `--oculto` (no `lib.rs`); o estado
-//!   é lido do próprio Windows (`is_enabled`), sem gravar em lugar nenhum.
 
 use std::sync::Arc;
 
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Runtime, State};
-use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutEvent, ShortcutState};
 
 use crate::motor::prazos::prazo;
@@ -91,19 +88,6 @@ pub async fn definir_atalho<R: Runtime>(
 #[tauri::command]
 pub fn atalho_registrado<R: Runtime>(app: AppHandle<R>) -> bool {
     app.global_shortcut().is_registered(atalho_padrao())
-}
-
-#[tauri::command]
-pub fn autostart_ligado<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
-    app.autolaunch().is_enabled().map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn definir_autostart<R: Runtime>(app: AppHandle<R>, ligar: bool) -> Result<bool, String> {
-    let al = app.autolaunch();
-    let r = if ligar { al.enable() } else { al.disable() };
-    r.map_err(|e| e.to_string())?;
-    al.is_enabled().map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

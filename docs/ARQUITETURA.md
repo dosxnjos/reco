@@ -387,7 +387,12 @@ App novo da Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco
   preferências dele são chaves `casco_*` gravadas pelo motor.
 - **Módulos do casco** (`app/src-tauri/src`): `motor/` (Router por id, processo com reinício e backoff, log com
   rotação, prazos por comando, `saida.rs` do Sair seguro), `comandos/` (motor, arquivos, janela), `estado.rs`
-  (reações puras aos eventos), `bandeja.rs`, `hover.rs`, `instancia.rs`, `atalho.rs`, `avisos.rs`.
+  (reações puras aos eventos), `bandeja.rs`, `hover.rs`, `instancia.rs`, `atalho.rs`, `autostart.rs`, `avisos.rs`.
+- **Iniciar com o Windows** (`autostart.rs`, desde 12/11/2026): grava à mão `HKCU\…\CurrentVersion\Run` /v `Reco` =
+  `"<exe>" --oculto`, **com aspas**, e desligar apaga também a marca em `…\Explorer\StartupApproved\Run`. Não voltar
+  ao `tauri-plugin-autostart`: o `auto-launch` dele grava o caminho sem aspas (a pasta do usuário pode ter espaço) e
+  deixa a marca ao desligar. Na partida, um valor antigo diferente (já ligado) é regravado; desligado não cria nada.
+  Os testes usam `HKCU\Software\RecoTeste`, nunca o `Run` real.
 - **Quem encadeia o parar** (F3-D13): `parar_gravacao` pede `rec.stop` e, com `auto` (nota ou passada final),
   o `rec.conclude` em segundo plano; o resultado vai à tela pelo evento `reco-conclusao`. Tela e bandeja param
   pelo mesmo caminho. A ordem entre esse evento e a resposta do `parar_gravacao` não é garantida: a tela guarda
