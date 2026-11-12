@@ -73,15 +73,19 @@ function Invoke-EngineBuild([string[]]$pyArgs) {
     return ,$lines
 }
 
-# The smoke in engine/build.py prints one line per run and never fails by itself: judge it here.
+# The smoke in engine/build.py exits 1 on its own failure (Invoke-EngineBuild stops on it); judge the lines here
+# too. `hello` answers before `import reco`: an engine frozen without a hidden import says hello ok and sends
+# `ready` with an error, and then answers `unavailable` to every rec.start. So every run needs `ready ok=True`
+# and the last one `devices ok=True` (review finding, Fase 3).
 function Assert-Smoke([string[]]$lines) {
     $runs = @($lines | Where-Object { $_ -match '^run \d+: hello ok=' })
     if ($runs.Count -lt 3) { Fail "engine smoke printed $($runs.Count) of 3 runs: the frozen engine did not answer hello." }
     foreach ($r in $runs) {
-        if ($r -notmatch 'hello ok=True' -or $r -notmatch 'shutdown ok=True exit=0') {
+        if ($r -notmatch 'hello ok=True' -or $r -notmatch 'ready ok=True' -or $r -notmatch 'shutdown ok=True exit=0') {
             Fail "engine smoke failed: $r"
         }
     }
+    if ($runs[-1] -notmatch 'devices ok=True') { Fail "engine smoke failed (devices.list on the last run): $($runs[-1])" }
     return $runs
 }
 
