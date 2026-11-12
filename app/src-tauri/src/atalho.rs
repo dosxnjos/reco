@@ -4,7 +4,7 @@
 //!   Só mostra a janela com foco (a tela recebe `reco-atalho` e foca o botão principal). Falha ao registrar não
 //!   derruba nada: volta o código `hotkey_taken`. A preferência é `casco_atalho` no config, gravada pelo motor
 //!   (`config.set`, prefixo `casco_`, F2-D16): o Rust só lê (D6).
-//! - Iniciar com o Windows: plugin autostart com `app_name("Reco Novo")` e `--oculto` (no `lib.rs`); o estado
+//! - Iniciar com o Windows: plugin autostart com `app_name("Reco")` e `--oculto` (no `lib.rs`); o estado
 //!   é lido do próprio Windows (`is_enabled`), sem gravar em lugar nenhum.
 
 use std::sync::Arc;

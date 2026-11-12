@@ -53,6 +53,8 @@ def _announce(core) -> None:
     log.info("reco importado em %.2f s", _state["import_s"])
     core.emit("ready", import_s=_state["import_s"], has=has, lang=reco.LANG,
               reco_version=reco.APP_VERSION)
+    # Marca do D12 (Fase 4, passo 14): o casco anexa o stderr ao engine.log, e a medição casa esta linha.
+    log.info("ready em %.2f s", _state["import_s"])
 
 
 def _warm() -> None:

@@ -104,7 +104,7 @@ function Invoke-Npm([string[]]$npmArgs, [string]$what) {
 }
 
 Write-Host ""
-Write-Host "=== Reco Novo - build (casco Tauri + motor congelado) ===" -ForegroundColor Cyan
+Write-Host "=== Reco - build (casco Tauri + motor congelado) ===" -ForegroundColor Cyan
 
 # 1. engine
 Stage "1/4 engine: freeze + hello smoke"

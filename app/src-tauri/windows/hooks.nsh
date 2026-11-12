@@ -1,9 +1,9 @@
-; Hooks of the Reco Novo NSIS installer (bundle > windows > nsis > installerHooks in tauri.conf.json).
+; Hooks of the Reco NSIS installer (bundle > windows > nsis > installerHooks in tauri.conf.json).
 ; ASCII on purpose: makensis reads this file in the system codepage.
 ;
 ; Defect 5 of the real test (step 17, Fase 3, 2026-11-12): in silent (/S) and passive (/P) mode the Tauri template
 ; creates a Desktop shortcut without asking, because the finish page (where the checkbox lives) is skipped
-; (installer.nsi: "Create desktop shortcut for silent and passive installers"). Reco Novo wants only the Start Menu.
+; (installer.nsi: "Create desktop shortcut for silent and passive installers"). Reco wants only the Start Menu.
 ;
 ; - PREINSTALL remembers whether the Desktop shortcut already existed (made by hand, or by the checkbox of an earlier
 ;   install with a window); POSTINSTALL deletes it only if THIS silent or passive install created it.

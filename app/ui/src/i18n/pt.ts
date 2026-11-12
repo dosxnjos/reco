@@ -166,7 +166,7 @@ export const pt = {
   "o.autostart": "Iniciar com o Windows",
   "o.autostart-ajuda": "Abre escondido na bandeja.",
   "o.versao": "Versão",
-  "o.versao-texto": "Reco Novo {app} · motor {motor}",
+  "o.versao-texto": "Reco {app} · motor {motor}",
   "o.baixar-versao": "Baixar a {tag}",
   "o.ligado": "Ligado",
   "o.desligado": "Desligado",

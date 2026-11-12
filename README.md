@@ -103,24 +103,27 @@ fixed-size interface in TypeScript (`app/ui`), driving the windowless engine (`e
 It passed its first real recording test and is now in day-to-day use testing; the current `Reco.exe` stays
 as the fallback until the switch.
 
-**Install:** build the installer (below) and run `Reco Novo_<version>_x64-setup.exe`. It installs for the
-current user only (no admin) in `%LOCALAPPDATA%\Reco Novo` and adds a **"Reco Novo"** Start Menu shortcut.
-Closing the window keeps it in the tray; **Quit** is in the tray menu. Uninstall from Windows Settings → Apps
-or with `%LOCALAPPDATA%\Reco Novo\uninstall.exe`. Windows may warn about an unsigned installer (SmartScreen).
+**Install:** build the installer (below) and run `Reco_<version>_x64-setup.exe`. Up to 0.1.0 it was called
+"Reco Novo" (`%LOCALAPPDATA%\Reco Novo`); uninstall that one first. It installs for the current user only (no
+admin) in `%LOCALAPPDATA%\Reco`, the folder that also holds the transcription models, and adds a **"Reco"**
+Start Menu shortcut. Closing the window keeps it in the tray; **Quit** is in the tray menu. Uninstall from
+Windows Settings → Apps or with `%LOCALAPPDATA%\Reco\uninstall.exe` (that this keeps the `models` folder is still
+being proven). Windows may warn about an unsigned installer (SmartScreen).
 
-**Reco Novo and the current Reco never run at the same time.** They share one single-instance lock: opening
+**The new Reco and the current Reco never run at the same time.** They share one single-instance lock: opening
 one while the other is running just brings the running one to the front. To switch, quit the open one from its
 tray menu (never while it is recording) and then open the other. Both use the same settings file and save
 recordings to the same folder.
 ```powershell
 powershell -ExecutionPolicy Bypass -File app/build.ps1
-# -> <CARGO_TARGET_DIR or app/src-tauri/target>\release\bundle\nsis\Reco Novo_<version>_x64-setup.exe
+# -> <CARGO_TARGET_DIR or app/src-tauri/target>\release\bundle\nsis\Reco_<version>_x64-setup.exe
 ```
 The script freezes the engine (PyInstaller, needs the Python deps above plus `pyinstaller`), runs a smoke
 test on it (hello, ready without error, device list, clean shutdown), then `npm ci`, the interface build
 and `tauri build` (Rust and Node required). It takes about 25 minutes, most of it compressing the ~500 MB
-engine into the installer. The installer is called **"Reco Novo"** so it never replaces the current app's
-shortcut. It creates only the Start Menu shortcut: the silent install (`/S`) leaves no Desktop
+engine into the installer. Since 0.3.0 the installer is called **"Reco"**, so its Start Menu shortcut is the
+same `Reco.lnk` that the current app's "Create shortcut" option writes: installing replaces it (without the
+Ctrl+Shift+R hotkey). It creates only the Start Menu shortcut: the silent install (`/S`) leaves no Desktop
 shortcut, and the install with a window offers the box unchecked (`app/src-tauri/windows/hooks.nsh`, proved
 by `python tools/test_nsis_atalho.py`).
 
@@ -251,25 +254,27 @@ interface de tamanho fixo em TypeScript (`app/ui`), que comanda o motor sem jane
 filho. Ele passou no primeiro teste real de gravação e agora está em teste de uso no dia a dia; o `Reco.exe`
 atual continua como reserva até a troca.
 
-**Instalar:** gere o instalador (abaixo) e rode `Reco Novo_<versão>_x64-setup.exe`. Ele instala só para o
-usuário atual (sem administrador) em `%LOCALAPPDATA%\Reco Novo` e cria o atalho **"Reco Novo"** no Menu
-Iniciar. Fechar a janela deixa o app na bandeja; o **Sair** fica no menu da bandeja. Para desinstalar:
-Configurações do Windows → Aplicativos, ou `%LOCALAPPDATA%\Reco Novo\uninstall.exe`. O Windows pode avisar
-que o instalador não é assinado (SmartScreen).
+**Instalar:** gere o instalador (abaixo) e rode `Reco_<versão>_x64-setup.exe`. Até a 0.1.0 ele se chamava
+"Reco Novo" (`%LOCALAPPDATA%\Reco Novo`); desinstale esse antes. Ele instala só para o usuário atual (sem
+administrador) em `%LOCALAPPDATA%\Reco`, a pasta que também guarda os modelos de transcrição, e cria o atalho
+**"Reco"** no Menu Iniciar. Fechar a janela deixa o app na bandeja; o **Sair** fica no menu da bandeja. Para
+desinstalar: Configurações do Windows → Aplicativos, ou `%LOCALAPPDATA%\Reco\uninstall.exe` (que isso mantém a
+pasta `models` ainda está sendo provado). O Windows pode avisar que o instalador não é assinado (SmartScreen).
 
-**O Reco Novo e o Reco atual nunca abrem juntos.** Os dois dividem a mesma trava de instância única: abrir um
+**O Reco novo e o Reco atual nunca abrem juntos.** Os dois dividem a mesma trava de instância única: abrir um
 com o outro rodando só traz o que está rodando para a frente. Para trocar, saia do que está aberto pelo menu
 da bandeja (nunca no meio de uma gravação) e abra o outro. Os dois usam o mesmo arquivo de configuração e
 gravam na mesma pasta.
 ```powershell
 powershell -ExecutionPolicy Bypass -File app/build.ps1
-# -> <CARGO_TARGET_DIR ou app/src-tauri/target>\release\bundle\nsis\Reco Novo_<versão>_x64-setup.exe
+# -> <CARGO_TARGET_DIR ou app/src-tauri/target>\release\bundle\nsis\Reco_<versão>_x64-setup.exe
 ```
 O script congela o motor (PyInstaller; precisa das dependências Python acima e do `pyinstaller`), testa o
 motor congelado (hello, ready sem erro, lista de dispositivos e saída limpa) e roda `npm ci`, o build da
 interface e o `tauri build` (precisa de Rust e Node). Leva uns 25 minutos, quase tudo comprimindo os ~500 MB
-do motor no instalador. O instalador se chama **"Reco Novo"** para nunca trocar o atalho do app atual. Ele
-cria só o atalho do Menu Iniciar: a instalação silenciosa (`/S`) não deixa atalho na Área de
+do motor no instalador. Desde a 0.3.0 o instalador se chama **"Reco"**, então o atalho dele no Menu Iniciar é o
+mesmo `Reco.lnk` que a opção "Criar atalho" do app atual grava: instalar troca esse atalho (sem a tecla
+Ctrl+Shift+R). Ele cria só o atalho do Menu Iniciar: a instalação silenciosa (`/S`) não deixa atalho na Área de
 Trabalho, e a instalação com tela oferece a caixa desmarcada (`app/src-tauri/windows/hooks.nsh`, provado por
 `python tools/test_nsis_atalho.py`).
 

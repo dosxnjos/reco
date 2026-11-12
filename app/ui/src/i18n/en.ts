@@ -161,7 +161,7 @@ export const en: Record<Chave, string> = {
   "o.autostart": "Start with Windows",
   "o.autostart-ajuda": "Opens hidden in the tray.",
   "o.versao": "Version",
-  "o.versao-texto": "Reco Novo {app} · engine {motor}",
+  "o.versao-texto": "Reco {app} · engine {motor}",
   "o.baixar-versao": "Download {tag}",
   "o.ligado": "On",
   "o.desligado": "Off",

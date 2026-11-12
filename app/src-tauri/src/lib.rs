@@ -35,7 +35,7 @@ pub const EVENTO_GRAVACAO_INTERROMPIDA: &str = "reco-gravacao-interrompida";
 /// Liberado só quando a saída segura terminou: aí o `ExitRequested` seguinte passa.
 static PODE_SAIR: AtomicBool = AtomicBool::new(false);
 
-/// Fuso do `Reco Novo.log`: hora local, como o `engine.log` (o `asctime` do Python). O padrão do plugin é UTC, e o log
+/// Fuso do `Reco.log`: hora local, como o `engine.log` (o `asctime` do Python). O padrão do plugin é UTC, e o log
 /// do casco marcava 14:55 para 11:55 locais (defeito 3 do passo 17 da Fase 3).
 pub fn fuso_do_log() -> tauri_plugin_log::TimezoneStrategy {
     tauri_plugin_log::TimezoneStrategy::UseLocal
@@ -204,7 +204,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(atalho::no_atalho).build())
         // Registrado, nunca ligado aqui: só o comando `definir_autostart`, a partir de Opções.
-        .plugin(tauri_plugin_autostart::Builder::new().app_name("Reco Novo").arg("--oculto").build())
+        .plugin(tauri_plugin_autostart::Builder::new().app_name("Reco").arg("--oculto").build())
         .manage(Arc::new(EstadoCasco::default()))
         .manage(hover::HoverEstado::default())
         .manage(bandeja::BandejaEstado::<Wry>::default())
