@@ -35,6 +35,12 @@ pub const EVENTO_GRAVACAO_INTERROMPIDA: &str = "reco-gravacao-interrompida";
 /// Liberado só quando a saída segura terminou: aí o `ExitRequested` seguinte passa.
 static PODE_SAIR: AtomicBool = AtomicBool::new(false);
 
+/// Fuso do `Reco Novo.log`: hora local, como o `engine.log` (o `asctime` do Python). O padrão do plugin é UTC, e o log
+/// do casco marcava 14:55 para 11:55 locais (defeito 3 do passo 17 da Fase 3).
+pub fn fuso_do_log() -> tauri_plugin_log::TimezoneStrategy {
+    tauri_plugin_log::TimezoneStrategy::UseLocal
+}
+
 /// Como rodar o motor:
 /// 1. debug: `RECO_ENGINE=<reco-engine.exe>` roda o congelado (testar o PyInstaller sem instalador);
 /// 2. debug: `python -m reco_engine` em `engine/` do repo;
@@ -185,7 +191,7 @@ pub fn run() {
     let oculto = args.iter().any(|a| a == "--oculto");
 
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().level(::log::LevelFilter::Info).build())
+        .plugin(tauri_plugin_log::Builder::new().level(::log::LevelFilter::Info).timezone_strategy(fuso_do_log()).build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -266,4 +272,16 @@ pub fn run() {
         }
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod testes {
+    /// Defeito 3 do passo 17: o log do casco tem de sair na hora local, como o `engine.log`. Com o padrão do plugin
+    /// (`UseUtc`) o deslocamento é zero e o teste reprova numa máquina fora do UTC (a desta casa é UTC−3).
+    #[test]
+    fn log_do_casco_na_hora_local() {
+        let local = time::UtcOffset::current_local_offset().expect("fuso local do Windows");
+        assert!(matches!(super::fuso_do_log(), tauri_plugin_log::TimezoneStrategy::UseLocal));
+        assert_eq!(super::fuso_do_log().get_now().offset(), local);
+    }
 }

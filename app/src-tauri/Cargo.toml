@@ -44,6 +44,8 @@ features = [
 
 [dev-dependencies]
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros", "time"] }
+# só o teste do fuso do log (o `tauri-plugin-log` já traz o `time` com `local-offset`)
+time = { version = "0.3", features = ["local-offset"] }
 
 [profile.release]
 codegen-units = 1
