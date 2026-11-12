@@ -130,8 +130,9 @@ Medições e alternativas descartadas:
   antes de** disparar a passada final (`_run_live_final_pass` → `_run_transcriber`,
   o mesmo caminho da transcrição manual) — nunca duas chamadas a `pipe.generate`
   no mesmo `WhisperPipeline` ao mesmo tempo. ⚠️ **O teste de estresse de 20 min
-  real continua pendente do Gabriel** (memória acumulando, cliques na UI e
-  pausa/retomada em prazo longo) — rodado até aqui só um teste automatizado de
+  real continua pendente; quem roda é a sessão, não o Gabriel na mão** (memória
+  acumulando, cliques na UI e pausa/retomada em prazo longo, com fala tocada
+  pelos alto-falantes e cliques por automação de UI) — rodado até aqui só um teste automatizado de
   170s (2m50) com WASAPI real (fala tocada pelos alto-falantes, não MP3
   simulado): duração bateu (erro −0,06s), drain em 0,8s, passada final sem
   conflito. Reduz o risco mas **não substitui** os 20 min; não tratar como
