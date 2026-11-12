@@ -212,6 +212,6 @@ A escolha do Gabriel resolve a maior parte: o que não for escolhido sai na poda
   correção: `armadilhas.d/` é versionado, a página gerada é que fica fora do git); ARQUITETURA com a seção
   "Contrato de tela da interface nova", sem copiar as regras. Hub com a direção escolhida.
 - Fase 3 conferida só por grep (o md é de outra frente, não editado): `"Transcrever, Converter, Gravações"` →
-  `0`; `testar-contrato.cjs --url` → `2`; tem `casco_skin` e `data-direcao`. Alinhada.
+  `0`; `testar-contrato.cjs --url` → `2`; tem `casco_skin` e `data-direcao`. Greps verdes; a leitura do passo 13 e da tabela de paridade não foi refeita.
 - Desvio: o gatilho "testes só com a direção escolhida" virou "testes com as três skins, cada uma contra a
   própria linha de base", pela decisão do Gabriel (14b).

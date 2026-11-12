@@ -318,7 +318,7 @@ Só então `temp/medicoes/models-reserva` foi apagada (790 MB).
 - **Passo 17:** `docs/TOOLS.md` já tinha a linha do `medir_partida.py` (escrita no Bloco A); hub com a linha da
   Fase 0. Armadilhas: a do MP3 que nasce no 1º pacote, nova; as pegadinhas do spike já estão em
   `2026-11-11-2135-bandeja-no-tauri-2-no-windows-…`; a do StartupApproved (Fase 3) já existia e não foi duplicada.
-- **Passo 18:** commit por pathspec (hash no fecho da sessão).
+- **Passo 18:** commit por pathspec `527c010` (Reco) e `a63bde10` (C:\Dev, hub e diário), com push.
 
 ## Desvios do md (Bloco C)
 

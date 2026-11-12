@@ -278,7 +278,7 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
    - Commit no Reco: `git add` e depois `git commit -m "<mensagem>" -- <caminhos>`, com `CLAUDE.md README.md docs/_INDICE.md docs/ARQUITETURA.md design/` e o fragmento novo de `docs/armadilhas.d/`;
      - mais `roadmap/2026-11-11-melhoria-reco-em-rust.md`, este md, `roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-1-relatorio.md` e, só se foi preciso realinhar, o md da Fase 3. Depois `git push`.
    - Commit no C:\Dev: `git -C C:/Dev add cerebro/projetos/reco.md <fragmento do diário> <páginas geradas>` e `git -C C:/Dev commit -m "<mensagem>" -- <os mesmos caminhos>`.
-   - 12/11: `CLAUDE.md:1 README.md:2 docs/_INDICE.md:1 docs/ARQUITETURA.md:1`, `CLAUDE.md` com 5746 bytes; hub com "Direção visual" escolhida. Fase 3 (só registro; o md é de outra frente): `0` e `2`, alinhada; tem `casco_skin` e `data-direcao`.
+   - 12/11: `CLAUDE.md:1 README.md:2 docs/_INDICE.md:1 docs/ARQUITETURA.md:1`, `CLAUDE.md` com 5746 bytes; hub com "Direção visual" escolhida. Fase 3 (só registro; o md é de outra frente): `0` e `2` (greps verdes; leitura do passo 13 e da tabela não refeita); tem `casco_skin` e `data-direcao`.
 
 ## Decisões da fase
 
