@@ -91,17 +91,23 @@ propósito, velho com `HF_HUB_OFFLINE=1`, sem `RECO_SEM_MUTEX`):
   `janela_casco_visivel_antes: false` → `janela_casco_apareceu: true`, `casco_no_foreground: true`. O
   `Reco.Show` do velho chega à janela de topo escondida criada pelo Rust (a premissa do passo).
 - Velho primeiro (janela escondida por `WM_CLOSE`, que no velho só esconde): `casco_codigo: 0`,
-  `casco_saiu_em_ms: 33`, `casco_fez_janela: false`, `janela_velha_apareceu: true`, `velho_vivo: true`.
+  `casco_saiu_em_ms: 33`, `janela_velha_apareceu: true`, `velho_vivo: true`. (O `casco_fez_janela: false` da
+  saída não prova nada: foi lido depois de o processo sair. A prova de que ele não montou o app é o código 0
+  em 33 ms.)
 - Fim: `reco_rodando_no_fim: []`.
 
-**Passo 9 — hover real com o Bloco de Notas focado** (`python passo9.py` → código 0; motor inexistente):
+**Passo 9 — hover real com o Bloco de Notas focado** (`python passo9.py` → código 0 às 00:11, com a webview na
+página de erro do `devUrl` porque o Vite não estava no ar; repetido com `python passo9.py --vite` → código 0 às
+00:19, com a webview em `http://localhost:1430/` conferida pelo CDP, mesmos valores abaixo; motor inexistente):
 
 - Ícone: a entrada `2799579577188804128` (`C:\pt\debug\reco.exe`) em `NotifyIconSettings` não tinha
-  `IsPromoted` (ícone escondido no "^"); gravei `1` antes de abrir o casco e apaguei o valor no fim. Rect pelo
+  `IsPromoted`; promovi **preventivamente** (gravei `1` antes de abrir o casco, sem conferir se ele nascia
+  escondido no "^") e apaguei o valor no fim, nas duas rodadas. Rect pelo
   `Shell_NotifyIconGetRect` (janela `tray_icon_app` do pid, `uID` 2): `2018,1020,2058,1080`, dentro da barra.
 - Alvo: arquivo próprio `temp/fase3-manual/alvo-hover.txt` aberto no Bloco de Notas (abriu como aba na janela
   do Bloco de Notas que já estava aberta); cada tecla só saía com o foreground nessa janela e com esse título.
-- Resultado: `apareceu: true` (200 ms do harness, 12 passos de 15 ms incluídos), `acima_do_icone: true`,
+- Resultado: `apareceu: true` (200 ms e 196 ms do harness, 12 passos de 15 ms incluídos; só referência, CPU
+  76% a 78%), `acima_do_icone: true`,
   `mostrou_fg_igual`, `mostrou_gui_igual`, `dentro_fg_igual`, `dentro_gui_igual`, `depois_fg_igual`,
   `depois_gui_igual` todos `true`, `fica_com_cursor_dentro: true`, `some_ao_sair: true`, e o arquivo salvo
   com `antes durante dentro depois` (o texto digitado com a janela à vista entrou no Bloco de Notas).
@@ -124,17 +130,20 @@ com `window.__TAURI_INTERNALS__.invoke`, porque a tela de Opções é do passo 1
   mostra nada e o foco fica no Bloco de Notas; `definir_autostart(false) → false`, `reg query` não acha.
 - O texto digitado entre os passos (`a b c d`) está no arquivo salvo: nenhuma tecla do atalho vazou para o alvo.
 - O script terminou com código 1 só na limpeza: entre o último `digitar` e o Ctrl+S, o foreground foi para
-  janelas de outros programas (outras sessões abertas nesta área de trabalho; a guarda recusou mandar teclas).
-  Salvei e fechei a aba à mão, com a mesma guarda e `SetForegroundWindow`; o arquivo saiu `a b c d`, a aba
-  fechou e a janela voltou para a aba do dono, intocada. Nenhum critério da prova falhou.
+  janelas de outros programas (causa não identificada: outra sessão ou o próprio dono no teclado; a guarda
+  recusou mandar teclas). Salvei e fechei a aba à mão, com a mesma guarda e `SetForegroundWindow` (no meio, o
+  foreground saiu de novo, para o WhatsApp, e a guarda segurou o Ctrl+W até a aba voltar à frente). O que se
+  sabe: todo caractere digitado está nos dois arquivos salvos (`antes durante dentro depois` e `a b c d`), e
+  nenhuma tecla saiu depois de cada Ctrl+W; não tirei retrato da aba do dono antes, então não afirmo mais que
+  isso. Nenhum critério da prova falhou.
 - **Sobra apagada:** o `disable()` do plugin deixa `Reco Novo` (`REG_BINARY 02 00 …`) em
   `Explorer\StartupApproved\Run` (`auto-launch` 0.6.0 grava no `enable` e não apaga no `disable`). Apaguei com
   `reg delete … /v "Reco Novo" /f`; pegadinha nova em `docs/armadilhas.d/`.
 - **Fica pendente:** "foco no botão principal" ao apertar o atalho (não há botão até o passo 12; o casco emite
   `reco-atalho` para a tela focar). Conferir no passo 13 com a tela de Opções.
 
-**Estado da máquina no fim (00:15):** nenhum `reco.exe`, motor, WebView2 ou Vite meu rodando; portas 1430 e
-9333 livres; `Run` e `StartupApproved\Run` sem `Reco Novo`; `IsPromoted` da entrada do casco apagado (como
+**Estado da máquina no fim (00:15, conferido de novo depois da repetição do passo 9 às 00:19):** nenhum
+`reco.exe`, motor, WebView2 ou Vite meu rodando; portas 1430, 9333 e 9334 livres; `Run` e `StartupApproved\Run` sem `Reco Novo`; `IsPromoted` da entrada do casco apagado (como
 estava). O config só diferia da cópia em `casco_atalho: false` (nenhuma outra chave mudou, inclusive pelo velho
 de teste do passo 7): a cópia voltou, `cmp` igual. **O Reco do dono continua fechado** (a tarefa manda fechar só o
 que abri; reabrir é com ele).
@@ -142,6 +151,9 @@ que abri; reabrir é com ele).
 ### Pendências (precisam do app velho fechado ou da interface)
 
 - **Passo 10, foco no botão principal** pelo atalho: passo 13.
+- **Clique dentro da janela do hover** (`window_pin` com `set_focus()` na primeira vez) não foi exercitado: o
+  esqueleto da interface ainda não chama `window_pin`. Conferir no passo 12 (o foco vai para a janela e ela fica
+  fixada com o cursor fora).
 - **D11 de ponta a ponta** (casco morto e motor morto gravando): passo 17, com o app instalado.
 - **Minimizar sem botão na barra de tarefas:** `skipTaskbar: true` é acréscimo meu (o md não pedia); com ele,
   `window_minimize` deixa a janela sem lugar visível (só a bandeja a traz de volta, `mostrar_fixada` faz
@@ -165,6 +177,8 @@ que abri; reabrir é com ele).
 
 - `Image::from_bytes` do Tauri só existe com a feature `image-ico`.
 - `cargo test` do casco imprime `ok. 0 passed` do bin e dos doctests além da linha da lib.
+- (12/11) O `disable()` do autostart (`auto-launch` 0.6.0) apaga o `Run` mas deixa `Reco Novo` em
+  `Explorer\StartupApproved\Run`.
 
 ### Desvios do md
 

@@ -289,9 +289,9 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
    - Verificação manual (precisa de dois processos e da área de trabalho), com o app velho fechado no início:
      abrir o novo, rodar `dist\Reco\Reco.exe` → a janela nova aparece e o velho sai; o contrário também.
    - **Verificação manual feita (12/11, 00:09):** `python temp/fase3-manual/passo7.py` com o exe de debug, sem
-     `RECO_SEM_MUTEX` → casco primeiro: velho sai com `0` em 704 ms e a janela do casco passa de escondida a
-     visível (o broadcast chega à janela do Rust); velho primeiro: casco sai com `0` em 33 ms, sem criar janela,
-     e a janela escondida do velho reaparece. Detalhe no relatório da fase.
+     `RECO_SEM_MUTEX` → casco primeiro: velho sai com `0` e a janela do casco passa de escondida a visível (o
+     broadcast chega à janela do Rust); velho primeiro: casco sai com `0` e a janela escondida do velho
+     reaparece. Tempos (704 ms e 33 ms) só de referência: CPU da máquina entre 53% e 78%. Detalhe no relatório.
 8. [x] Bandeja em `app/src-tauri/src/bandeja.rs`, dirigida pelo Rust a partir dos eventos do motor — **prova:** `cargo test --manifest-path app/src-tauri/Cargo.toml bandeja` → `test result: ok`, 2 passed ou mais
    **reprova se:** `0 passed`, ou os rótulos por estado diferem de `reco.py:4938-4952` (ex.: "Parar" oferecido em `stopping`/`stopped`).
    - Molde `C:\Dev\albion\guarita\app\src-tauri\src\lib.rs:355-405`. Ícones `logo/tray_idle.ico` e `tray_rec.ico`
@@ -325,8 +325,9 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
        foco de verdade); a tela chama `window_pin` em todo clique dentro dela (passo 12).
    - Verificação manual da sensação (não dá para automatizar o foco de outro app): com o Bloco de Notas
      focado e digitando, passar o mouse no ícone → a janela aparece e o texto continua entrando no Bloco de Notas.
-   - **Verificação manual feita (12/11, 00:11):** `python temp/fase3-manual/passo9.py` (ícone promovido só na
-     entrada do exe do casco, desfeito no fim; hover por `SendInput` em passos) → o foreground e o
+   - **Verificação manual feita (12/11, 00:11; repetida às 00:19 com a interface servida em `localhost:1430`):**
+     `python temp/fase3-manual/passo9.py --vite` (ícone promovido só na entrada do exe do casco, desfeito no
+     fim; hover por `SendInput` em passos) → o foreground e o
      `GetGUIThreadInfo` continuam no Bloco de Notas ao mostrar, com o cursor dentro da janela e depois que ela
      some; o arquivo salvo tem `antes durante dentro depois` (o texto digitado com a janela à vista entrou no
      Bloco de Notas). Controle: o clique no ícone fixa e toma o foreground. Detalhe no relatório da fase.
