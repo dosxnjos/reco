@@ -111,7 +111,7 @@ Convenções dos passos:
    - Formato: `{microphone:{devs:[{id,name}],console,comm}, speaker:{...}, selected:{mic_device, sys_device}, missing:{mic:bool, sys:bool}}`.
    - `missing` usa a mesma regra de `device_options` (`reco.py:1451-1468`): id salvo fora da lista = ausente. O motor não monta rótulos traduzidos: quem rotula é a interface.
    - `devices.refresh` é sinônimo de `devices.list` (F2-D11): a enumeração do `soundcard` já é fresca a cada chamada (`reco.py:1408-1414`).
-6. [ ] Criar `engine/reco_engine/recording.py` (`rec.*`, `state`, eventos de nível, estado, tempo e erro) — **prova:** `python tools/test_engine_protocol.py --gravar 5` → `OK gravação: 5,0±0,5 s, 2 canais, 16000 Hz, level <=20/s, timer 1/s, L e R com sinal`
+6. [x] Criar `engine/reco_engine/recording.py` (`rec.*`, `state`, eventos de nível, estado, tempo e erro) — **prova:** `python tools/test_engine_protocol.py --gravar 5` → `OK gravação: 5,0±0,5 s, 2 canais, 16000 Hz, level <=20/s, timer 1/s, L e R com sinal`
    **reprova se:** arquivo ausente, duração fora da faixa, 1 canal, mais de 20 eventos `level` por segundo, ou um canal com RMS zero tendo som.
    - Grava dos dispositivos reais, então todo modo que grava (`--gravar`, `--eof`, `--concluir`) começa por duas guardas:
      - aborta com mensagem clara se o mutex `Local\Reco.SingleInstance` existe (app velho aberto; D7, protege uma reunião em curso).
@@ -145,7 +145,7 @@ Convenções dos passos:
    - Com ao vivo, `live.stop(wait=True, timeout=15.0, discard=True)` depois do `stop` e antes de responder (drenar e só então começar, `reco.py:3944-3951`).
    - Resposta: `{path, duration_s, auto:null|"final_pass"|"nota"}`; estado `stopped`; o motor guarda o `last_rec`.
      `auto` segue `_after_stop` (`reco.py:3973-3996`): `"nota"` se o modo era nota, `"final_pass"` se o ao vivo ligou no `start`, senão `null`.
-7. [ ] Gravação nunca se perde quando o casco some (D11): `shutdown` ou EOF no stdin durante gravação fecha o MP3 antes do `os._exit` — **prova:** `python tools/test_engine_protocol.py --eof 25` → `OK eof: duração declarada 25±1 s, decodificada igual (±1 s); OK shutdown no meio: idem`
+7. [x] Gravação nunca se perde quando o casco some (D11): `shutdown` ou EOF no stdin durante gravação fecha o MP3 antes do `os._exit` — **prova:** `python tools/test_engine_protocol.py --eof 25` → `OK eof: duração declarada 25±1 s, decodificada igual (±1 s); OK shutdown no meio: idem`
    **reprova se:** o MP3 não existe, a duração declarada no header difere da decodificada em mais de 1 s (o `close()` não escreveu o header), a decodificada sai de 25±1 s, ou o processo não sai em 8 s.
    - Mesmas guardas do passo 6 (mutex e clipe). São 25 s, e não menos, para passar dos ≈10 s em que o `_pump` retém o áudio antes de alinhar (`ALIGN_COLETA_S`, `reco.py:1491`).
      Com menos tempo o teste nunca pega um arquivo que já está crescendo.
@@ -172,7 +172,7 @@ Convenções dos passos:
    - Cancelamento: `transcribe.cancel {}` chama `transcriber.cancel()`; o pedido em curso recebe `CANCELLED` (`reco.py:1292`) e responde `cancelled`.
      O corte acontece na fronteira do próximo grupo de VAD (`reco.py:2286-2287`), não no meio de um `generate`.
    - O teste fica de fora da rodada padrão (precisa da GPU e de minutos); entra com a flag.
-9. [ ] Criar `engine/reco_engine/conclude.py` (`rec.conclude`, passadas finais, ao vivo) — **prova:** `python tools/test_engine_protocol.py --gravar 5 --concluir` → `OK conclusões: save, delete (Lixeira), transcribe, transcribe_delete, nota, final_pass, 2 cancelados com mp3`
+9. [x] Criar `engine/reco_engine/conclude.py` (`rec.conclude`, passadas finais, ao vivo) — **prova:** `python tools/test_engine_protocol.py --gravar 5 --concluir` → `OK conclusões: save, delete (Lixeira), transcribe, transcribe_delete, nota, final_pass, 2 cancelados com mp3`
    **reprova se:** o arquivo de `delete` não está na Lixeira, `transcribe_delete` ou `nota` cancelados removem o áudio, nenhum `live.text` chega, ou o estado não volta a `idle`.
    - Mesmas guardas do passo 6 (mutex e clipe tocando durante cada gravação).
    - Pedido: `rec.conclude {action:"save"|"delete"|"transcribe"|"transcribe_delete"|"final_pass"|"nota"}` sobre o `last_rec`; sem `last_rec` no disco responde `not_found`.
@@ -262,7 +262,7 @@ Convenções dos passos:
     - Sem o modelo `small` bundlado (F2-D8); sem ícones nem `assets/`.
     - `console=True` (F2-D10): é o que o Lacre provou com o casco usando `CREATE_NO_WINDOW` (`build.py:39`); nenhuma janela aparece quando sobe pelo casco ou pelo teste.
     - O build sai em `engine/dist/` e `engine/build/` (já ignorados pelo `.gitignore`: `dist/` e `build/` sem barra inicial) e não briga com o `Reco.exe` aberto em `dist/Reco`.
-15. [ ] Medir o motor congelado (smoke e teste contra o exe) — **prova:** `python engine/build.py --smoke && python tools/test_engine_protocol.py --exe engine/dist/reco-engine/reco-engine.exe` → 3 linhas `run i: hello ok em <x> s; ready em <y> s; devices ok; exit=0` e os `OK` padrão
+15. [x] Medir o motor congelado (smoke e teste contra o exe) — **prova:** `python engine/build.py --smoke && python tools/test_engine_protocol.py --exe engine/dist/reco-engine/reco-engine.exe` → 3 linhas `run i: hello ok em <x> s; ready em <y> s; devices ok; exit=0` e os `OK` padrão
    **reprova se:** `hello` passa de 3 s em alguma rodada, `ready` não chega, aparece janela de console na tela, ou alguma checagem que passou do fonte falha no exe.
     - O `--smoke` espelha `lacre/engine/build.py:60-85`: sobe com `CREATE_NO_WINDOW` e mede `spawn → hello` e `spawn → ready`.
       Na última rodada espera o aquecimento e mede o `devices.list`; manda `shutdown` e confere o exit 0.
@@ -277,7 +277,7 @@ Convenções dos passos:
     - Depois que o Gabriel disser que ouviu, o executor manda a gravação de teste à Lixeira, para não ficar na biblioteca real:
       `python -c "import sys, reco; sys.exit(0 if reco._excluir_gravacao(sys.argv[1]) else 1)" "<caminho>"` na raiz (`reco.py:599-631`), conferido pelo comando da Lixeira do passo 9.
     - O app velho regrava o próprio config ao abrir (`load_config(persist=True)`, `reco.py:2868`); o teste já terminou e conferiu o sha256 antes disso.
-16. [ ] Fechar a fase — **prova:** `git diff --quiet <SHA-INICIO> -- reco.py tray.py tools/transcrever.py reco.spec build.ps1 && grep -lE 'engine/|engine_protocol|PROTOCOL\.md|reco-em-rust' docs/{ARQUITETURA,TOOLS,_INDICE}.md CLAUDE.md ../cerebro/projetos/reco.md | wc -l` → `5`
+16. [x] Fechar a fase — **prova:** `git diff --quiet <SHA-INICIO> -- reco.py tray.py tools/transcrever.py reco.spec build.ps1 && grep -lE 'engine/|engine_protocol|PROTOCOL\.md|reco-em-rust' docs/{ARQUITETURA,TOOLS,_INDICE}.md CLAUDE.md ../cerebro/projetos/reco.md | wc -l` → `5`
    **reprova se:** sai erro do git (SHA errado ou vazio), o diff dos arquivos do app velho não é vazio (nada é impresso), ou o número fica abaixo de 5 (falta a linha nova em algum doc ou no hub).
     - O que fecha: docs, hub e o app velho intacto.
     - Rodado com `HEAD` na auditoria de 11/11, antes das docs: imprimiu `0`; com SHA vazio, o git sai com erro 128 e nada é impresso.
