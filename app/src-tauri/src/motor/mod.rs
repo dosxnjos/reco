@@ -11,6 +11,7 @@ pub mod log;
 pub mod prazos;
 pub mod processo;
 pub mod router;
+pub mod saida;
 
 #[cfg(test)]
 pub(crate) mod testes;

@@ -47,6 +47,7 @@ def handle(req):
     elif cmd == "state": ok(i, {"ready":True,"rec_state":rec_state,"elapsed_s":3,"transcribing":False,"live":False,"last_rec":None,"auto":None})
     elif cmd == "rec.stop":
         time.sleep(0.3)
+        anota("rec.stop:respondido", {})
         ok(i, {"path":"C:/falso/a_reco.mp3","duration_s":5.0,"auto":None if auto == "-" else auto})
     elif cmd == "rec.conclude":
         a = args.get("action")
