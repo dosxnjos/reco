@@ -1,5 +1,7 @@
 # Salto de alinhamento sob carga: o buffer de captura tem 22 ms
 
+> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: a Fase 5, captura em Rust, absorve o que falta; A1 e A1b no Python continuam valendo se alguém executar antes).
+
 **Data:** 2026-08-21 · **Projeto:** Reco · **Origem:** *"veja se é necessário
 corrigir o eco dos áudios de ontem e hoje"* → três das cinco gravações de 21/08
 com 350-500 ms de defasagem entre mic e loopback, começando **no meio da

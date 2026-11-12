@@ -106,12 +106,12 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
 - **C.** Depois da escolha dele, só a identidade escolhida continua na vitrine, com o nome que ele aprovou.
   - **Se falhar:** a vitrine segue mostrando as três, ou mistura cores de duas.
 
-1. [ ] Conferir frescor, travas e Fase 0. — **prova:** `cd C:/Dev/Reco; git log --oneline 7c5c1a1..HEAD -- reco.py tray.py; ls design; wc -c < CLAUDE.md; ls roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md` → nenhum commit; "No such file"; ≤ 5900; o relatório existe
+1. [x] Conferir frescor, travas e Fase 0. — **prova:** `cd C:/Dev/Reco; git log --oneline 7c5c1a1..HEAD -- reco.py tray.py; ls design; wc -c < CLAUDE.md; ls roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-0-relatorio.md` → nenhum commit; "No such file"; ≤ 5900; o relatório existe
    **reprova se:** `design/` já existe com conteúdo de outra sessão (parar e ler), o `CLAUDE.md` passa de 5900 bytes (sem espaço para o passo 16 sob o teto de 6144) ou falta o relatório da Fase 0 (a fase depende dela; parar).
    - Se `reco.py`/`tray.py` mudaram, reler as linhas citadas neste md antes de seguir.
    - Ler o relatório da Fase 0 (`fase-0-relatorio.md`): partida do motor congelado (`exe_selftest`), `abrir_pronta_s`, e se a bandeja mostra a janela sem roubar o foco (D2).
    - Se a Fase 0 reabriu a D2 (bandeja reprovada no Tauri), o desenho desta fase vale igual: o contrato é de tela, não de framework.
-2. [ ] Carregar a skill `impeccable`, rodar o setup com o contexto em `design/` e escrever `design/PRODUCT.md` curto. — **prova:** `cd C:/Dev/Reco; grep -c "^## " design/PRODUCT.md` → ≥ 4
+2. [x] Carregar a skill `impeccable`, rodar o setup com o contexto em `design/` e escrever `design/PRODUCT.md` curto. — **prova:** `cd C:/Dev/Reco; grep -c "^## " design/PRODUCT.md` → ≥ 4
    **reprova se:** a contagem dá menos de 4, ou o setup conferido abaixo ainda imprime `NO_PRODUCT_MD`, falha ou não imprime nada.
    - Setup conferido à parte: `cd C:/Dev/Reco && mkdir -p temp && IMPECCABLE_CONTEXT_DIR=design node "$HOME/.claude/skills/impeccable/scripts/context.mjs" > temp/ctx.txt && grep -c NO_PRODUCT_MD temp/ctx.txt` → 0
      - Sem `design/PRODUCT.md` o mesmo comando dá 1 (conferido em 11/11); erro do node não imprime número, e isso também reprova.
@@ -119,7 +119,7 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
    - O script procura PRODUCT.md e DESIGN.md na raiz, em `.agents/context/` e em `docs/`; a variável só vale quando esses estão vazios, como no Reco (cabeçalho de `scripts/context.mjs`).
    - Conteúdo do PRODUCT.md: quem usa (o Gabriel, sozinho, em reunião e em ditado), a cena (janela pequena ancorada à bandeja, usada de relance durante uma chamada), o modo `Operate` da skill, o que é sucesso (gravar sem pensar, achar a transcrição, nada se mexe).
    - Sessão sem humano: a entrevista do `reference/init.md` se responde com o índice, o hub e este md, marcando no arquivo "respostas tiradas do roadmap, sem entrevista".
-3. [ ] Escrever `design/DESIGN.md`: estrutura do Lacre (frontmatter + seções), conteúdo do Reco (detalhe abaixo). — **prova:** `cd C:/Dev/Reco/design; grep -cE "^### R[0-9]+" DESIGN.md; grep -cE "^- \*\*teste:\*\*" DESIGN.md` → os dois números iguais e ≥ 15
+3. [x] Escrever `design/DESIGN.md`: estrutura do Lacre (frontmatter + seções), conteúdo do Reco (detalhe abaixo). — **prova:** `cd C:/Dev/Reco/design; grep -cE "^### R[0-9]+" DESIGN.md; grep -cE "^- \*\*teste:\*\*" DESIGN.md` → os dois números iguais e ≥ 15
    **reprova se:** há regra sem a linha "teste:" (números diferentes) ou menos de 15 regras.
    - Seções: Visão geral com North Star, Princípios, Contrato de tela (R1–R15), Áreas e estados, Condutor de estados, Telas (a tabela do Insumo 3 inteira, com o corte) e Direções.
    - North Star sugerido (o executor refina com a skill): "um gravador de mesa que some quando trabalha: grava sem cerimônia, mostra o que importa e nunca se mexe sozinho".
@@ -145,11 +145,11 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
      - A duração esperada é a partida do motor congelado (`exe_selftest` do relatório da Fase 0); a GPU nunca segura o Gravar (D12).
    - "Erro": ícone + texto no status cortado por reticências; o botão "Detalhes" abre um painel sobreposto ao `conteudo`, do mesmo tamanho, com o texto inteiro e "Copiar".
    - O erro de hoje é cortado em `[:80]`/`[:110]` (relatório 1 § 4); no detalhe ele aparece inteiro.
-4. [ ] Conferir o inventário no DESIGN.md (Insumo 3). — **prova:** `cd C:/Dev/Reco; for k in ganho Nota Lixeira "Resumo IA" "Processar em" Atalho Aparência "versão nova" bandeja "instância única" "entre aspas" "ao vivo"; do grep -qi "$k" design/DESIGN.md || echo "FALTA $k"; done` → nenhuma linha
+4. [x] Conferir o inventário no DESIGN.md (Insumo 3). — **prova:** `cd C:/Dev/Reco; for k in ganho Nota Lixeira "Resumo IA" "Processar em" Atalho Aparência "versão nova" bandeja "instância única" "entre aspas" "ao vivo"; do grep -qi "$k" design/DESIGN.md || echo "FALTA $k"; done` → nenhuma linha
    **reprova se:** aparece qualquer "FALTA …", ou a contagem de linhas numeradas da tabela (abaixo) dá menos de 19.
    - Tabela conferida à parte: `grep -cE '^\| ?(1[0-9]|[1-9]) ?\|' C:/Dev/Reco/design/DESIGN.md` → ≥ 19.
    - A lista cobre as linhas fáceis de esquecer; as 19 linhas da tabela do Insumo 3 também precisam estar lá, uma por funcionalidade, com o número na 1ª coluna.
-5. [ ] Criar `design/tokens.css` com 2 ou 3 direções, cada uma em claro e escuro (skills e briefs abaixo). — **prova:** `cd C:/Dev/Reco/design; grep -oE 'data-direcao="[a-c]"' tokens.css | sort -u | wc -l; grep -Eic 'seal|#0f5f73|#5db6c8|selo' tokens.css` → 2 ou 3; depois 0
+5. [x] Criar `design/tokens.css` com 2 ou 3 direções, cada uma em claro e escuro (skills e briefs abaixo). — **prova:** `cd C:/Dev/Reco/design; grep -oE 'data-direcao="[a-c]"' tokens.css | sort -u | wc -l; grep -Eic 'seal|#0f5f73|#5db6c8|selo' tokens.css` → 2 ou 3; depois 0
    **reprova se:** só uma direção, ou aparece nome ou cor do Lacre nos tokens (o DESIGN.md pode citar a proibição; por isso fica fora do grep).
    - Skills: `impeccable` (`reference/new-work.md`, modo Operate) e `frontend-design:frontend-design`, para dar a cada direção um ponto de vista próprio.
    - Estrutura: tokens comuns em `:root` (tamanho da janela, alturas das áreas, espaçamentos, raios, durações, fontes);
@@ -162,7 +162,7 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
      - **B "Caderno"**: claro primeiro, papel e tinta, o texto da transcrição como protagonista. Sitka nos títulos e no painel de texto, destaque azul-tinta ou vermelho de lápis.
      - **C "Instrumento"**: console de medição. Quase monocromática, Bahnschrift nos números e rótulos curtos, medidores com escala visível, um sinal âmbar ou verde, cantos retos.
    - Proibido: teal como cor de ação (matiz entre 170° e 200°) e qualquer valor copiado de `C:\Dev\lacre*` (D5, "O que NÃO fazer").
-6. [ ] Montar a vitrine standalone `design/vitrine.html` a partir do modelo (detalhe abaixo). — **prova:** `cd C:/Dev/Reco; node design/montar-vitrine.cjs && grep -Ec '(src|href)="(https?:)?//' design/vitrine.html; wc -c < design/vitrine.html` → 0; e um número abaixo de 450000
+6. [x] Montar a vitrine standalone `design/vitrine.html` a partir do modelo (detalhe abaixo). — **prova:** `cd C:/Dev/Reco; node design/montar-vitrine.cjs && grep -Ec '(src|href)="(https?:)?//' design/vitrine.html; wc -c < design/vitrine.html` → 0; e um número abaixo de 450000
    **reprova se:** há recurso externo (contagem > 0) ou o arquivo passa de 450 KB (o `check-added-large-files` do pre-commit barra perto de 500 KB).
    - Arquivos: `design/vitrine.modelo.html` + `design/montar-vitrine.cjs` (~80 linhas) geram `design/vitrine.html` (F1-D8).
    - O `montar-vitrine.cjs` embute `tokens.css` dentro de `<style>`; os ícones Lucide vão inline como `<symbol>` SVG, com a licença num comentário.
@@ -179,7 +179,7 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
    - Medidores animados por timer só para olhar, sem transição CSS no preenchimento.
    - A página precisa caber em celular para ser vista pelo link: abaixo de 440 px de largura, a janela é mostrada com `zoom` reduzido e sem rolagem lateral.
    - Os testes rodam em largura de desktop, onde o zoom não se aplica.
-7. [ ] Criar `design/testar-anti-pulo.cjs` (até 500 linhas, entra na trava do pre-commit; matriz abaixo). — **prova:** `cd C:/Dev/Reco; node design/testar-anti-pulo.cjs; echo "saída=$?"` → última linha `anti-pulo: 0 diferenças em N medições` (N na casa das dezenas de milhares) e `saída=0`
+7. [x] Criar `design/testar-anti-pulo.cjs` (até 500 linhas, entra na trava do pre-commit; matriz abaixo). — **prova:** `cd C:/Dev/Reco; node design/testar-anti-pulo.cjs; echo "saída=$?"` → última linha `anti-pulo: 0 diferenças em N medições` (N na casa das dezenas de milhares) e `saída=0`
    **reprova se:** aparece qualquer linha `FALHA <combinação> área=<nome> base=<x,y,l,a> agora=<x,y,l,a>` ou a saída é diferente de 0.
    - Serve `design/` por HTTP local numa porta livre, como o `testar-vitrine.cjs` do Lacre (o Chromium do MCP bloqueia `file://`).
    - Playwright: tentar `PLAYWRIGHT_CORE`, depois `require('playwright-core')`, depois `require('playwright')`, por último `path.join(<saída de npm root -g>, 'playwright')` por `child_process`.
@@ -194,9 +194,9 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
    - `--url <endereço>` troca a vitrine por outro alvo com o mesmo condutor de estados (a Fase 3 aponta para a interface real).
    - Controle negativo `--sabotar`: injeta em tempo de execução (sem gravar arquivo) uma regra que tira a linha única e a altura reservada do status, mais o status longo real em 3 linhas.
      - A regra é `[data-area=status]{white-space:normal!important;height:auto!important;overflow:visible!important}`.
-8. [ ] Provar que o teste pega o pulo: rodar o controle negativo. — **prova:** `cd C:/Dev/Reco; node design/testar-anti-pulo.cjs --sabotar; echo "saída=$?"` → linhas `FALHA … área=status …` e `saída=1`
+8. [x] Provar que o teste pega o pulo: rodar o controle negativo. — **prova:** `cd C:/Dev/Reco; node design/testar-anti-pulo.cjs --sabotar; echo "saída=$?"` → linhas `FALHA … área=status …` e `saída=1`
    **reprova se:** a saída é 0 com a sabotagem (o teste não mede o que diz medir; voltar ao passo 7).
-9. [ ] Criar `design/testar-contrato.cjs` (até 500 linhas) com R3–R15 fora das caixas de área. — **prova:** `cd C:/Dev/Reco; node design/testar-contrato.cjs; echo "s=$?"; node design/testar-contrato.cjs --sabotar; echo "s=$?"` → `contrato: 0 falhas` e `s=0`; depois `FALHA clique-move …` e `s=1`
+9. [x] Criar `design/testar-contrato.cjs` (até 500 linhas) com R3–R15 fora das caixas de área. — **prova:** `cd C:/Dev/Reco; node design/testar-contrato.cjs; echo "s=$?"; node design/testar-contrato.cjs --sabotar; echo "s=$?"` → `contrato: 0 falhas` e `s=0`; depois `FALHA clique-move …` e `s=1`
    **reprova se:** a primeira rodada falha, ou a segunda (com `button:active{transform:scale(.98)}` injetado) sai 0.
    - Mesma resolução do Playwright, mesmo servidor local e mesmo `--url` do passo 7.
    - Verificações, uma linha `ok`/`FALHA` por item:
@@ -213,19 +213,19 @@ Inventário do relatório 1 § 1 (19 linhas). Nada some sem justificativa.
      - R15: nenhum `<a>` dentro da janela; abas com `role="tab"`; fora de `titulo`, todo botão com texto visível não vazio; nenhuma regra `:hover` que mude `display`, `visibility` ou `opacity` de outro elemento;
      - contraste: texto comum ≥ 4,5:1 e texto grande ≥ 3:1 contra o fundo opaco mais próximo, nos dois temas de cada direção;
      - tokens: nenhum hexadecimal de cor em `vitrine.modelo.html` (regex `#[0-9a-fA-F]{3,8}\b` fora de `tokens.css`).
-10. [ ] Revisão visual numa rodada só (`impeccable critique` ou `audit`, capturas pelo Playwright MCP) e correções em lote. — **prova:** `ls C:/Dev/Reco/temp/vitrine-capturas/*.png | wc -l` → ≥ direções × 2
+10. [x] Revisão visual numa rodada só (`impeccable critique` ou `audit`, capturas pelo Playwright MCP) e correções em lote. — **prova:** `ls C:/Dev/Reco/temp/vitrine-capturas/*.png | wc -l` → ≥ direções × 2
    **reprova se:** faltam capturas (a revisão não aconteceu), qualquer `FALHA` nos testes conferidos abaixo, ou a crítica aponta direções parecidas demais (aí refazer a que ficou genérica antes de mostrar).
    - Testes conferidos à parte, depois das correções: `cd C:/Dev/Reco; node design/montar-vitrine.cjs && node design/testar-anti-pulo.cjs && node design/testar-contrato.cjs; echo "s=$?"` → as duas linhas de 0 e `s=0`.
    - Servir a vitrine em segundo plano: `python -m http.server 8765 --directory C:/Dev/Reco/design` e abrir `http://127.0.0.1:8765/vitrine.html`; parar o servidor ao fim do passo.
    - Capturas de cada direção em claro e escuro em `temp/vitrine-capturas/` (fora do git); no MCP, `browser_set_group_label` antes de `browser_navigate`.
    - O resumo da crítica (o que mudou e o que ficou) vai para o relatório da fase, criado no passo 12.
    - Uma rodada de correção e no máximo uma de confirmação (regra da própria skill `impeccable`).
-11. [ ] Commitar por pathspec, nunca `git add -A` nem `--no-verify` (comando abaixo). — **prova:** `git -C C:/Dev/Reco status --short design/; git -C C:/Dev/Reco log -1 --stat` → nenhuma linha no status; o último commit lista os 8 arquivos de `design/`
+11. [x] Commitar por pathspec, nunca `git add -A` nem `--no-verify` (comando abaixo). — **prova:** `git -C C:/Dev/Reco status --short design/; git -C C:/Dev/Reco log -1 --stat` → nenhuma linha no status; o último commit lista os 8 arquivos de `design/`
    **reprova se:** a trava de tamanho acusa um `.cjs` acima de 500 linhas, o `check-added-large-files` barra a vitrine, ou sobra arquivo de `design/` fora do commit.
    - `git add design/PRODUCT.md design/DESIGN.md design/tokens.css design/vitrine.modelo.html design/vitrine.html design/montar-vitrine.cjs design/testar-anti-pulo.cjs design/testar-contrato.cjs`.
    - Depois: `git commit -m "<mensagem>" -- <os mesmos 8 caminhos>` (pathspec: não leva o que outra sessão deixou no stage) e `git push`, antes da espera pela escolha do passo 12.
    - Mensagem: "design: identidade do Reco em <N> direções, vitrine e testes anti-pulo".
-12. [ ] Publicar a vitrine para o Gabriel com a ferramenta `Artifact` e parar. — **prova:** `grep -cE "claude\.ai/(code/)?artifact/" C:/Dev/Reco/roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-1-relatorio.md` → ≥ 1
+12. [x] Publicar a vitrine para o Gabriel com a ferramenta `Artifact` e parar. — **prova:** `grep -cE "claude\.ai/(code/)?artifact/" C:/Dev/Reco/roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-1-relatorio.md` → ≥ 1
    **reprova se:** a contagem dá 0, o link (aberto com `Artifact` `action: open`) mostra só uma direção, ou a sessão segue para o passo 13 sem a resposta dele.
    - Publicar `C:\Dev\Reco\design\vitrine.html` (ícone `palette`); o contrato da página já veio do quickstart do passo 6.
    - Sessão nova (a do passo 6 acabou): repetir o quickstart antes de publicar. Se o contrato dele conflitar com a vitrine, adaptar só a casca da página (fora da janela). Se a publicação for recusada, abrir local e registrar o motivo no relatório.

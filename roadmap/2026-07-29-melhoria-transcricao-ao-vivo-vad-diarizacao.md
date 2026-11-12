@@ -1,5 +1,7 @@
 # Roadmap de melhoria — Reco: VAD, diarização e transcrição ao vivo (2026-07-29)
 
+> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: o teste de 20 min, passo 3.6, reabre na Fase 5 com a captura nova; até lá segue estacionado).
+
 > Estacionado em 2026-10-01: Fases 1–2 feitas e Fase 3 com código pronto (97a966f, 9b69d84, 8772bb5, c6f109e; `reco.py:2296` `LiveTranscriber`); falta só o 3.6, o teste de 20 min reais com `live` ligado (gate humano bloqueante), dono gabriel; reabrir = criar card.
 
 ## Contexto e motivação

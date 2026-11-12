@@ -46,9 +46,9 @@
 
 ### Bloco A — com o Reco do Gabriel aberto
 
-1. [ ] Conferir o frescor: nada mudou no código citado desde a base — **prova:** `git -C C:/Dev/Reco log --oneline 7c5c1a1..HEAD -- reco.py tray.py tools/` → saída vazia
+1. [x] Conferir o frescor: nada mudou no código citado desde a base — **prova:** `git -C C:/Dev/Reco log --oneline 7c5c1a1..HEAD -- reco.py tray.py tools/` → saída vazia
    **reprova se:** aparece commit. Aí reler as linhas citadas acima com `sed -n` e corrigir os números deste md antes de seguir.
-2. [ ] Criar `tools/medir_partida.py` com o modo `--ram-viva` (memória do Reco aberto, só leitura) — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --ram-viva` → uma linha JSON `{"pid": N, "ws_mb": X, "privado_mb": Y, "cpu_pct": Z}` com X entre 50 e 3000
+2. [x] Criar `tools/medir_partida.py` com o modo `--ram-viva` (memória do Reco aberto, só leitura) — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --ram-viva` → uma linha JSON `{"pid": N, "ws_mb": X, "privado_mb": Y, "cpu_pct": Z}` com X entre 50 e 3000
    **reprova se:** imprime "Reco não está aberto" com o app aberto, ou `ws_mb` sai 0 (a chamada de memória falhou).
    - Só `ctypes` e stdlib (F0-D1): `psutil`, `pywinauto` e `uiautomation` não estão instalados nesta máquina (conferido em 11/11).
    - Achar o pid: `tasklist /FI "IMAGENAME eq Reco.exe" /FO CSV /NH`. Memória: `psapi.GetProcessMemoryInfo` com `PROCESS_MEMORY_COUNTERS_EX` (`WorkingSetSize`, `PrivateUsage`), em MB.
@@ -56,7 +56,7 @@
    - Este número é a "RAM em repouso de verdade" (app aberto há horas). Guardar a saída para o relatório.
    - A linha também traz `cpu_pct`: CPU do processo em 5 s por `GetProcessTimes`, a mesma conta do passo 9. Se o app parado passar de 5%, o limiar do passo 9 vira o dobro do medido, registrado no relatório.
    - Trava do pre-commit: arquivo novo até 500 linhas e funções curtas (complexidade ≤ 10, ramos ≤ 12, comandos ≤ 50, `tools/tamanho.json`). Cada modo é uma função; nada entra no `reco.py`.
-3. [ ] Acrescentar o modo `--imports [--pipeline]`: tempo de processos que só importam — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --imports --pipeline` → JSON com as 5 chaves da lista abaixo, cada uma com `primeira_s` e `mediana_s` > 0
+3. [x] Acrescentar o modo `--imports [--pipeline]`: tempo de processos que só importam — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --imports --pipeline` → JSON com as 5 chaves da lista abaixo, cada uma com `primeira_s` e `mediana_s` > 0
    **reprova se:** falta chave, ou o Reco do Gabriel muda de estado durante a prova (sinal de que algo pegou o mutex ou abriu janela).
    - Cada medida roda 5 vezes num processo novo (`subprocess`, `cwd=C:\Dev\Reco`); a primeira sai separada da mediana.
    - `import_reco`: `python -c "import reco"`. O `reco` importa `tkinter`, numpy, soundcard e `tray` no topo (`reco.py:17`, `523-547`), mas só procura o `openvino_genai` (`reco.py:569`); importar não grava o config (`reco.py:210-215`).
@@ -64,7 +64,7 @@
    - `exe_selftest`: `dist/Reco/Reco.exe --selftest`. Mede a partida do Python congelado sem janela; sai antes do mutex (`reco.py:5131-5146`, comentário em `5198-5200`) e grava `%TEMP%\reco_selftest.txt`.
    - `pipeline_gpu` (só com `--pipeline`, 1 vez): `reco.make_transcriber()`, `set_model(<model do config>)`, `set_device("GPU")` e `tr._pipeline(None)` (`reco.py:2054-2083`). Custa ~1,35 GB de GPU por alguns segundos (ARMADILHAS, tabela da GPU).
    - Esses números estimam a partida do motor da Fase 2: `import_reco` + `pipeline_gpu` é o "motor quente"; `exe_selftest` é o piso do motor congelado.
-4. [ ] Acrescentar o modo `--checar-gravando [--pasta DIR]`: diz se há gravação em curso pela trava do arquivo — **prova (positiva, com um arquivo preso de propósito):** o comando abaixo (Git Bash) → `em curso: trava_teste.mp3` e `codigo 4`
+4. [x] Acrescentar o modo `--checar-gravando [--pasta DIR]`: diz se há gravação em curso pela trava do arquivo — **prova (positiva, com um arquivo preso de propósito):** o comando abaixo (Git Bash) → `em curso: trava_teste.mp3` e `codigo 4`
    `mkdir -p C:/Dev/Reco/temp/medicoes && python -c "import subprocess,sys; f=open('C:/Dev/Reco/temp/medicoes/trava_teste.mp3','ab'); r=subprocess.run([sys.executable,'C:/Dev/Reco/tools/medir_partida.py','--checar-gravando','--pasta','C:/Dev/Reco/temp/medicoes']); print('codigo', r.returncode)"`
    **reprova se:** sai `codigo 0` com o arquivo preso (a checagem não vê trava nenhuma e o passo 9 pediria o Sair no meio de uma gravação).
    - **prova (negativa, na pasta do Gabriel):** `python C:/Dev/Reco/tools/medir_partida.py --checar-gravando; echo "codigo=$?"` → `pasta=<pasta de saída dele>`, `nenhuma gravação em curso` e `codigo=0` (o Gabriel não está gravando)
@@ -73,7 +73,7 @@
    - Para cada `*.mp3` da pasta modificado nas últimas 6 h, tentar `CreateFileW(caminho, GENERIC_READ, 0, None, OPEN_EXISTING, 0, None)`.
    - Falha com erro 32 (`ERROR_SHARING_VIOLATION`) = o app segura o arquivo aberto = gravação em curso (código 4). Isso cobre os 10 a 20 s de retenção (o arquivo nasce no `start()`, `reco.py:1660-1665`, `1689-1698`) e a pausa.
    - O handle de teste fecha na hora; nunca segurar o arquivo.
-5. [ ] Propagar o índice aos 6 roadmaps em voo (§ Riscos): linha datada sob o título, por `Edit` ancorado — **prova:** `grep -l "Atualizado em 2026-11-11: ver roadmap/2026-11-11" C:/Dev/Reco/roadmap/2026-0*.md C:/Dev/Reco/roadmap/2026-10-*.md` → exatamente os 6 nomes abaixo
+5. [x] Propagar o índice aos 6 roadmaps em voo (§ Riscos): linha datada sob o título, por `Edit` ancorado — **prova:** `grep -l "Atualizado em 2026-11-11: ver roadmap/2026-11-11" C:/Dev/Reco/roadmap/2026-0*.md C:/Dev/Reco/roadmap/2026-10-*.md` → exatamente os 6 nomes abaixo
    **reprova se:** falta algum dos 6, ou aparece um sétimo arquivo (linha no roadmap errado).
    - `2026-10-02-melhoria-modularizacao.md`: `> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: superado; o reco.py não será cortado nas 4 fases, a lista de fronteiras vira o mapa do engine/ na Fase 2).`
    - `2026-08-21-salto-de-alinhamento-sob-carga.md`: `... (efeito: a Fase 5, captura em Rust, absorve o que falta; A1 e A1b no Python continuam valendo se alguém executar antes).`
@@ -82,7 +82,7 @@
    - `2026-07-29-melhoria-transcricao-ao-vivo-vad-diarizacao.md`: `... (efeito: o teste de 20 min, passo 3.6, reabre na Fase 5 com a captura nova; até lá segue estacionado).`
    - `2026-08-19-melhoria-antieco-de-verdade.md`: `... (efeito: nenhum na ordem; segue independente, e o medir_aec continua sendo a régua do gate da Fase 5, D8).`
    - Os `...` acima são o mesmo prefixo da primeira linha. Nenhuma linha passa de 300 caracteres.
-6. [ ] Montar o spike descartável `temp/spike-bandeja/` (fora do git) e compilar — **prova:** `cargo build --manifest-path C:/Dev/Reco/temp/spike-bandeja/src-tauri/Cargo.toml` → termina com `Finished` e existe `C:\pt\debug\reco-spike-bandeja.exe`
+6. [x] Montar o spike descartável `temp/spike-bandeja/` (fora do git) e compilar — **prova:** `cargo build --manifest-path C:/Dev/Reco/temp/spike-bandeja/src-tauri/Cargo.toml` → termina com `Finished` e existe `C:\pt\debug\reco-spike-bandeja.exe`
    **reprova se:** erro de resolução de crate (o `tauri-plugin-positioner` não está no cache do cargo e precisa de rede) ou o exe não aparece em `C:\pt\debug\`.
    - `temp/` está no `.gitignore` (`.gitignore:25`, conferido com `git check-ignore -v`). `CARGO_TARGET_DIR` é `C:\pt`, compartilhado com Lacre e Guarita: o crate se chama `reco-spike-bandeja` para não colidir.
    - Não há `cargo tauri` instalado: build e execução por `cargo` puro. Sem `devUrl`, o `frontendDist` estático entra embutido (premissa P4).
@@ -105,7 +105,7 @@
        - `Click` esquerdo: mostrar e `set_focus()` (fixa, como o `reco.py:4999-5009`). No modo `tao`, chamar antes `set_focusable(true)` (`window/mod.rs:1982`) e voltar a `false` ao esconder; sem isso a janela não aceita o foco.
      - `Enter` e `Leave` existem no Windows no `tray-icon` 0.25.1 (`lib.rs:641-665`, `windows/mod.rs:478-529`); `TrayIcon::rect()` em `tray/mod.rs:620`.
      - Log em arquivo `temp/spike-bandeja/spike.log`, com hora em ms, porque o `eprintln!` some com `windows_subsystem` (armadilha do Lacre, relatório 3 § 1). Na partida loga `icone_rect=x,y,w,h` e `escala=<scale_factor>`. Loga todo `WindowEvent::Resized`/`Moved` depois do primeiro show.
-7. [ ] Provar a bandeja no modo `tao`, com o Reco do Gabriel aberto (`SPIKE_SEM_MUTEX=1`) — **prova:** `python C:/Dev/Reco/temp/spike-bandeja/hover.py --modo tao` → uma linha com os 7 campos da lista abaixo, todos no valor bom
+7. [x] Provar a bandeja no modo `tao`, com o Reco do Gabriel aberto (`SPIKE_SEM_MUTEX=1`) — **prova:** `python C:/Dev/Reco/temp/spike-bandeja/hover.py --modo tao` → uma linha com os 7 campos da lista abaixo, todos no valor bom
    **reprova se:** qualquer campo sai `false`, `enter=nunca` (o evento não chegou) ou `redimensionou=true`.
    - Campos: `enter=ok`, `foco_preservado=true`, `fica_com_cursor_dentro=true`, `some_ao_sair=true`, `acima_do_icone=true`, `redimensionou=false`, `visivel_ms=<N>`.
    - `hover.py` (descartável, fora do git, só `ctypes`) abre o exe do spike com `SPIKE_MODO` e `SPIKE_SEM_MUTEX=1` e lê `icone_rect` no `spike.log`.
@@ -114,7 +114,7 @@
    - `acima_do_icone`: a borda de baixo da janela fica acima do topo do ícone, com sobreposição horizontal. `redimensionou`: há `Resized` no log com o texto da página alternando.
    - Pré-requisito manual: no Windows 11, ícone novo nasce escondido no menu de ícones ocultos. Se `icone_rect` cair fora da barra de tarefas, fixar o ícone do spike em Configurações > Personalização > Barra de tarefas > Outros ícones da bandeja e rodar de novo.
    - Se o `SetCursorPos` não gerar o `Enter` (premissa P5), passar o mouse à mão e conferir as mesmas linhas no `spike.log`: verificação manual, porque o hover precisa de movimento real do mouse.
-8. [ ] Provar a bandeja no modo `showwindow` e decidir a D2 — **prova:** `python C:/Dev/Reco/temp/spike-bandeja/hover.py --modo showwindow` → a mesma linha do passo 7
+8. [x] Provar a bandeja no modo `showwindow` e decidir a D2 — **prova:** `python C:/Dev/Reco/temp/spike-bandeja/hover.py --modo showwindow` → a mesma linha do passo 7
    **reprova se:** campo `false` ou ausente. Isso não interrompe a fase: o resultado dos dois modos decide a D2 pela regra abaixo.
    - Rodar os dois modos sempre, mesmo que o primeiro passe; anotar `visivel_ms` dos dois.
    - Regra da D2:

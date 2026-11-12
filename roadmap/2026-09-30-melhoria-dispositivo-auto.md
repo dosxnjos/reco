@@ -1,5 +1,7 @@
 # Roadmap de melhoria — Reco: opções "Auto" de dispositivo (2026-09-30)
 
+> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: a Fase 2 do vigia de zero vira especificação da Fase 5; o que já está no reco.py segue valendo).
+
 Risco: dado (a Fase 1 reescreve `~/.reco_config.json` por migração; gravação
 no dispositivo errado perde a fala do outro lado sem erro nenhum)
 

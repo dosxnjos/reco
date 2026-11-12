@@ -1,5 +1,7 @@
 # 2026-08-19 — Antieco: o que o áudio real diz, e o que fazer
 
+> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: nenhum na ordem; segue independente, e o medir_aec continua sendo a régua do gate da Fase 5, D8).
+
 **Alvo:** o cancelamento de eco do Reco (`cancel_echo`, `_alinhar_canais`, a
 diarização por dominância e a métrica `tools/medir_eco.py`).
 

@@ -35,6 +35,19 @@ Fase 2, não da captura em Rust: pode rodar cedo e dar ao Gabriel o número para
 Rust"; o **porte** da Fase 6 (depois do portão) continua dependendo da 5. Antes de antecipar, reauditar o md
 da Fase 6 (item 5 de "Como retomar").
 
+## Execução em lote
+
+Autorizada pelo Gabriel em 11/11/2026 (`/goal` "pode executar tudo até que dependa algo de mim"), com as
+travas da skill `executar` § Execução em lote:
+
+- **Um commit por fase**, nunca um no fim; cada fase com o próprio relatório no sidecar.
+- **Paradas obrigatórias** (entregar no chat e esperar): a escolha da direção visual (Fase 1), o Sair do
+  Reco pela bandeja quando uma fase precisar do app fechado (Fases 0, 2 e 3), a aprovação de uso real
+  (Fase 4) e qualquer `dono: gabriel` que trave o passo seguinte. Enquanto uma parada espera, a sessão
+  adianta o que não depende dela (outra fase liberada pela tabela de dependências).
+- **Passo destrutivo por último e conferido** (apagar pasta, desinstalar, remover código Tk).
+- **Fases 5, 6 e 7** passam pela reauditoria do item 5 de "Como retomar" antes de rodar.
+
 ## Contexto e motivação
 
 - **O pedido (11/11/2026, nas palavras do Gabriel):** "fazer ele em Rust", "uma interface mais amigável, mais

@@ -1,5 +1,7 @@
 # Roadmap de melhoria — modo nota ("speech to IA") (2026-08-13)
 
+> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: as Fases 2 e 3, botão e fluxo do modo nota, ficam absorvidas pela Fase 3 do Reco em Rust).
+
 ## Estado em 17/08/2026
 
 - **Nada rodou ainda.** Auditoria de código em 17/08 confirma: `reco.py` não

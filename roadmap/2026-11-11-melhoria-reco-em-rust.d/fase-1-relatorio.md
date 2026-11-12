@@ -4,7 +4,9 @@
 > principal). Passos 12 em diante (publicar, esperar a escolha, podar, armadilha, docs) ficam com a sessão
 > principal.
 
-Link da vitrine: (preencher no passo 12)
+Link da vitrine: https://claude.ai/artifact/4RbkmhC4pTqQZCRtphg5Xv (publicada em 11/11/2026, privada; republicar
+pelo mesmo arquivo `temp/vitrine-publicar.html` gerado pelo `montar-vitrine.cjs`, ou pelo `url`). Passo 12: a sessão
+parou esperando a escolha do Gabriel (A, B, C ou mistura).
 
 Frescor: 0 commits em `reco.py`/`tray.py` desde `7c5c1a1`. O `CLAUDE.md` subiu de 5210 para 5432 bytes
 durante a fase (outra frente acrescentou a seção do motor `engine/`); continua abaixo de 5900.

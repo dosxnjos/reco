@@ -1,5 +1,7 @@
 # Roadmap de melhoria: modularização do reco.py (2026-10-02)
 
+> Atualizado em 2026-11-11: ver roadmap/2026-11-11-melhoria-reco-em-rust.md (efeito: superado; o reco.py não será cortado nas 4 fases, a lista de fronteiras vira o mapa do engine/ na Fase 2).
+
 Risco: dado (o corte toca a captura e o `~/.reco_config.json`; um nome que o
 `DualRecorder` deixa de enxergar grava o canal do sistema mudo ou desalinhado
 sem erro nenhum, e a fala do outro lado da reunião se perde)
