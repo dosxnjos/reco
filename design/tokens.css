@@ -1,0 +1,532 @@
+/* design/tokens.css: fonte única de tamanho, cor, fonte, raio e densidade do Reco.
+   Lido por design/montar-vitrine.cjs (embute na vitrine) e, na Fase 3, pela interface real.
+   Estrutura (DESIGN.md, passo 5 da Fase 1):
+   - :root  -> tokens comuns (janela, áreas globais, espaço, duração) e a casca da vitrine;
+   - [data-direcao="x"] -> uma direção inteira (cor do claro, fonte, raio, densidade);
+   - escuro pelo sistema em [data-direcao="x"]:not([data-tema="claro"]) e escolha manual em [data-tema="escuro"].
+   Nenhuma cor de outro produto da casa (regra: design system não se compartilha). */
+
+:root {
+  /* janela e áreas globais (R1, R2): mudar o tamanho é mudar estes números */
+  --janela-largura: 400px;
+  --janela-altura: 560px;
+  --altura-titulo: 40px;
+  --altura-abas: 44px;
+  --altura-conteudo: 440px;
+  --altura-status: 36px;
+
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --dur: 140ms;
+  --dur-pulso: 1100ms;
+  --foco-largura: 2px;
+
+  /* casca da vitrine (fora da janela): não é do app, sai na poda do passo 14 */
+  --casca-fundo: #e9eaec;
+  --casca-superficie: #f7f7f8;
+  --casca-texto: #1b1c1f;
+  --casca-texto-2: #50535a;
+  --casca-linha: #cfd1d5;
+  --casca-ativo: #1b1c1f;
+  --casca-ativo-texto: #f7f7f8;
+  --casca-foco: #3a5bd9;
+  --casca-fonte: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --casca-fundo: #141518;
+    --casca-superficie: #1e1f23;
+    --casca-texto: #e6e7ea;
+    --casca-texto-2: #a5a8af;
+    --casca-linha: #34363c;
+    --casca-ativo: #e6e7ea;
+    --casca-ativo-texto: #141518;
+    --casca-foco: #8ea6ff;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --casca-fundo: #141518;
+  --casca-superficie: #1e1f23;
+  --casca-texto: #e6e7ea;
+  --casca-texto-2: #a5a8af;
+  --casca-linha: #34363c;
+  --casca-ativo: #e6e7ea;
+  --casca-ativo-texto: #141518;
+  --casca-foco: #8ea6ff;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- A "Fita"
+   Gravador de fita: grafite quente, contador grande, lâmpada de gravação. */
+[data-direcao="a"] {
+  --fonte-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-titulo: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --fonte-num: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --fonte-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-rotulo: "Segoe UI Variable Small", "Segoe UI", system-ui, sans-serif;
+  --tam-texto: 13.5px;
+  --tam-pequeno: 12px;
+  --tam-painel: 13.5px;
+  --linha-painel: 20px;
+  --tam-crono: 44px;
+  --peso-crono: 600;
+  --espaco-crono: -0.02em;
+  --peso-acao: 600;
+  --raio-s: 6px;
+  --raio-m: 10px;
+  --raio-l: 14px;
+  --borda-botao: 0px;
+  --pad-h: 16px;
+  --pad-v: 14px;
+  --gap-gr: 12px;
+  --gr-cronometro: 64px;
+  --gr-medidores: 76px;
+  --botao-altura: 44px;
+  --medidor-altura: 5px;
+  --lib-linhas: 8;
+
+  --fundo: #e3e5e8;
+  --superficie: #f4f5f7;
+  --superficie-2: #d5d8dc;
+  --linha: #c2c6cc;
+  --tinta: #1a1c1f;
+  --tinta-2: #43474d;
+  --tinta-3: #555a61;
+  --acao: #24272b;
+  --acao-hover: #373b40;
+  --acao-tinta: #f4f5f7;
+  --grava: #c13a1f;
+  --grava-hover: #a93119;
+  --grava-tinta: #ffffff;
+  --grava-texto: #b2361c;
+  --botao: #d5d8dc;
+  --botao-hover: #c8ccd1;
+  --botao-tinta: #1a1c1f;
+  --aviso: #8a5300;
+  --aviso-fundo: #f1e3c8;
+  --erro: #a8261b;
+  --erro-fundo: #f4dcd6;
+  --ok: #2f6b3a;
+  --foco: #c13a1f;
+  --titulo-fundo: #d5d8dc;
+  --abas-fundo: #e3e5e8;
+  --aba-ativa: #1a1c1f;
+  --aba-marca: #c13a1f;
+  --status-fundo: #d5d8dc;
+  --visor: #f4f5f7;
+  --visor-tinta: #1a1c1f;
+  --medidor-fundo: #c2c6cc;
+  --medidor-nivel: #43474d;
+  --medidor-pico: #c13a1f;
+  --pauta: transparent;
+  --margem: transparent;
+  --selecao: #f2dcd4;
+  --sobre: #f4f5f7;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-direcao="a"]:not([data-tema="claro"]) {
+    --fundo: #1c1a18;
+    --superficie: #262320;
+    --superficie-2: #312d29;
+    --linha: #3d3833;
+    --tinta: #f1ece6;
+    --tinta-2: #c7beb3;
+    --tinta-3: #a59b8f;
+    --acao: #f1ece6;
+    --acao-hover: #ddd6cd;
+    --acao-tinta: #1c1a18;
+    --grava: #ff7a57;
+    --grava-hover: #ff9273;
+    --grava-tinta: #1f0d07;
+    --grava-texto: #ff8a6a;
+    --botao: #312d29;
+    --botao-hover: #3d3833;
+    --botao-tinta: #f1ece6;
+    --aviso: #f0b45a;
+    --aviso-fundo: #3a2c17;
+    --erro: #ff8f80;
+    --erro-fundo: #40201b;
+    --ok: #8fcf98;
+    --foco: #ff8a6a;
+    --titulo-fundo: #141210;
+    --abas-fundo: #1c1a18;
+    --aba-ativa: #f1ece6;
+    --aba-marca: #ff7a57;
+    --status-fundo: #141210;
+    --visor: #141210;
+    --visor-tinta: #f1ece6;
+    --medidor-fundo: #3d3833;
+    --medidor-nivel: #c7beb3;
+    --medidor-pico: #ff7a57;
+    --selecao: #4a2c22;
+    --sobre: #262320;
+    color-scheme: dark;
+  }
+}
+
+[data-direcao="a"][data-tema="escuro"] {
+  --fundo: #1c1a18;
+  --superficie: #262320;
+  --superficie-2: #312d29;
+  --linha: #3d3833;
+  --tinta: #f1ece6;
+  --tinta-2: #c7beb3;
+  --tinta-3: #a59b8f;
+  --acao: #f1ece6;
+  --acao-hover: #ddd6cd;
+  --acao-tinta: #1c1a18;
+  --grava: #ff7a57;
+  --grava-hover: #ff9273;
+  --grava-tinta: #1f0d07;
+  --grava-texto: #ff8a6a;
+  --botao: #312d29;
+  --botao-hover: #3d3833;
+  --botao-tinta: #f1ece6;
+  --aviso: #f0b45a;
+  --aviso-fundo: #3a2c17;
+  --erro: #ff8f80;
+  --erro-fundo: #40201b;
+  --ok: #8fcf98;
+  --foco: #ff8a6a;
+  --titulo-fundo: #141210;
+  --abas-fundo: #1c1a18;
+  --aba-ativa: #f1ece6;
+  --aba-marca: #ff7a57;
+  --status-fundo: #141210;
+  --visor: #141210;
+  --visor-tinta: #f1ece6;
+  --medidor-fundo: #3d3833;
+  --medidor-nivel: #c7beb3;
+  --medidor-pico: #ff7a57;
+  --selecao: #4a2c22;
+  --sobre: #262320;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- B "Caderno"
+   Caderno de linhas: papel branco azulado, pauta, margem vermelha, tinta de caneta. */
+[data-direcao="b"] {
+  --fonte-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-titulo: "Sitka Heading", "Sitka Text", Georgia, serif;
+  --fonte-num: "Sitka Heading", "Sitka Text", Georgia, serif;
+  --fonte-texto: "Sitka Text", Georgia, serif;
+  --fonte-rotulo: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --tam-texto: 13.5px;
+  --tam-pequeno: 12.5px;
+  --tam-painel: 15px;
+  --linha-painel: 24px;
+  --tam-crono: 38px;
+  --peso-crono: 500;
+  --espaco-crono: 0;
+  --peso-acao: 600;
+  --raio-s: 3px;
+  --raio-m: 4px;
+  --raio-l: 4px;
+  --borda-botao: 1px;
+  --pad-h: 18px;
+  --pad-v: 16px;
+  --gap-gr: 14px;
+  --gr-cronometro: 58px;
+  --gr-medidores: 56px;
+  --botao-altura: 44px;
+  --medidor-altura: 3px;
+  --lib-linhas: 7;
+
+  --fundo: #f6f8fc;
+  --superficie: #ffffff;
+  --superficie-2: #ebeff7;
+  --linha: #d3dbea;
+  --tinta: #18234a;
+  --tinta-2: #3d4a72;
+  --tinta-3: #56618a;
+  --acao: #2443b0;
+  --acao-hover: #1c3795;
+  --acao-tinta: #ffffff;
+  --grava: #c8283a;
+  --grava-hover: #ac1f30;
+  --grava-tinta: #ffffff;
+  --grava-texto: #b8233a;
+  --botao: #ffffff;
+  --botao-hover: #ebeff7;
+  --botao-tinta: #2443b0;
+  --aviso: #8a4f00;
+  --aviso-fundo: #fbefd9;
+  --erro: #b01f30;
+  --erro-fundo: #fbe3e6;
+  --ok: #1f6b4a;
+  --foco: #2443b0;
+  --titulo-fundo: #f6f8fc;
+  --abas-fundo: #f6f8fc;
+  --aba-ativa: #2443b0;
+  --aba-marca: #2443b0;
+  --status-fundo: #ebeff7;
+  --visor: #ffffff;
+  --visor-tinta: #18234a;
+  --medidor-fundo: #d3dbea;
+  --medidor-nivel: #2443b0;
+  --medidor-pico: #c8283a;
+  --pauta: #dde4f1;
+  --margem: #e7a5ac;
+  --selecao: #dfe6fb;
+  --sobre: #ffffff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-direcao="b"]:not([data-tema="claro"]) {
+    --fundo: #131a2c;
+    --superficie: #18213a;
+    --superficie-2: #1f2a47;
+    --linha: #2e3a5c;
+    --tinta: #e6eaf6;
+    --tinta-2: #b4bdd8;
+    --tinta-3: #97a1c0;
+    --acao: #9db2ff;
+    --acao-hover: #b6c6ff;
+    --acao-tinta: #0f1730;
+    --grava: #ff8091;
+    --grava-hover: #ff99a7;
+    --grava-tinta: #2a0a10;
+    --grava-texto: #ff8a9a;
+    --botao: #18213a;
+    --botao-hover: #1f2a47;
+    --botao-tinta: #b6c6ff;
+    --aviso: #f2b765;
+    --aviso-fundo: #36290f;
+    --erro: #ff8a98;
+    --erro-fundo: #3d1820;
+    --ok: #8ad3ad;
+    --foco: #9db2ff;
+    --titulo-fundo: #131a2c;
+    --abas-fundo: #131a2c;
+    --aba-ativa: #b6c6ff;
+    --aba-marca: #9db2ff;
+    --status-fundo: #0e1422;
+    --visor: #18213a;
+    --visor-tinta: #e6eaf6;
+    --medidor-fundo: #2e3a5c;
+    --medidor-nivel: #9db2ff;
+    --medidor-pico: #ff8091;
+    --pauta: #243050;
+    --margem: #7a3a47;
+    --selecao: #273763;
+    --sobre: #18213a;
+    color-scheme: dark;
+  }
+}
+
+[data-direcao="b"][data-tema="escuro"] {
+  --fundo: #131a2c;
+  --superficie: #18213a;
+  --superficie-2: #1f2a47;
+  --linha: #2e3a5c;
+  --tinta: #e6eaf6;
+  --tinta-2: #b4bdd8;
+  --tinta-3: #97a1c0;
+  --acao: #9db2ff;
+  --acao-hover: #b6c6ff;
+  --acao-tinta: #0f1730;
+  --grava: #ff8091;
+  --grava-hover: #ff99a7;
+  --grava-tinta: #2a0a10;
+  --grava-texto: #ff8a9a;
+  --botao: #18213a;
+  --botao-hover: #1f2a47;
+  --botao-tinta: #b6c6ff;
+  --aviso: #f2b765;
+  --aviso-fundo: #36290f;
+  --erro: #ff8a98;
+  --erro-fundo: #3d1820;
+  --ok: #8ad3ad;
+  --foco: #9db2ff;
+  --titulo-fundo: #131a2c;
+  --abas-fundo: #131a2c;
+  --aba-ativa: #b6c6ff;
+  --aba-marca: #9db2ff;
+  --status-fundo: #0e1422;
+  --visor: #18213a;
+  --visor-tinta: #e6eaf6;
+  --medidor-fundo: #2e3a5c;
+  --medidor-nivel: #9db2ff;
+  --medidor-pico: #ff8091;
+  --pauta: #243050;
+  --margem: #7a3a47;
+  --selecao: #273763;
+  --sobre: #18213a;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- C "Instrumento"
+   Console de medição: alumínio, visores escuros embutidos, um sinal âmbar, cantos retos. */
+[data-direcao="c"] {
+  --fonte-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-titulo: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --fonte-num: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --fonte-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-rotulo: "Bahnschrift SemiCondensed", "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --tam-texto: 13px;
+  --tam-pequeno: 12px;
+  --tam-painel: 13px;
+  --linha-painel: 19px;
+  --tam-crono: 42px;
+  --peso-crono: 400;
+  --espaco-crono: 0.02em;
+  --peso-acao: 600;
+  --raio-s: 0px;
+  --raio-m: 2px;
+  --raio-l: 2px;
+  --borda-botao: 1px;
+  --pad-h: 14px;
+  --pad-v: 10px;
+  --gap-gr: 8px;
+  --gr-cronometro: 72px;
+  --gr-medidores: 92px;
+  --botao-altura: 42px;
+  --medidor-altura: 12px;
+  --lib-linhas: 9;
+
+  --fundo: #d4d6d2;
+  --superficie: #e2e4e0;
+  --superficie-2: #c6c9c4;
+  --linha: #a9ada7;
+  --tinta: #161817;
+  --tinta-2: #383c39;
+  --tinta-3: #4a4f4b;
+  --acao: #1b1e1c;
+  --acao-hover: #2c302d;
+  --acao-tinta: #f2f3f0;
+  --grava: #f2a516;
+  --grava-hover: #ffb52e;
+  --grava-tinta: #1a1300;
+  --grava-texto: #7a4f00;
+  --botao: #e2e4e0;
+  --botao-hover: #eef0ec;
+  --botao-tinta: #161817;
+  --aviso: #6e4a00;
+  --aviso-fundo: #ead9b3;
+  --erro: #9e1f17;
+  --erro-fundo: #ecd2cd;
+  --ok: #24603a;
+  --foco: #1b1e1c;
+  --titulo-fundo: #c6c9c4;
+  --abas-fundo: #d4d6d2;
+  --aba-ativa: #161817;
+  --aba-marca: #161817;
+  --marca: #d18a00;
+  --status-fundo: #c6c9c4;
+  --visor: #1b1e1c;
+  --visor-tinta: #e8eae6;
+  --visor-tinta-2: #a9aea8;
+  --status-tinta: #161817;
+  --status-tinta-2: #383c39;
+  --status-erro: #9e1f17;
+  --status-aviso: #6e4a00;
+  --medidor-fundo: #2f3330;
+  --medidor-nivel: #e8eae6;
+  --medidor-pico: #ffb020;
+  --pauta: transparent;
+  --margem: transparent;
+  --selecao: #bfc3bd;
+  --sobre: #e2e4e0;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-direcao="c"]:not([data-tema="claro"]) {
+    --fundo: #1f2120;
+    --superficie: #2a2d2b;
+    --superficie-2: #343735;
+    --linha: #4a4e4b;
+    --tinta: #e3e6e1;
+    --tinta-2: #b4b9b3;
+    --tinta-3: #979d97;
+    --acao: #e3e6e1;
+    --acao-hover: #f2f4f0;
+    --acao-tinta: #111312;
+    --grava: #ffb238;
+    --grava-hover: #ffc35e;
+    --grava-tinta: #1a1200;
+    --grava-texto: #ffb84a;
+    --botao: #2a2d2b;
+    --botao-hover: #343735;
+    --botao-tinta: #e3e6e1;
+    --aviso: #e9c27a;
+    --aviso-fundo: #3a2f17;
+    --erro: #ff8a80;
+    --erro-fundo: #3d1d1a;
+    --ok: #8fd3a4;
+    --foco: #ffb238;
+    --titulo-fundo: #111312;
+    --abas-fundo: #1f2120;
+    --aba-ativa: #e3e6e1;
+    --aba-marca: #e3e6e1;
+    --marca: #ffb238;
+    --status-fundo: #171918;
+    --visor: #0c0e0d;
+    --visor-tinta: #e3e6e1;
+    --visor-tinta-2: #a2a8a1;
+    --status-tinta: #e3e6e1;
+    --status-tinta-2: #a2a8a1;
+    --status-erro: #ff8a80;
+    --status-aviso: #e9c27a;
+    --medidor-fundo: #262a27;
+    --medidor-nivel: #d6dad4;
+    --medidor-pico: #ffb238;
+    --selecao: #3d423e;
+    --sobre: #2a2d2b;
+    color-scheme: dark;
+  }
+}
+
+[data-direcao="c"][data-tema="escuro"] {
+  --fundo: #1f2120;
+  --superficie: #2a2d2b;
+  --superficie-2: #343735;
+  --linha: #4a4e4b;
+  --tinta: #e3e6e1;
+  --tinta-2: #b4b9b3;
+  --tinta-3: #979d97;
+  --acao: #e3e6e1;
+  --acao-hover: #f2f4f0;
+  --acao-tinta: #111312;
+  --grava: #ffb238;
+  --grava-hover: #ffc35e;
+  --grava-tinta: #1a1200;
+  --grava-texto: #ffb84a;
+  --botao: #2a2d2b;
+  --botao-hover: #343735;
+  --botao-tinta: #e3e6e1;
+  --aviso: #e9c27a;
+  --aviso-fundo: #3a2f17;
+  --erro: #ff8a80;
+  --erro-fundo: #3d1d1a;
+  --ok: #8fd3a4;
+  --foco: #ffb238;
+  --titulo-fundo: #111312;
+  --abas-fundo: #1f2120;
+  --aba-ativa: #e3e6e1;
+  --aba-marca: #e3e6e1;
+  --marca: #ffb238;
+  --status-fundo: #171918;
+  --visor: #0c0e0d;
+  --visor-tinta: #e3e6e1;
+  --visor-tinta-2: #a2a8a1;
+  --status-tinta: #e3e6e1;
+  --status-tinta-2: #a2a8a1;
+  --status-erro: #ff8a80;
+  --status-aviso: #e9c27a;
+  --medidor-fundo: #262a27;
+  --medidor-nivel: #d6dad4;
+  --medidor-pico: #ffb238;
+  --selecao: #3d423e;
+  --sobre: #2a2d2b;
+  color-scheme: dark;
+}

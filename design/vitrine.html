@@ -1,0 +1,1653 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitrine do Reco</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* design/tokens.css: fonte única de tamanho, cor, fonte, raio e densidade do Reco.
+   Lido por design/montar-vitrine.cjs (embute na vitrine) e, na Fase 3, pela interface real.
+   Estrutura (DESIGN.md, passo 5 da Fase 1):
+   - :root  -> tokens comuns (janela, áreas globais, espaço, duração) e a casca da vitrine;
+   - [data-direcao="x"] -> uma direção inteira (cor do claro, fonte, raio, densidade);
+   - escuro pelo sistema em [data-direcao="x"]:not([data-tema="claro"]) e escolha manual em [data-tema="escuro"].
+   Nenhuma cor de outro produto da casa (regra: design system não se compartilha). */
+
+:root {
+  /* janela e áreas globais (R1, R2): mudar o tamanho é mudar estes números */
+  --janela-largura: 400px;
+  --janela-altura: 560px;
+  --altura-titulo: 40px;
+  --altura-abas: 44px;
+  --altura-conteudo: 440px;
+  --altura-status: 36px;
+
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --dur: 140ms;
+  --dur-pulso: 1100ms;
+  --foco-largura: 2px;
+
+  /* casca da vitrine (fora da janela): não é do app, sai na poda do passo 14 */
+  --casca-fundo: #e9eaec;
+  --casca-superficie: #f7f7f8;
+  --casca-texto: #1b1c1f;
+  --casca-texto-2: #50535a;
+  --casca-linha: #cfd1d5;
+  --casca-ativo: #1b1c1f;
+  --casca-ativo-texto: #f7f7f8;
+  --casca-foco: #3a5bd9;
+  --casca-fonte: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --casca-fundo: #141518;
+    --casca-superficie: #1e1f23;
+    --casca-texto: #e6e7ea;
+    --casca-texto-2: #a5a8af;
+    --casca-linha: #34363c;
+    --casca-ativo: #e6e7ea;
+    --casca-ativo-texto: #141518;
+    --casca-foco: #8ea6ff;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --casca-fundo: #141518;
+  --casca-superficie: #1e1f23;
+  --casca-texto: #e6e7ea;
+  --casca-texto-2: #a5a8af;
+  --casca-linha: #34363c;
+  --casca-ativo: #e6e7ea;
+  --casca-ativo-texto: #141518;
+  --casca-foco: #8ea6ff;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- A "Fita"
+   Gravador de fita: grafite quente, contador grande, lâmpada de gravação. */
+[data-direcao="a"] {
+  --fonte-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-titulo: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --fonte-num: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --fonte-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-rotulo: "Segoe UI Variable Small", "Segoe UI", system-ui, sans-serif;
+  --tam-texto: 13.5px;
+  --tam-pequeno: 12px;
+  --tam-painel: 13.5px;
+  --linha-painel: 20px;
+  --tam-crono: 44px;
+  --peso-crono: 600;
+  --espaco-crono: -0.02em;
+  --peso-acao: 600;
+  --raio-s: 6px;
+  --raio-m: 10px;
+  --raio-l: 14px;
+  --borda-botao: 0px;
+  --pad-h: 16px;
+  --pad-v: 14px;
+  --gap-gr: 12px;
+  --gr-cronometro: 64px;
+  --gr-medidores: 76px;
+  --botao-altura: 44px;
+  --medidor-altura: 5px;
+  --lib-linhas: 8;
+
+  --fundo: #e3e5e8;
+  --superficie: #f4f5f7;
+  --superficie-2: #d5d8dc;
+  --linha: #c2c6cc;
+  --tinta: #1a1c1f;
+  --tinta-2: #43474d;
+  --tinta-3: #555a61;
+  --acao: #24272b;
+  --acao-hover: #373b40;
+  --acao-tinta: #f4f5f7;
+  --grava: #c13a1f;
+  --grava-hover: #a93119;
+  --grava-tinta: #ffffff;
+  --grava-texto: #b2361c;
+  --botao: #d5d8dc;
+  --botao-hover: #c8ccd1;
+  --botao-tinta: #1a1c1f;
+  --aviso: #8a5300;
+  --aviso-fundo: #f1e3c8;
+  --erro: #a8261b;
+  --erro-fundo: #f4dcd6;
+  --ok: #2f6b3a;
+  --foco: #c13a1f;
+  --titulo-fundo: #d5d8dc;
+  --abas-fundo: #e3e5e8;
+  --aba-ativa: #1a1c1f;
+  --aba-marca: #c13a1f;
+  --status-fundo: #d5d8dc;
+  --visor: #f4f5f7;
+  --visor-tinta: #1a1c1f;
+  --medidor-fundo: #c2c6cc;
+  --medidor-nivel: #43474d;
+  --medidor-pico: #c13a1f;
+  --pauta: transparent;
+  --margem: transparent;
+  --selecao: #f2dcd4;
+  --sobre: #f4f5f7;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-direcao="a"]:not([data-tema="claro"]) {
+    --fundo: #1c1a18;
+    --superficie: #262320;
+    --superficie-2: #312d29;
+    --linha: #3d3833;
+    --tinta: #f1ece6;
+    --tinta-2: #c7beb3;
+    --tinta-3: #a59b8f;
+    --acao: #f1ece6;
+    --acao-hover: #ddd6cd;
+    --acao-tinta: #1c1a18;
+    --grava: #ff7a57;
+    --grava-hover: #ff9273;
+    --grava-tinta: #1f0d07;
+    --grava-texto: #ff8a6a;
+    --botao: #312d29;
+    --botao-hover: #3d3833;
+    --botao-tinta: #f1ece6;
+    --aviso: #f0b45a;
+    --aviso-fundo: #3a2c17;
+    --erro: #ff8f80;
+    --erro-fundo: #40201b;
+    --ok: #8fcf98;
+    --foco: #ff8a6a;
+    --titulo-fundo: #141210;
+    --abas-fundo: #1c1a18;
+    --aba-ativa: #f1ece6;
+    --aba-marca: #ff7a57;
+    --status-fundo: #141210;
+    --visor: #141210;
+    --visor-tinta: #f1ece6;
+    --medidor-fundo: #3d3833;
+    --medidor-nivel: #c7beb3;
+    --medidor-pico: #ff7a57;
+    --selecao: #4a2c22;
+    --sobre: #262320;
+    color-scheme: dark;
+  }
+}
+
+[data-direcao="a"][data-tema="escuro"] {
+  --fundo: #1c1a18;
+  --superficie: #262320;
+  --superficie-2: #312d29;
+  --linha: #3d3833;
+  --tinta: #f1ece6;
+  --tinta-2: #c7beb3;
+  --tinta-3: #a59b8f;
+  --acao: #f1ece6;
+  --acao-hover: #ddd6cd;
+  --acao-tinta: #1c1a18;
+  --grava: #ff7a57;
+  --grava-hover: #ff9273;
+  --grava-tinta: #1f0d07;
+  --grava-texto: #ff8a6a;
+  --botao: #312d29;
+  --botao-hover: #3d3833;
+  --botao-tinta: #f1ece6;
+  --aviso: #f0b45a;
+  --aviso-fundo: #3a2c17;
+  --erro: #ff8f80;
+  --erro-fundo: #40201b;
+  --ok: #8fcf98;
+  --foco: #ff8a6a;
+  --titulo-fundo: #141210;
+  --abas-fundo: #1c1a18;
+  --aba-ativa: #f1ece6;
+  --aba-marca: #ff7a57;
+  --status-fundo: #141210;
+  --visor: #141210;
+  --visor-tinta: #f1ece6;
+  --medidor-fundo: #3d3833;
+  --medidor-nivel: #c7beb3;
+  --medidor-pico: #ff7a57;
+  --selecao: #4a2c22;
+  --sobre: #262320;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- B "Caderno"
+   Caderno de linhas: papel branco azulado, pauta, margem vermelha, tinta de caneta. */
+[data-direcao="b"] {
+  --fonte-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-titulo: "Sitka Heading", "Sitka Text", Georgia, serif;
+  --fonte-num: "Sitka Heading", "Sitka Text", Georgia, serif;
+  --fonte-texto: "Sitka Text", Georgia, serif;
+  --fonte-rotulo: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --tam-texto: 13.5px;
+  --tam-pequeno: 12.5px;
+  --tam-painel: 15px;
+  --linha-painel: 24px;
+  --tam-crono: 38px;
+  --peso-crono: 500;
+  --espaco-crono: 0;
+  --peso-acao: 600;
+  --raio-s: 3px;
+  --raio-m: 4px;
+  --raio-l: 4px;
+  --borda-botao: 1px;
+  --pad-h: 18px;
+  --pad-v: 16px;
+  --gap-gr: 14px;
+  --gr-cronometro: 58px;
+  --gr-medidores: 56px;
+  --botao-altura: 44px;
+  --medidor-altura: 3px;
+  --lib-linhas: 7;
+
+  --fundo: #f6f8fc;
+  --superficie: #ffffff;
+  --superficie-2: #ebeff7;
+  --linha: #d3dbea;
+  --tinta: #18234a;
+  --tinta-2: #3d4a72;
+  --tinta-3: #56618a;
+  --acao: #2443b0;
+  --acao-hover: #1c3795;
+  --acao-tinta: #ffffff;
+  --grava: #c8283a;
+  --grava-hover: #ac1f30;
+  --grava-tinta: #ffffff;
+  --grava-texto: #b8233a;
+  --botao: #ffffff;
+  --botao-hover: #ebeff7;
+  --botao-tinta: #2443b0;
+  --aviso: #8a4f00;
+  --aviso-fundo: #fbefd9;
+  --erro: #b01f30;
+  --erro-fundo: #fbe3e6;
+  --ok: #1f6b4a;
+  --foco: #2443b0;
+  --titulo-fundo: #f6f8fc;
+  --abas-fundo: #f6f8fc;
+  --aba-ativa: #2443b0;
+  --aba-marca: #2443b0;
+  --status-fundo: #ebeff7;
+  --visor: #ffffff;
+  --visor-tinta: #18234a;
+  --medidor-fundo: #d3dbea;
+  --medidor-nivel: #2443b0;
+  --medidor-pico: #c8283a;
+  --pauta: #dde4f1;
+  --margem: #e7a5ac;
+  --selecao: #dfe6fb;
+  --sobre: #ffffff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-direcao="b"]:not([data-tema="claro"]) {
+    --fundo: #131a2c;
+    --superficie: #18213a;
+    --superficie-2: #1f2a47;
+    --linha: #2e3a5c;
+    --tinta: #e6eaf6;
+    --tinta-2: #b4bdd8;
+    --tinta-3: #97a1c0;
+    --acao: #9db2ff;
+    --acao-hover: #b6c6ff;
+    --acao-tinta: #0f1730;
+    --grava: #ff8091;
+    --grava-hover: #ff99a7;
+    --grava-tinta: #2a0a10;
+    --grava-texto: #ff8a9a;
+    --botao: #18213a;
+    --botao-hover: #1f2a47;
+    --botao-tinta: #b6c6ff;
+    --aviso: #f2b765;
+    --aviso-fundo: #36290f;
+    --erro: #ff8a98;
+    --erro-fundo: #3d1820;
+    --ok: #8ad3ad;
+    --foco: #9db2ff;
+    --titulo-fundo: #131a2c;
+    --abas-fundo: #131a2c;
+    --aba-ativa: #b6c6ff;
+    --aba-marca: #9db2ff;
+    --status-fundo: #0e1422;
+    --visor: #18213a;
+    --visor-tinta: #e6eaf6;
+    --medidor-fundo: #2e3a5c;
+    --medidor-nivel: #9db2ff;
+    --medidor-pico: #ff8091;
+    --pauta: #243050;
+    --margem: #7a3a47;
+    --selecao: #273763;
+    --sobre: #18213a;
+    color-scheme: dark;
+  }
+}
+
+[data-direcao="b"][data-tema="escuro"] {
+  --fundo: #131a2c;
+  --superficie: #18213a;
+  --superficie-2: #1f2a47;
+  --linha: #2e3a5c;
+  --tinta: #e6eaf6;
+  --tinta-2: #b4bdd8;
+  --tinta-3: #97a1c0;
+  --acao: #9db2ff;
+  --acao-hover: #b6c6ff;
+  --acao-tinta: #0f1730;
+  --grava: #ff8091;
+  --grava-hover: #ff99a7;
+  --grava-tinta: #2a0a10;
+  --grava-texto: #ff8a9a;
+  --botao: #18213a;
+  --botao-hover: #1f2a47;
+  --botao-tinta: #b6c6ff;
+  --aviso: #f2b765;
+  --aviso-fundo: #36290f;
+  --erro: #ff8a98;
+  --erro-fundo: #3d1820;
+  --ok: #8ad3ad;
+  --foco: #9db2ff;
+  --titulo-fundo: #131a2c;
+  --abas-fundo: #131a2c;
+  --aba-ativa: #b6c6ff;
+  --aba-marca: #9db2ff;
+  --status-fundo: #0e1422;
+  --visor: #18213a;
+  --visor-tinta: #e6eaf6;
+  --medidor-fundo: #2e3a5c;
+  --medidor-nivel: #9db2ff;
+  --medidor-pico: #ff8091;
+  --pauta: #243050;
+  --margem: #7a3a47;
+  --selecao: #273763;
+  --sobre: #18213a;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- C "Instrumento"
+   Console de medição: alumínio, visores escuros embutidos, um sinal âmbar, cantos retos. */
+[data-direcao="c"] {
+  --fonte-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-titulo: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --fonte-num: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --fonte-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fonte-rotulo: "Bahnschrift SemiCondensed", "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --tam-texto: 13px;
+  --tam-pequeno: 12px;
+  --tam-painel: 13px;
+  --linha-painel: 19px;
+  --tam-crono: 42px;
+  --peso-crono: 400;
+  --espaco-crono: 0.02em;
+  --peso-acao: 600;
+  --raio-s: 0px;
+  --raio-m: 2px;
+  --raio-l: 2px;
+  --borda-botao: 1px;
+  --pad-h: 14px;
+  --pad-v: 10px;
+  --gap-gr: 8px;
+  --gr-cronometro: 72px;
+  --gr-medidores: 92px;
+  --botao-altura: 42px;
+  --medidor-altura: 12px;
+  --lib-linhas: 9;
+
+  --fundo: #d4d6d2;
+  --superficie: #e2e4e0;
+  --superficie-2: #c6c9c4;
+  --linha: #a9ada7;
+  --tinta: #161817;
+  --tinta-2: #383c39;
+  --tinta-3: #4a4f4b;
+  --acao: #1b1e1c;
+  --acao-hover: #2c302d;
+  --acao-tinta: #f2f3f0;
+  --grava: #f2a516;
+  --grava-hover: #ffb52e;
+  --grava-tinta: #1a1300;
+  --grava-texto: #7a4f00;
+  --botao: #e2e4e0;
+  --botao-hover: #eef0ec;
+  --botao-tinta: #161817;
+  --aviso: #6e4a00;
+  --aviso-fundo: #ead9b3;
+  --erro: #9e1f17;
+  --erro-fundo: #ecd2cd;
+  --ok: #24603a;
+  --foco: #1b1e1c;
+  --titulo-fundo: #c6c9c4;
+  --abas-fundo: #d4d6d2;
+  --aba-ativa: #161817;
+  --aba-marca: #161817;
+  --marca: #d18a00;
+  --status-fundo: #c6c9c4;
+  --visor: #1b1e1c;
+  --visor-tinta: #e8eae6;
+  --visor-tinta-2: #a9aea8;
+  --status-tinta: #161817;
+  --status-tinta-2: #383c39;
+  --status-erro: #9e1f17;
+  --status-aviso: #6e4a00;
+  --medidor-fundo: #2f3330;
+  --medidor-nivel: #e8eae6;
+  --medidor-pico: #ffb020;
+  --pauta: transparent;
+  --margem: transparent;
+  --selecao: #bfc3bd;
+  --sobre: #e2e4e0;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-direcao="c"]:not([data-tema="claro"]) {
+    --fundo: #1f2120;
+    --superficie: #2a2d2b;
+    --superficie-2: #343735;
+    --linha: #4a4e4b;
+    --tinta: #e3e6e1;
+    --tinta-2: #b4b9b3;
+    --tinta-3: #979d97;
+    --acao: #e3e6e1;
+    --acao-hover: #f2f4f0;
+    --acao-tinta: #111312;
+    --grava: #ffb238;
+    --grava-hover: #ffc35e;
+    --grava-tinta: #1a1200;
+    --grava-texto: #ffb84a;
+    --botao: #2a2d2b;
+    --botao-hover: #343735;
+    --botao-tinta: #e3e6e1;
+    --aviso: #e9c27a;
+    --aviso-fundo: #3a2f17;
+    --erro: #ff8a80;
+    --erro-fundo: #3d1d1a;
+    --ok: #8fd3a4;
+    --foco: #ffb238;
+    --titulo-fundo: #111312;
+    --abas-fundo: #1f2120;
+    --aba-ativa: #e3e6e1;
+    --aba-marca: #e3e6e1;
+    --marca: #ffb238;
+    --status-fundo: #171918;
+    --visor: #0c0e0d;
+    --visor-tinta: #e3e6e1;
+    --visor-tinta-2: #a2a8a1;
+    --status-tinta: #e3e6e1;
+    --status-tinta-2: #a2a8a1;
+    --status-erro: #ff8a80;
+    --status-aviso: #e9c27a;
+    --medidor-fundo: #262a27;
+    --medidor-nivel: #d6dad4;
+    --medidor-pico: #ffb238;
+    --selecao: #3d423e;
+    --sobre: #2a2d2b;
+    color-scheme: dark;
+  }
+}
+
+[data-direcao="c"][data-tema="escuro"] {
+  --fundo: #1f2120;
+  --superficie: #2a2d2b;
+  --superficie-2: #343735;
+  --linha: #4a4e4b;
+  --tinta: #e3e6e1;
+  --tinta-2: #b4b9b3;
+  --tinta-3: #979d97;
+  --acao: #e3e6e1;
+  --acao-hover: #f2f4f0;
+  --acao-tinta: #111312;
+  --grava: #ffb238;
+  --grava-hover: #ffc35e;
+  --grava-tinta: #1a1200;
+  --grava-texto: #ffb84a;
+  --botao: #2a2d2b;
+  --botao-hover: #343735;
+  --botao-tinta: #e3e6e1;
+  --aviso: #e9c27a;
+  --aviso-fundo: #3a2f17;
+  --erro: #ff8a80;
+  --erro-fundo: #3d1d1a;
+  --ok: #8fd3a4;
+  --foco: #ffb238;
+  --titulo-fundo: #111312;
+  --abas-fundo: #1f2120;
+  --aba-ativa: #e3e6e1;
+  --aba-marca: #e3e6e1;
+  --marca: #ffb238;
+  --status-fundo: #171918;
+  --visor: #0c0e0d;
+  --visor-tinta: #e3e6e1;
+  --visor-tinta-2: #a2a8a1;
+  --status-tinta: #e3e6e1;
+  --status-tinta-2: #a2a8a1;
+  --status-erro: #ff8a80;
+  --status-aviso: #e9c27a;
+  --medidor-fundo: #262a27;
+  --medidor-nivel: #d6dad4;
+  --medidor-pico: #ffb238;
+  --selecao: #3d423e;
+  --sobre: #2a2d2b;
+  color-scheme: dark;
+}
+
+/* ===== casca da vitrine (fora da janela) ===== */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--casca-fundo); color: var(--casca-texto); font: 14px/1.45 var(--casca-fonte); }
+.vitrine {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+  max-width: 1400px; margin: 0 auto;
+}
+.vitrine-cabeca { max-width: 720px; margin: 0 0 20px; }
+.vitrine-cabeca h1 { font-size: 26px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -0.02em; font-weight: 650; }
+.vitrine-cabeca p { margin: 0; color: var(--casca-texto-2); }
+.controles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px 20px; margin: 0 0 28px; }
+.controle { min-width: 0; }
+.controle-nome { display: block; font-size: 12.5px; color: var(--casca-texto-2); margin: 0 0 4px; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button {
+  font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--casca-linha); background: var(--casca-superficie); color: var(--casca-texto);
+}
+.seg button[aria-pressed="true"] { background: var(--casca-ativo); color: var(--casca-ativo-texto); border-color: var(--casca-ativo); }
+.seg button:focus-visible { outline: 2px solid var(--casca-foco); outline-offset: 2px; }
+.seg button[data-oculto] { display: none; }
+/* os estados de cada tela ficam empilhados na mesma célula: a altura é a do maior grupo, e trocar de tela não empurra as janelas */
+.seg[data-controle="estado"] { display: grid; }
+.seg-grupo { grid-area: 1 / 1; align-self: start; }
+.seg-grupo[data-oculto] { visibility: hidden; }
+.palco { display: flex; flex-wrap: wrap; gap: 36px 32px; justify-content: center; align-items: flex-start; }
+.quadro { width: 400px; flex: none; }
+.quadro[data-oculto] { display: none; }
+.quadro-legenda { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; min-height: 64px; }
+.quadro-letra { font-size: 13px; font-weight: 700; border: 1px solid var(--casca-linha); border-radius: 6px; width: 26px; height: 26px; display: grid; place-items: center; flex: none; }
+.quadro-legenda h2 { font-size: 17px; margin: 0 0 2px; font-weight: 650; }
+.quadro-legenda p { margin: 0; color: var(--casca-texto-2); font-size: 13px; }
+.bandeja { display: flex; gap: 14px; margin: 10px 0 0; color: var(--casca-texto-2); font-size: 12.5px; align-items: center; }
+.bandeja span { display: inline-flex; gap: 6px; align-items: center; }
+.bandeja svg { width: 16px; height: 16px; color: var(--casca-texto); }
+.vitrine-nota { margin: 32px auto 0; max-width: 720px; color: var(--casca-texto-2); font-size: 12.5px; text-align: center; }
+.moldura { width: 400px; }
+@media (max-width: 440px) { .quadro { width: 344px; } .moldura { zoom: 0.86; } }
+@media (max-width: 380px) { .quadro { width: 320px; } .moldura { zoom: 0.8; } }
+@media (max-width: 340px) { .quadro { width: 288px; } .moldura { zoom: 0.72; } }
+
+/* ===== a janela do Reco (o que a Fase 3 constrói) ===== */
+.janela {
+  width: var(--janela-largura); height: var(--janela-altura); flex: none;
+  display: flex; flex-direction: column; overflow: hidden; position: relative;
+  background: var(--fundo); color: var(--tinta);
+  font-family: var(--fonte-ui); font-size: var(--tam-texto); line-height: 1.35;
+  border-radius: var(--raio-l);
+  box-shadow: 0 0 0 1px var(--linha), 0 22px 44px -18px rgb(0 0 0 / 0.45);
+  animation: surgir 220ms ease-out both;
+  -webkit-font-smoothing: antialiased;
+}
+@keyframes surgir { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.janela ::selection { background: var(--selecao); color: var(--tinta); }
+svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.janela svg.ic { width: 16px; height: 16px; flex: none; }
+.janela button { font: inherit; color: inherit; cursor: pointer; }
+.janela button:disabled { cursor: default; }
+.janela :focus-visible { outline: var(--foco-largura) solid var(--foco); outline-offset: -2px; }
+.janela [data-num] { font-variant-numeric: tabular-nums; }
+.corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* barra de título */
+.titulo { height: var(--altura-titulo); flex: none; display: flex; align-items: center; gap: 8px; padding: 0 4px 0 14px; background: var(--titulo-fundo); }
+.marca { width: 18px; height: 18px; color: var(--marca, var(--aba-marca)); flex: none; }
+.titulo-nome { font-family: var(--fonte-titulo); font-weight: 650; font-size: 14px; letter-spacing: -0.01em; }
+.versao {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; margin-left: 6px;
+  border: 1px solid var(--linha); border-radius: 999px; background: var(--superficie); color: var(--tinta-2); font-size: var(--tam-pequeno);
+  transition: opacity var(--dur), background-color var(--dur), color var(--dur);
+}
+.versao .ic { width: 14px; height: 14px; }
+.versao:hover { color: var(--tinta); }
+.versao[data-escondido] { visibility: hidden; opacity: 0; }
+.titulo-vao { flex: 1; }
+.janela-btn { width: 36px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--raio-s); background: transparent; color: var(--tinta-2); transition: background-color var(--dur), color var(--dur); }
+.janela-btn:hover { background: var(--superficie-2); color: var(--tinta); }
+
+/* abas */
+.abas { height: var(--altura-abas); flex: none; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--abas-fundo); border-bottom: 1px solid var(--linha); padding: 0 6px; }
+.aba {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0;
+  border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent;
+  color: var(--tinta-2); font-weight: 600; font-size: var(--tam-texto);
+  transition: color var(--dur), border-color var(--dur), background-color var(--dur);
+}
+.aba:hover { color: var(--tinta); }
+.aba[aria-selected="true"] { color: var(--aba-ativa); border-bottom-color: var(--aba-marca); }
+.aba[aria-disabled="true"] { color: var(--tinta-3); cursor: not-allowed; }
+
+/* conteúdo e telas */
+.conteudo { height: var(--altura-conteudo); flex: none; position: relative; overflow: hidden; }
+.tela { position: absolute; inset: 0; padding: var(--pad-v) var(--pad-h); display: flex; flex-direction: column; gap: var(--gap-gr); visibility: hidden; opacity: 0; transition: opacity var(--dur); }
+.tela[data-ativa] { visibility: visible; opacity: 1; }
+.camada { position: absolute; inset: 0; visibility: hidden; opacity: 0; transition: opacity var(--dur); }
+.camada[data-ativa] { visibility: visible; opacity: 1; }
+
+/* status */
+.status {
+  height: var(--altura-status); flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 0 5px 0 14px; white-space: nowrap; overflow: hidden;
+  background: var(--status-fundo); color: var(--status-tinta, var(--tinta)); font-size: var(--tam-pequeno);
+}
+.status-texto { flex: 1; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.status[data-sinal="erro"] .status-icone { color: var(--status-erro, var(--erro)); }
+.status[data-sinal="aviso"] .status-icone { color: var(--status-aviso, var(--aviso)); }
+.status[data-sinal="rec"] .status-icone { fill: currentColor; color: var(--grava-texto); }
+[data-direcao="c"] .status[data-sinal="rec"] .status-icone { color: var(--marca); }
+.status[data-sinal="espera"] .status-icone { animation: pulso var(--dur-pulso) ease-in-out infinite; }
+.status-detalhes { height: 26px; padding: 0 10px; border: 1px solid currentColor; border-radius: var(--raio-s); background: transparent; font-size: var(--tam-pequeno); font-weight: 600; transition: opacity var(--dur), background-color var(--dur); }
+.status-detalhes[data-escondido] { visibility: hidden; opacity: 0; }
+
+/* botões */
+.botao {
+  height: var(--botao-altura); min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px;
+  border: var(--borda-botao) solid var(--linha); border-radius: var(--raio-m);
+  background: var(--botao); color: var(--botao-tinta); font-weight: var(--peso-acao);
+  transition: background-color var(--dur), color var(--dur), border-color var(--dur);
+}
+.botao:hover:not(:disabled) { background: var(--botao-hover); }
+.botao:disabled, .botao[data-tom]:disabled { background: var(--superficie-2); border-color: var(--superficie-2); color: var(--tinta-3); box-shadow: none; }
+.botao[data-tom="acao"] { background: var(--acao); color: var(--acao-tinta); border-color: var(--acao); }
+.botao[data-tom="acao"]:hover:not(:disabled) { background: var(--acao-hover); border-color: var(--acao-hover); }
+.botao[data-tom="grava"] { background: var(--grava); color: var(--grava-tinta); border-color: var(--grava); }
+.botao[data-tom="grava"]:hover:not(:disabled) { background: var(--grava-hover); border-color: var(--grava-hover); }
+.botao[data-tom="perigo"] { color: var(--erro); }
+.botao[data-escondido] { visibility: hidden; opacity: 0; }
+.botao-pilha { flex-direction: column; gap: 3px; padding: 0 4px; font-size: var(--tam-pequeno); font-weight: 600; }
+.botao-pilha .ic { width: 16px; height: 16px; }
+
+/* Gravar: cronômetro */
+.cronometro { height: var(--gr-cronometro); flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid transparent; transition: border-color var(--dur); }
+.cronometro[data-gravando] { border-color: var(--grava); }
+.crono { font-family: var(--fonte-num); font-size: var(--tam-crono); font-weight: var(--peso-crono); letter-spacing: var(--espaco-crono); line-height: 1; }
+.rec { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px 0 10px; border-radius: 999px; background: var(--superficie); color: var(--tinta-2); font-weight: 600; font-size: var(--tam-pequeno); transition: color var(--dur), background-color var(--dur); }
+.rec .ic { width: 13px; height: 13px; }
+.rec[data-sinal="rec"] .ic { fill: currentColor; }
+.rec[data-sinal="rec"] { color: var(--grava-texto); }
+.rec[data-sinal="rec"] .ic { animation: pulso var(--dur-pulso) steps(2, jump-none) infinite; }
+.rec[data-sinal="espera"] .ic { animation: pulso var(--dur-pulso) ease-in-out infinite; }
+.rec[data-sinal="erro"] { color: var(--erro); }
+
+/* Gravar: medidores */
+.medidores { height: var(--gr-medidores); flex: none; display: grid; grid-template-rows: 1fr 1fr; align-items: center; }
+.medidor { display: grid; grid-template-columns: 16px 74px 1fr 104px; align-items: center; column-gap: 8px; color: var(--tinta-2); transition: color var(--dur); }
+.medidor[data-fora] { color: var(--tinta-3); }
+.medidor-nome { font-weight: 600; }
+.medidor-barra { position: relative; height: var(--medidor-altura); border-radius: 999px; background: var(--medidor-fundo); }
+.medidor-nivel { position: absolute; left: 0; top: 0; bottom: 0; width: var(--nivel, 0%); border-radius: inherit; background: var(--medidor-nivel); }
+.medidor-pico { position: absolute; top: -3px; bottom: -3px; width: 2px; left: var(--pico, 0%); background: var(--medidor-pico); opacity: var(--pico-op, 0); }
+.medidor-escala { position: absolute; left: 0; right: 0; top: calc(100% + 3px); display: flex; justify-content: space-between; font-family: var(--fonte-rotulo); font-size: 10px; line-height: 1; color: var(--visor-tinta-2, var(--tinta-3)); visibility: hidden; }
+.ganho { display: flex; align-items: center; gap: 6px; }
+.ganho input { width: 62px; margin: 0; accent-color: var(--tinta-2); }
+.ganho output { width: 36px; text-align: right; font-family: var(--fonte-num); font-weight: 600; color: var(--tinta); }
+
+/* Gravar: ações */
+.acoes { height: calc(var(--botao-altura) * 2 + var(--esp-2)); flex: none; display: grid; grid-template-rows: var(--botao-altura) var(--botao-altura); gap: var(--esp-2); }
+.acoes-linha { display: grid; grid-template-columns: 1.55fr 1fr; gap: var(--esp-2); }
+.modo { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--linha); border-radius: var(--raio-m); padding: 3px; background: var(--superficie); }
+.modo-op { display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: calc(var(--raio-m) - 2px); background: transparent; color: var(--tinta-2); font-weight: 600; transition: background-color var(--dur), color var(--dur); }
+.modo-op[aria-checked="true"] { background: var(--superficie-2); color: var(--tinta); }
+.modo-op:disabled { color: var(--tinta-3); }
+
+/* Gravar: painel */
+.painel { flex: none; position: relative; height: calc(var(--altura-conteudo) - 2 * var(--pad-v) - var(--gr-cronometro) - var(--gr-medidores) - (2 * var(--botao-altura) + var(--esp-2)) - 3 * var(--gap-gr)); border-radius: var(--raio-m); background: var(--superficie); }
+.painel .camada { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.linha-info { display: grid; grid-template-columns: 16px 64px 1fr; gap: 8px; align-items: center; color: var(--tinta-2); }
+.linha-info b { font-weight: 600; color: var(--tinta-2); }
+.linha-info span { color: var(--tinta); }
+.painel-titulo { font-family: var(--fonte-titulo); font-weight: 650; font-size: 14.5px; display: flex; align-items: center; gap: 8px; color: var(--tinta); }
+.painel-nota { color: var(--tinta-2); margin: 0; }
+.ao-vivo { overflow-y: auto; scrollbar-gutter: stable; font-family: var(--fonte-texto); font-size: var(--tam-painel); line-height: var(--linha-painel); color: var(--tinta);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 4px, rgb(0 0 0) 44px); mask-image: linear-gradient(to bottom, transparent 4px, rgb(0 0 0) 44px); }
+.ao-vivo p { margin: 0; color: var(--tinta-2); }
+.ao-vivo p[data-quem="eu"] { color: var(--tinta); }
+.ao-vivo .quem { font-family: var(--fonte-ui); font-size: var(--tam-pequeno); font-weight: 700; margin-right: 6px; }
+.ao-vivo .rascunho { color: var(--tinta-2); }
+.saidas { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; height: 100%; }
+.saidas .botao { height: auto; padding: 0 10px; justify-content: flex-start; align-items: center; text-align: left; }
+.saidas .botao .corta { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
+.painel .camada[data-variante="parado"] { padding: 10px; }
+.barra { height: 8px; border-radius: 999px; background: var(--medidor-fundo); position: relative; overflow: hidden; }
+.barra-cheia { position: absolute; inset: 0 auto 0 0; width: var(--progresso, 0%); background: var(--acao); border-radius: inherit; }
+.progresso-linha { display: flex; justify-content: space-between; color: var(--tinta-2); gap: 12px; }
+.progresso-linha [data-num] { font-family: var(--fonte-num); font-weight: 600; color: var(--tinta); font-size: 15px; }
+.botoes-linha { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: auto; }
+.botoes-linha .botao { height: 36px; font-size: var(--tam-pequeno); padding: 0 6px; }
+.espera { width: 10px; height: 10px; border-radius: 50%; background: var(--tinta-2); animation: pulso var(--dur-pulso) ease-in-out infinite; flex: none; }
+
+/* detalhe do erro, sobreposto ao conteúdo */
+.detalhe { position: absolute; inset: 0; z-index: 2; background: var(--sobre); padding: var(--pad-v) var(--pad-h); display: flex; flex-direction: column; gap: 10px; visibility: hidden; opacity: 0; transition: opacity var(--dur); }
+.detalhe[data-ativa] { visibility: visible; opacity: 1; }
+.detalhe pre { flex: 1; margin: 0; overflow: auto; scrollbar-gutter: stable; white-space: pre-wrap; word-break: break-word; font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; line-height: 1.5; color: var(--tinta); background: var(--superficie-2); border-radius: var(--raio-m); padding: 10px 12px; }
+.detalhe-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* Biblioteca */
+.busca { height: 36px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--linha); border-radius: var(--raio-m); background: var(--superficie); color: var(--tinta-2); }
+.busca input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; color: var(--tinta); outline: none; }
+.busca input::placeholder { color: var(--tinta-3); }
+.busca:focus-within { border-color: var(--foco); }
+.busca-conta { font-size: var(--tam-pequeno); color: var(--tinta-2); }
+.lista { flex: none; position: relative; height: calc(var(--altura-conteudo) - 2 * var(--pad-v) - 36px - (2 * 40px + 6px) - 2 * var(--gap-gr)); border: 1px solid var(--linha); border-radius: var(--raio-m); background: var(--superficie); overflow: hidden; }
+.lista-grade { display: grid; grid-template-columns: 1fr 64px 52px; column-gap: 8px; align-items: center; padding: 0 4px 0 10px; }
+.lista-cabeca { height: 28px; font-size: var(--tam-pequeno); color: var(--tinta-2); font-weight: 600; border-bottom: 1px solid var(--linha); padding-right: 14px; }
+.lista-corpo { position: absolute; top: 28px; left: 0; right: 0; bottom: 0; overflow-y: auto; scrollbar-gutter: stable; }
+.item { width: 100%; height: calc((var(--altura-conteudo) - 2 * var(--pad-v) - 36px - (2 * 40px + 6px) - 2 * var(--gap-gr) - 30px) / var(--lib-linhas)); border: 0; background: transparent; text-align: left; color: var(--tinta); transition: background-color var(--dur), color var(--dur); }
+.item:hover { background: var(--superficie-2); }
+.item[aria-selected="true"] { background: var(--selecao); }
+.item .item-dur, .lista-cabeca span:nth-child(2) { color: var(--tinta-2); font-size: var(--tam-pequeno); text-align: right; padding-right: 8px; }
+.item-texto { display: inline-flex; align-items: center; gap: 4px; font-size: var(--tam-pequeno); color: var(--tinta-2); }
+.item-texto .ic { width: 14px; height: 14px; }
+.lista .vazio { top: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px 24px; text-align: center; background: var(--superficie); color: var(--tinta-2); }
+.lista .vazio .ic { width: 22px; height: 22px; }
+.lista .vazio .botao { height: 34px; }
+.acoes-lib { height: calc(2 * 40px + 6px); flex: none; display: grid; grid-template-rows: 40px 40px; gap: 6px; }
+.acoes-lib-linha { display: grid; gap: 6px; }
+.acoes-lib-linha:first-child { grid-template-columns: repeat(4, 1fr); }
+.acoes-lib-linha:last-child { grid-template-columns: repeat(3, 1fr); }
+.acoes-lib .botao { height: 40px; }
+
+/* Arquivo */
+.origem { height: 150px; flex: none; position: relative; border: 1px dashed var(--linha); border-radius: var(--raio-m); background: var(--superficie); }
+.origem .camada { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding: 14px 18px; text-align: center; }
+.origem .grande { width: 26px; height: 26px; color: var(--tinta-2); }
+.origem-nome { font-weight: 600; max-width: 100%; }
+.origem-meta { color: var(--tinta-2); font-size: var(--tam-pequeno); }
+.origem .botao { height: 34px; }
+.acoes-arq { height: calc(2 * var(--botao-altura) + var(--esp-2)); flex: none; display: grid; grid-template-rows: var(--botao-altura) var(--botao-altura); gap: var(--esp-2); }
+.acoes-arq-linha { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); }
+.progresso { flex: none; position: relative; height: calc(var(--altura-conteudo) - 2 * var(--pad-v) - 150px - (2 * var(--botao-altura) + var(--esp-2)) - 2 * var(--gap-gr)); border-radius: var(--raio-m); background: var(--superficie); }
+.progresso .camada { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.progresso .botao { height: 34px; }
+
+/* Opções */
+.opcoes-lista { height: calc(var(--altura-conteudo) - 2 * var(--pad-v)); flex: none; overflow-y: auto; scrollbar-gutter: stable; margin-right: calc(-1 * var(--pad-h) + 4px); padding-right: calc(var(--pad-h) - 8px); }
+.opcoes-lista { -webkit-mask-image: linear-gradient(to top, transparent 0, rgb(0 0 0) 28px); mask-image: linear-gradient(to top, transparent 0, rgb(0 0 0) 28px); padding-bottom: 24px; }
+.opcao { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.opcao:last-child { border-bottom: 0; }
+.opcao-nome { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--tinta); }
+.opcao-nome .ic { color: var(--tinta-2); }
+.opcao-ajuda { color: var(--tinta-2); font-size: var(--tam-pequeno); margin: 0; min-height: 17px; }
+.com-sinal { display: flex; gap: 6px; align-items: center; }
+.opcao-ajuda[data-sinal="aviso"] { color: var(--aviso); }
+.com-sinal .ic { width: 14px; height: 14px; }
+.opcao-ajuda .marcador { visibility: hidden; }
+.opcao-ajuda[data-sinal] .marcador { visibility: visible; }
+.campo { position: relative; display: block; }
+.campo select { width: 100%; height: 34px; appearance: none; border: 1px solid var(--linha); border-radius: var(--raio-s); background: var(--superficie); color: var(--tinta); font: inherit; padding: 0 30px 0 10px; text-overflow: ellipsis; }
+.campo select:disabled { color: var(--tinta-3); }
+.campo .ic { position: absolute; right: 9px; top: 9px; pointer-events: none; color: var(--tinta-2); }
+.segmentos { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--linha); border-radius: var(--raio-s); overflow: hidden; }
+.segmentos button { height: 32px; border: 0; border-right: 1px solid var(--linha); background: var(--superficie); color: var(--tinta-2); font-weight: 600; transition: background-color var(--dur), color var(--dur); }
+.segmentos button:last-child { border-right: 0; }
+.segmentos button[aria-pressed="true"] { background: var(--acao); color: var(--acao-tinta); }
+.segmentos button:disabled { color: var(--tinta-3); }
+.par { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.par .botao { height: 34px; padding: 0 12px; }
+.caminho { color: var(--tinta-2); font-size: var(--tam-pequeno); }
+.chave { min-width: 112px; }
+.chave[aria-checked="true"] { background: var(--acao); color: var(--acao-tinta); border-color: var(--acao); }
+
+/* ===== forma por direção (só regras de forma; toda cor vem dos tokens) ===== */
+/* A "Fita": grafite em camadas, o contador é a peça grande, a lâmpada só no que grava */
+[data-direcao="a"] .titulo { padding-left: 16px; }
+[data-direcao="a"] .abas { padding: 5px 10px; gap: 4px; border-bottom: 0; }
+[data-direcao="a"] .aba { border: 0; margin: 0; border-radius: 999px; }
+[data-direcao="a"] .aba[aria-selected="true"] { background: var(--superficie); color: var(--aba-ativa); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+[data-direcao="a"] .cronometro { background: var(--visor); border-radius: var(--raio-l); padding: 0 16px 0 18px; box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.16); }
+[data-direcao="a"] .crono { color: var(--visor-tinta); }
+[data-direcao="a"] .rec { background: transparent; padding: 0; gap: 9px; font-size: 13px; }
+[data-direcao="a"] .rec .ic { width: 14px; height: 14px; }
+[data-direcao="a"] .rec[data-sinal="rec"] .ic { filter: drop-shadow(0 0 5px var(--grava)); }
+[data-direcao="a"] .medidor-barra { border-radius: 3px; }
+[data-direcao="a"] .medidor-pico { width: 3px; border-radius: 2px; }
+[data-direcao="a"] .ganho input { accent-color: var(--tinta-3); }
+[data-direcao="a"] .botao { border-radius: 999px; }
+[data-direcao="a"] .botao-pilha, [data-direcao="a"] .saidas .botao, [data-direcao="a"] .botoes-linha .botao { border-radius: var(--raio-m); }
+[data-direcao="a"] .modo { border: 0; border-radius: 999px; background: var(--superficie-2); }
+[data-direcao="a"] .modo-op { border-radius: 999px; }
+[data-direcao="a"] .modo-op[aria-checked="true"] { background: var(--superficie); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+[data-direcao="a"] .painel, [data-direcao="a"] .progresso, [data-direcao="a"] .lista { border-radius: var(--raio-l); }
+[data-direcao="a"] .busca { border: 0; border-radius: 999px; background: var(--superficie-2); }
+
+/* B "Caderno": papel com pauta e margem; o texto em Sitka */
+[data-direcao="b"] .titulo { border-bottom: 1px solid var(--linha); }
+[data-direcao="b"] .abas { border-bottom: 1px solid var(--linha); }
+[data-direcao="b"] .aba[aria-selected="true"] { border-bottom-width: 2px; }
+[data-direcao="b"] .titulo-nome { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+[data-direcao="b"] .crono { color: var(--tinta); font-variant-numeric: lining-nums tabular-nums; }
+[data-direcao="b"] .cronometro { border-width: 0 0 2px; border-color: var(--linha); }
+[data-direcao="b"] .cronometro[data-gravando] { border-color: var(--grava); }
+[data-direcao="b"] .rec { background: transparent; padding: 0; font-family: var(--fonte-texto); font-size: 14px; font-style: italic; font-weight: 400; }
+[data-direcao="b"] .botao { box-shadow: none; }
+[data-direcao="b"] .botao[data-tom="grava"], [data-direcao="b"] .botao[data-tom="acao"] { font-family: var(--fonte-ui); }
+[data-direcao="b"] .ao-vivo .quem { font-style: italic; font-weight: 600; }
+[data-direcao="b"] .painel .camada[data-variante="parado"], [data-direcao="b"] .painel .camada[data-variante="erro"], [data-direcao="b"] .painel .camada[data-variante="pronta"], [data-direcao="b"] .painel .camada[data-variante="transcrevendo"] { background: var(--superficie); border-radius: var(--raio-m); }
+[data-direcao="b"] .medidor-barra { border-radius: 0; }
+[data-direcao="b"] .progresso, [data-direcao="b"] .lista, [data-direcao="b"] .origem { border: 1px solid var(--linha); background: var(--superficie); }
+[data-direcao="b"] .origem { border-style: dashed; }
+[data-direcao="b"] .lista { background-image: linear-gradient(to right, transparent 30px, var(--margem) 30px, var(--margem) 31px, transparent 31px); }
+[data-direcao="b"] .painel {
+  border: 1px solid var(--linha);
+  background-color: var(--superficie);
+  background-image:
+    linear-gradient(to right, transparent 30px, var(--margem) 30px, var(--margem) 31px, transparent 31px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--linha-painel) - 1px), var(--pauta) calc(var(--linha-painel) - 1px), var(--pauta) var(--linha-painel));
+  background-position: 0 12px;
+}
+[data-direcao="b"] .painel .camada { padding: 12px 14px 12px 42px; gap: 0; line-height: var(--linha-painel); }
+[data-direcao="b"] .progresso .camada { padding-left: 42px; }
+[data-direcao="b"] .linha-info, [data-direcao="b"] .painel .painel-titulo, [data-direcao="b"] .painel .progresso-linha { height: var(--linha-painel); }
+[data-direcao="b"] .painel .barra { margin: 8px 0; }
+[data-direcao="b"] .painel .camada[data-variante="parado"] { padding: 10px 10px 10px 42px; }
+[data-direcao="b"] .lista .vazio { background: var(--superficie); }
+[data-direcao="b"] .item { border-bottom: 1px solid var(--pauta); }
+[data-direcao="b"] .lista-grade { padding-left: 38px; }
+[data-direcao="b"] .lista-corpo { background: transparent; }
+[data-direcao="b"] .lista-cabeca { background: var(--superficie); }
+[data-direcao="b"] .painel-titulo { font-size: 16px; font-weight: 600; }
+[data-direcao="b"] .linha-info span, [data-direcao="b"] .painel-nota { font-family: var(--fonte-texto); font-size: 14px; }
+[data-direcao="b"] .modo { background: transparent; }
+[data-direcao="b"] .modo-op[aria-checked="true"] { background: var(--selecao); color: var(--acao); }
+[data-direcao="b"] .botao[data-tom="perigo"] { border-color: var(--linha); }
+[data-direcao="b"] .busca { border-width: 0 0 1px; border-radius: 0; background: transparent; }
+[data-direcao="b"] .opcao-nome { font-family: var(--fonte-titulo); font-size: 15px; font-weight: 600; }
+
+/* C "Instrumento": alumínio, visores escuros, teclas retas, escala à vista */
+[data-direcao="c"] .titulo { border-bottom: 1px solid var(--linha); }
+[data-direcao="c"] .titulo-nome { font-weight: 600; font-size: 15px; letter-spacing: 0.02em; }
+[data-direcao="c"] .abas { padding: 6px 8px 0; gap: 4px; border-bottom: 1px solid var(--linha); }
+[data-direcao="c"] .aba { border: 1px solid var(--linha); border-bottom: 0; margin-bottom: 0; background: var(--superficie-2); font-family: var(--fonte-rotulo); font-size: 13px; letter-spacing: 0.01em; position: relative; }
+[data-direcao="c"] .aba::after { content: ""; position: absolute; left: 10px; right: 10px; top: 4px; height: 2px; background: var(--linha); transition: background-color var(--dur); }
+[data-direcao="c"] .aba[aria-selected="true"] { background: var(--superficie); }
+[data-direcao="c"] .aba[aria-selected="true"]::after { background: var(--aba-marca); }
+[data-direcao="c"] .cronometro { background: var(--visor); color: var(--visor-tinta); padding: 0 14px; border-radius: var(--raio-m); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5); }
+[data-direcao="c"] .crono { color: var(--visor-tinta); }
+[data-direcao="c"] .rec { background: transparent; color: var(--visor-tinta-2); padding: 0; font-family: var(--fonte-rotulo); font-size: 13px; }
+[data-direcao="c"] .rec[data-sinal="rec"] { color: var(--medidor-pico); }
+[data-direcao="c"] .rec[data-sinal="erro"] { color: var(--visor-tinta); }
+[data-direcao="c"] .medidores { background: var(--visor); color: var(--visor-tinta); padding: 4px 12px 10px; border-radius: var(--raio-m); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5); }
+[data-direcao="c"] .medidor { color: var(--visor-tinta-2); grid-template-columns: 16px 64px 1fr 100px; }
+[data-direcao="c"] .medidor[data-fora] { color: var(--visor-tinta-2); }
+[data-direcao="c"] .medidor-nome { font-family: var(--fonte-rotulo); font-weight: 400; font-size: 13px; color: var(--visor-tinta); }
+[data-direcao="c"] .medidor-barra { border-radius: 0; margin-bottom: 12px;
+  background: repeating-linear-gradient(to right, var(--medidor-fundo) 0 5px, transparent 5px 7px); }
+[data-direcao="c"] .medidor-nivel { border-radius: 0;
+  background: repeating-linear-gradient(to right, var(--medidor-nivel) 0 5px, transparent 5px 7px); }
+[data-direcao="c"] .medidor-pico { top: 0; bottom: 0; width: 5px; }
+[data-direcao="c"] .medidor-escala { visibility: visible; }
+[data-direcao="c"] .ganho input { accent-color: var(--visor-tinta-2); }
+[data-direcao="c"] .cronometro[data-gravando] { border-color: var(--medidor-pico); }
+[data-direcao="c"] .botao[data-tom="grava"]:not(:disabled) { background: var(--acao); color: var(--acao-tinta); border-color: var(--acao); }
+[data-direcao="c"] .botao[data-tom="grava"]:hover:not(:disabled) { background: var(--acao-hover); border-color: var(--acao-hover); }
+[data-direcao="c"] .status { font-family: var(--fonte-ui); font-size: var(--tam-pequeno); letter-spacing: 0; border-top: 1px solid var(--linha); }
+[data-direcao="c"] .ganho output { color: var(--visor-tinta); font-weight: 400; }
+[data-direcao="c"] .botao { box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.14); font-family: var(--fonte-rotulo); font-weight: 600; font-size: 14px; letter-spacing: 0.01em; }
+[data-direcao="c"] .botao-pilha { font-size: 12.5px; }
+[data-direcao="c"] .modo { border-radius: 0; background: var(--superficie-2); padding: 2px; }
+[data-direcao="c"] .modo-op { font-family: var(--fonte-rotulo); font-size: 14px; font-weight: 400; }
+[data-direcao="c"] .modo-op[aria-checked="true"] { background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linha); }
+[data-direcao="c"] .painel, [data-direcao="c"] .progresso, [data-direcao="c"] .lista, [data-direcao="c"] .origem { border: 1px solid var(--linha); background: var(--superficie); }
+[data-direcao="c"] .painel-titulo, [data-direcao="c"] .opcao-nome { font-family: var(--fonte-rotulo); font-size: 15px; font-weight: 600; }
+[data-direcao="c"] .lista-cabeca { font-family: var(--fonte-rotulo); font-weight: 400; font-size: 13px; background: var(--superficie-2); }
+[data-direcao="c"] .item { font-size: 12.5px; }
+[data-direcao="c"] .item[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--medidor-pico); }
+[data-direcao="c"] .barra { border-radius: 0; height: 10px; }
+[data-direcao="c"] .barra-cheia { border-radius: 0; background: repeating-linear-gradient(to right, var(--acao) 0 5px, transparent 5px 7px); }
+[data-direcao="c"] .progresso-linha [data-num] { font-size: 18px; font-weight: 400; }
+[data-direcao="c"] .versao { border-radius: 0; }
+[data-direcao="c"] .rec .ic { width: 10px; height: 10px; }
+
+/* movimento reduzido (R14): nada transiciona, nada pisca */
+@media (prefers-reduced-motion: reduce) {
+  .janela, .janela *, .janela *::before, .janela *::after { transition-duration: 0s !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<!-- Ícones: Lucide 1.71.0 (lucide.dev), licença ISC. Copyright (c) Lucide Contributors. -->
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+<symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></symbol>
+<symbol id="i-speaker" viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M12 6h.01"/><circle cx="12" cy="14" r="4"/><path d="M12 14h.01"/></symbol>
+<symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
+<symbol id="i-file-audio" viewBox="0 0 24 24"><path d="M4 6.835V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-.343"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M2 19a2 2 0 0 1 4 0v1a2 2 0 0 1-4 0v-4a6 6 0 0 1 12 0v4a2 2 0 0 1-4 0v-1a2 2 0 0 1 4 0"/></symbol>
+<symbol id="i-settings-2" viewBox="0 0 24 24"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+<symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+<symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></symbol>
+<symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></symbol>
+<symbol id="i-audio-lines" viewBox="0 0 24 24"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></symbol>
+<symbol id="i-notebook-pen" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></symbol>
+<symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></symbol>
+<symbol id="i-languages" viewBox="0 0 24 24"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></symbol>
+<symbol id="i-sun-moon" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715"/><path d="M16 12a4 4 0 0 0-4-4"/><path d="m19 5-1.256 1.256"/><path d="M20 12h2"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><path d="M12 20v2"/><path d="M12 2v2"/><path d="M17 20v2"/><path d="M17 2v2"/><path d="M2 12h2"/><path d="M2 17h2"/><path d="M2 7h2"/><path d="M20 12h2"/><path d="M20 17h2"/><path d="M20 7h2"/><path d="M7 20v2"/><path d="M7 2v2"/><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
+<symbol id="i-captions" viewBox="0 0 24 24"><rect width="18" height="14" x="3" y="5" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></symbol>
+<symbol id="i-file-check" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="m9 15 2 2 4-4"/></symbol>
+<symbol id="i-file-minus" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M9 15h6"/></symbol>
+<symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+<symbol id="i-folder-input" viewBox="0 0 24 24"><path d="M2 9V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1"/><path d="M2 13h10"/><path d="m9 16 3-3-3-3"/></symbol>
+<symbol id="i-clipboard-copy" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M16 4h2a2 2 0 0 1 2 2v4"/><path d="M21 14H11"/><path d="m15 10-4 4 4 4"/></symbol>
+<symbol id="i-file-music" viewBox="0 0 24 24"><path d="M11.65 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v10.35"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M8 20v-7l3 1.474"/><circle cx="6" cy="20" r="2"/></symbol>
+</svg>
+<div class="vitrine">
+  <header class="vitrine-cabeca">
+    <h1>Vitrine do Reco</h1>
+    <p>Três caras possíveis para o Reco novo, com as mesmas telas e os mesmos estados. Troque a tela e o estado aqui em cima ou clique dentro da janela: nenhuma janela, área ou botão pode mudar de tamanho nem de lugar.</p>
+  </header>
+
+  <div class="controles">
+    <div class="controle"><span class="controle-nome">Direção</span><div class="seg" data-controle="direcao"><button type="button" data-valor="todas">Lado a lado</button><button type="button" data-valor="a">A Fita</button><button type="button" data-valor="b">B Caderno</button><button type="button" data-valor="c">C Instrumento</button></div></div>
+    <div class="controle"><span class="controle-nome">Tela</span><div class="seg" data-controle="tela"><button type="button" data-valor="gravar">Gravar</button><button type="button" data-valor="biblioteca">Biblioteca</button><button type="button" data-valor="arquivo">Arquivo</button><button type="button" data-valor="opcoes">Opções</button></div></div>
+    <div class="controle"><span class="controle-nome">Tema</span><div class="seg" data-controle="tema"><button type="button" data-valor="sistema">Sistema</button><button type="button" data-valor="claro">Claro</button><button type="button" data-valor="escuro">Escuro</button></div></div>
+    <div class="controle" style="grid-column: 1 / -1"><span class="controle-nome">Estado</span><div class="seg" data-controle="estado"></div></div>
+    <div class="controle"><span class="controle-nome">Texto</span><div class="seg" data-controle="texto"><button type="button" data-valor="normal">Normal</button><button type="button" data-valor="longo-pt">Longo PT</button><button type="button" data-valor="longo-en">Longo EN</button></div></div>
+    <div class="controle"><span class="controle-nome">Versão nova</span><div class="seg" data-controle="versao"><button type="button" data-valor="nao">Não</button><button type="button" data-valor="sim">Sim</button></div></div>
+  </div>
+
+  <div class="palco">
+    <section class="quadro" data-quadro="a">
+      <div class="quadro-legenda"><span class="quadro-letra">A</span><div><h2>Fita</h2><p>Grafite, contador grande num visor e uma lâmpada de gravação. O Reco de hoje, amadurecido.</p></div></div>
+      <div class="moldura" data-moldura="a"></div>
+    </section>
+    <section class="quadro" data-quadro="b">
+      <div class="quadro-legenda"><span class="quadro-letra">B</span><div><h2>Caderno</h2><p>Papel pautado, tinta azul e margem vermelha. O texto da conversa em primeiro plano.</p></div></div>
+      <div class="moldura" data-moldura="b"></div>
+    </section>
+    <section class="quadro" data-quadro="c">
+      <div class="quadro-legenda"><span class="quadro-letra">C</span><div><h2>Instrumento</h2><p>Painel de alumínio, visores escuros e um único sinal âmbar. Medidores com escala em dB.</p></div></div>
+      <div class="moldura" data-moldura="c"></div>
+    </section>
+  </div>
+  <div class="bandeja" style="justify-content: center">Ícone da bandeja, igual nas três: <span><svg data-marca viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 3.5a8.5 8.5 0 0 0 0 17z"/><path d="M13 3.5a8.5 8.5 0 0 1 0 17z"/></svg>parado</span><span><svg data-marca viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 3.5a8.5 8.5 0 0 0 0 17z"/><path fill="currentColor" d="M13 3.5a8.5 8.5 0 0 1 0 17z"/></svg>gravando (cheio, não só outra cor)</span></div>
+  <p class="vitrine-nota">Demonstração com dados de exemplo: nomes de arquivo, dispositivos e falas são inventados. Fontes do Windows (Segoe UI Variable, Sitka, Bahnschrift); fora do Windows aparecem fontes parecidas. Ícones: Lucide (licença ISC).</p>
+</div>
+
+<template id="molde-janela">
+<section class="janela" data-area="janela" aria-label="Reco">
+  <header class="titulo" data-area="titulo">
+    <svg class="marca" data-marca viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 3.5a8.5 8.5 0 0 0 0 17z"/><path fill="currentColor" d="M13 3.5a8.5 8.5 0 0 1 0 17z"/></svg>
+    <span class="titulo-nome">Reco</span>
+    <button type="button" class="versao" data-ref="versao" data-acao="versao" data-escondido><svg class="ic" data-lucide="circle-arrow-up"><use href="#i-circle-arrow-up"/></svg><span data-ref="versao-texto">2.0</span></button>
+    <span class="titulo-vao"></span>
+    <button type="button" class="janela-btn" data-acao="minimizar" data-ref="minimizar" aria-label="Minimizar" title="Minimizar"><svg class="ic" data-lucide="minus"><use href="#i-minus"/></svg></button>
+    <button type="button" class="janela-btn" data-acao="fechar" data-ref="fechar" aria-label="Fechar para a bandeja" title="Fechar para a bandeja"><svg class="ic" data-lucide="x"><use href="#i-x"/></svg></button>
+  </header>
+
+  <nav class="abas" data-area="abas" role="tablist" aria-label="Telas">
+    <button type="button" class="aba" role="tab" data-acao="aba" data-tela="gravar"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><span class="aba-rotulo" data-t>Gravar</span></button>
+    <button type="button" class="aba" role="tab" data-acao="aba" data-tela="biblioteca"><svg class="ic" data-lucide="library"><use href="#i-library"/></svg><span class="aba-rotulo" data-t>Biblioteca</span></button>
+    <button type="button" class="aba" role="tab" data-acao="aba" data-tela="arquivo"><svg class="ic" data-lucide="file-audio" data-ref="aba-arquivo-icone"><use href="#i-file-audio"/></svg><span class="aba-rotulo" data-t>Arquivo</span></button>
+    <button type="button" class="aba" role="tab" data-acao="aba" data-tela="opcoes"><svg class="ic" data-lucide="settings-2"><use href="#i-settings-2"/></svg><span class="aba-rotulo" data-t>Opções</span></button>
+  </nav>
+
+  <main class="conteudo" data-area="conteudo">
+    <!-- Gravar -->
+    <div class="tela" role="tabpanel" data-tela-painel="gravar">
+      <div class="cronometro" data-area="cronometro" data-ref="cronometro">
+        <span class="crono" data-num data-ref="crono">00:00:00</span>
+        <span class="rec" data-ref="rec" data-sinal="info"><svg class="ic" data-lucide="circle"><use href="#i-circle"/></svg><span data-ref="rec-texto">Pronto</span></span>
+      </div>
+      <div class="medidores" data-area="medidores">
+        <div class="medidor" data-ref="medidor-mic">
+          <svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><span class="medidor-nome" data-t>Microfone</span>
+          <div class="medidor-barra" data-ref="barra-mic"><span class="medidor-nivel"></span><span class="medidor-pico"></span><span class="medidor-escala" aria-hidden="true"><span>-48</span><span>-24</span><span>-12</span><span>-6</span><span>0 dB</span></span></div>
+          <label class="ganho"><input type="range" min="0" max="10" step="0.5" value="1" data-ref="ganho-mic" aria-label="Ganho do microfone"><output data-num data-ref="ganho-mic-valor">1,0×</output></label>
+        </div>
+        <div class="medidor" data-ref="medidor-sis">
+          <svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><span class="medidor-nome" data-t>Sistema</span>
+          <div class="medidor-barra" data-ref="barra-sis"><span class="medidor-nivel"></span><span class="medidor-pico"></span><span class="medidor-escala" aria-hidden="true"><span>-48</span><span>-24</span><span>-12</span><span>-6</span><span>0 dB</span></span></div>
+          <label class="ganho"><input type="range" min="0" max="10" step="0.5" value="8" data-ref="ganho-sis" aria-label="Ganho do sistema"><output data-num data-ref="ganho-sis-valor">8,0×</output></label>
+        </div>
+      </div>
+      <div class="acoes" data-area="acoes">
+        <div class="acoes-linha">
+          <button type="button" class="botao" data-acao="principal" data-ref="principal" data-tom="grava"><svg class="ic" data-lucide="circle" data-ref="principal-icone"><use href="#i-circle"/></svg><span class="corta" data-ref="principal-texto">Gravar</span></button>
+          <button type="button" class="botao" data-acao="secundario" data-ref="secundario"><svg class="ic" data-lucide="pause" data-ref="secundario-icone"><use href="#i-pause"/></svg><span class="corta" data-ref="secundario-texto">Pausar</span></button>
+        </div>
+        <div class="modo" role="radiogroup" aria-label="Tipo de gravação">
+          <button type="button" class="modo-op" role="radio" data-acao="modo" data-modo="gravacao" aria-checked="true"><svg class="ic" data-lucide="audio-lines"><use href="#i-audio-lines"/></svg><span data-t>Gravação</span></button>
+          <button type="button" class="modo-op" role="radio" data-acao="modo" data-modo="nota" aria-checked="false"><svg class="ic" data-lucide="notebook-pen"><use href="#i-notebook-pen"/></svg><span data-t>Nota</span></button>
+        </div>
+      </div>
+      <div class="painel" data-area="painel">
+        <div class="camada" data-variante="motor">
+          <div class="painel-titulo"><span class="espera"></span><span data-t>Preparando o motor de gravação</span></div>
+          <p class="painel-nota" data-t>Leva uns 5 segundos depois de abrir. O botão Gravar libera sozinho; a transcrição não precisa estar pronta.</p>
+        </div>
+        <div class="camada" data-variante="pronto">
+          <div class="linha-info"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><b data-t>Entrada</b><span class="corta" data-ref="info-mic"></span></div>
+          <div class="linha-info"><svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><b data-t>Saída</b><span class="corta" data-ref="info-sis"></span></div>
+          <div class="linha-info"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><b data-t>Pasta</b><span class="corta" data-ref="info-pasta"></span></div>
+          <p class="painel-nota" data-t>Ao parar, um clique salva e copia o caminho do arquivo.</p>
+        </div>
+        <div class="camada" data-variante="gravando">
+          <div class="linha-info"><svg class="ic" data-lucide="file-audio"><use href="#i-file-audio"/></svg><b data-t>Arquivo</b><span class="corta" data-ref="grav-arquivo"></span></div>
+          <div class="linha-info"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><b data-t>Entrada</b><span class="corta" data-ref="grav-mic"></span></div>
+          <div class="linha-info"><svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><b data-t>Saída</b><span class="corta" data-ref="grav-sis"></span></div>
+          <p class="painel-nota" data-t>Esquerda: você. Direita: quem está na chamada.</p>
+        </div>
+        <div class="camada ao-vivo" data-variante="aovivo" data-ref="aovivo"></div>
+        <div class="camada" data-variante="nota">
+          <div class="painel-titulo"><svg class="ic" data-lucide="notebook-pen"><use href="#i-notebook-pen"/></svg><span data-t>Nota de voz</span></div>
+          <p class="painel-nota" data-t>Grava só o microfone. Ao parar, a fala vira texto (.md) e o caminho é copiado; o áudio vai para a Lixeira.</p>
+        </div>
+        <div class="camada" data-variante="parado">
+          <div class="saidas">
+            <button type="button" class="botao" data-acao="salvar-transcrever"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-t>Salvar e transcrever</span></button>
+            <button type="button" class="botao" data-acao="so-salvar"><svg class="ic" data-lucide="save"><use href="#i-save"/></svg><span class="corta" data-t>Só salvar</span></button>
+            <button type="button" class="botao" data-acao="transcrever-apagar"><svg class="ic" data-lucide="file-minus"><use href="#i-file-minus"/></svg><span class="corta" data-t>Transcrever e apagar o áudio</span></button>
+            <button type="button" class="botao" data-tom="perigo" data-acao="excluir"><svg class="ic" data-lucide="trash-2"><use href="#i-trash-2"/></svg><span class="corta" data-t>Excluir (vai para a Lixeira)</span></button>
+          </div>
+        </div>
+        <div class="camada" data-variante="transcrevendo">
+          <div class="painel-titulo"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-ref="tr-arquivo"></span></div>
+          <div class="progresso-linha"><span data-t>Transcrevendo na iGPU</span><span data-num data-ref="tr-pct">42%</span></div>
+          <div class="barra" data-ref="tr-barra"><span class="barra-cheia"></span></div>
+          <div class="botoes-linha" style="grid-template-columns: 1fr"><button type="button" class="botao" data-acao="parar-transcricao"><svg class="ic" data-lucide="square"><use href="#i-square"/></svg><span data-t>Parar transcrição</span></button></div>
+        </div>
+        <div class="camada" data-variante="pronta">
+          <div class="painel-titulo"><svg class="ic" data-lucide="circle-check"><use href="#i-circle-check"/></svg><span data-t>Transcrição pronta</span></div>
+          <div class="linha-info"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><b data-t>Texto</b><span class="corta" data-ref="pronta-arquivo"></span></div>
+          <div class="botoes-linha">
+            <button type="button" class="botao" data-tom="acao" data-acao="abrir-transcricao"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-t>Abrir transcrição</span></button>
+            <button type="button" class="botao" data-acao="copiar-caminho"><svg class="ic" data-lucide="copy"><use href="#i-copy"/></svg><span class="corta" data-t>Copiar caminho</span></button>
+            <button type="button" class="botao" data-acao="abrir-pasta"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span class="corta" data-t>Abrir pasta</span></button>
+          </div>
+        </div>
+        <div class="camada" data-variante="erro">
+          <div class="painel-titulo"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span data-t>A gravação não começou</span></div>
+          <p class="painel-nota" data-t>O dispositivo de saída não respondeu. Nada foi gravado. Confira o fone em Opções ou tente de novo.</p>
+          <div class="botoes-linha" style="grid-template-columns: 1fr">
+            <button type="button" class="botao" data-acao="ir-opcoes"><svg class="ic" data-lucide="settings-2"><use href="#i-settings-2"/></svg><span class="corta" data-t>Ver dispositivos</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Biblioteca -->
+    <div class="tela" role="tabpanel" data-tela-painel="biblioteca">
+      <label class="busca" data-area="busca"><svg class="ic" data-lucide="search"><use href="#i-search"/></svg><input type="search" data-ref="busca" placeholder="Buscar no nome ou no texto" aria-label="Buscar gravações"><span class="busca-conta" data-num data-ref="busca-conta">12</span></label>
+      <div class="lista" data-area="lista">
+        <div class="lista-grade lista-cabeca"><span data-t>Arquivo</span><span data-t>Duração</span><span data-t>Texto</span></div>
+        <div class="lista-corpo" data-ref="lista-corpo" role="listbox" aria-label="Gravações"></div>
+        <div class="camada vazio" data-variante="lib-vazia"><svg class="ic" data-lucide="library"><use href="#i-library"/></svg><span data-ref="vazia-texto"></span><button type="button" class="botao" data-tom="grava" data-acao="ir-gravar"><svg class="ic" data-lucide="circle"><use href="#i-circle"/></svg><span data-t>Gravar a primeira</span></button></div>
+        <div class="camada vazio" data-variante="lib-sem"><svg class="ic" data-lucide="search"><use href="#i-search"/></svg><span class="corta" style="max-width: 100%" data-ref="sem-texto"></span><button type="button" class="botao" data-acao="limpar-busca"><svg class="ic" data-lucide="x"><use href="#i-x"/></svg><span data-t>Limpar busca</span></button></div>
+        <div class="camada vazio" data-variante="lib-erro"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span data-t>Não deu para ler a pasta das gravações. Ela pode ter sido movida ou estar num disco desligado.</span><button type="button" class="botao" data-acao="ir-opcoes"><svg class="ic" data-lucide="folder-input"><use href="#i-folder-input"/></svg><span data-t>Escolher outra pasta</span></button></div>
+      </div>
+      <div class="acoes-lib" data-area="acoes-lib">
+        <div class="acoes-lib-linha">
+          <button type="button" class="botao botao-pilha" data-acao="lib-ouvir" data-precisa-item><svg class="ic" data-lucide="play"><use href="#i-play"/></svg><span class="corta" data-t>Ouvir</span></button>
+          <button type="button" class="botao botao-pilha" data-acao="lib-transcrever" data-precisa-item data-ref="lib-transcrever"><svg class="ic" data-lucide="file-text" data-ref="lib-transcrever-icone"><use href="#i-file-text"/></svg><span class="corta" data-ref="lib-transcrever-texto">Transcrever</span></button>
+          <button type="button" class="botao botao-pilha" data-acao="lib-abrir" data-precisa-item><svg class="ic" data-lucide="file-check"><use href="#i-file-check"/></svg><span class="corta" data-t>Abrir texto</span></button>
+          <button type="button" class="botao botao-pilha" data-acao="lib-resumo" data-precisa-item data-ref="lib-resumo"><svg class="ic" data-lucide="sparkles"><use href="#i-sparkles"/></svg><span class="corta" data-ref="lib-resumo-texto">Resumo IA</span></button>
+        </div>
+        <div class="acoes-lib-linha">
+          <button type="button" class="botao botao-pilha" data-tom="perigo" data-acao="lib-excluir" data-precisa-item><svg class="ic" data-lucide="trash-2"><use href="#i-trash-2"/></svg><span class="corta" data-t>Excluir</span></button>
+          <button type="button" class="botao botao-pilha" data-acao="abrir-pasta"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span class="corta" data-t>Abrir pasta</span></button>
+          <button type="button" class="botao botao-pilha" data-acao="lib-atualizar"><svg class="ic" data-lucide="refresh-cw"><use href="#i-refresh-cw"/></svg><span class="corta" data-t>Atualizar</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arquivo -->
+    <div class="tela" role="tabpanel" data-tela-painel="arquivo">
+      <div class="origem" data-area="origem">
+        <div class="camada" data-variante="arq-nada">
+          <svg class="ic grande" data-lucide="file-music"><use href="#i-file-music"/></svg>
+          <span class="origem-nome" data-t>Escolha um áudio ou vídeo</span>
+          <span class="origem-meta" data-t>MP3, WAV, M4A, OGG, MP4, MKV e outros</span>
+          <button type="button" class="botao" data-tom="acao" data-acao="arq-escolher"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span data-t>Escolher arquivo</span></button>
+        </div>
+        <div class="camada" data-variante="arq-escolhido">
+          <svg class="ic grande" data-lucide="file-audio"><use href="#i-file-audio"/></svg>
+          <span class="origem-nome corta" data-ref="arq-nome"></span>
+          <span class="origem-meta" data-ref="arq-meta"></span>
+          <button type="button" class="botao" data-acao="arq-escolher" data-ref="arq-trocar"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span data-t>Trocar arquivo</span></button>
+        </div>
+      </div>
+      <div class="acoes-arq" data-area="acoes-arq">
+        <div class="acoes-arq-linha">
+          <button type="button" class="botao" data-tom="acao" data-acao="arq-transcrever" data-ref="arq-transcrever"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-t>Transcrever</span></button>
+          <button type="button" class="botao" data-acao="arq-converter" data-ref="arq-converter"><svg class="ic" data-lucide="file-music"><use href="#i-file-music"/></svg><span class="corta" data-t>Converter para MP3</span></button>
+        </div>
+        <div class="acoes-arq-linha">
+          <button type="button" class="botao" data-acao="arq-parar" data-ref="arq-parar"><svg class="ic" data-lucide="square"><use href="#i-square"/></svg><span class="corta" data-t>Parar</span></button>
+          <button type="button" class="botao" data-acao="abrir-pasta"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span class="corta" data-t>Abrir pasta</span></button>
+        </div>
+      </div>
+      <div class="progresso" data-area="progresso">
+        <div class="camada" data-variante="arq-ocioso"><p class="painel-nota" data-t>Transcrever gera um .txt ao lado do arquivo. Converter gera um MP3 leve (16 kHz, mono), bom para mandar por mensagem.</p></div>
+        <div class="camada" data-variante="arq-andando">
+          <div class="progresso-linha"><span class="corta" data-ref="arq-tarefa"></span><span data-num data-ref="arq-pct">63%</span></div>
+          <div class="barra" data-ref="arq-barra"><span class="barra-cheia"></span></div>
+          <span class="painel-nota" data-num data-ref="arq-falta"></span>
+        </div>
+        <div class="camada" data-variante="arq-pronto">
+          <div class="painel-titulo"><svg class="ic" data-lucide="circle-check"><use href="#i-circle-check"/></svg><span class="corta" data-ref="arq-saida"></span></div>
+          <div class="botoes-linha" style="grid-template-columns: 1fr 1fr"><button type="button" class="botao" data-tom="acao" data-acao="abrir-transcricao"><svg class="ic" data-lucide="file-text"><use href="#i-file-text"/></svg><span class="corta" data-t>Abrir transcrição</span></button><button type="button" class="botao" data-acao="copiar-caminho"><svg class="ic" data-lucide="copy"><use href="#i-copy"/></svg><span class="corta" data-t>Copiar caminho</span></button></div>
+        </div>
+        <div class="camada" data-variante="arq-erro">
+          <div class="painel-titulo"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span data-t>Esse arquivo não tem áudio</span></div>
+          <p class="painel-nota" data-t>O vídeo não traz trilha de som que o Reco consiga ler. Escolha outro arquivo ou exporte o áudio antes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Opções -->
+    <div class="tela" role="tabpanel" data-tela-painel="opcoes">
+      <div class="opcoes-lista" data-area="opcoes-lista">
+        <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="mic"><use href="#i-mic"/></svg><span data-t>Entrada (microfone)</span></span>
+          <label class="campo"><select data-ref="sel-mic" aria-label="Entrada"><option data-t>Automático (padrão do Windows)</option></select><svg class="ic" data-lucide="chevron-down"><use href="#i-chevron-down"/></svg></label>
+          <span class="opcao-nome"><svg class="ic" data-lucide="speaker"><use href="#i-speaker"/></svg><span data-t>Saída (sistema)</span></span>
+          <label class="campo"><select data-ref="sel-sis" aria-label="Saída"><option data-t>Automático (padrão do Windows)</option></select><svg class="ic" data-lucide="chevron-down"><use href="#i-chevron-down"/></svg></label>
+          <p class="opcao-ajuda com-sinal" data-ref="ajuda-dispositivo"><svg class="ic marcador" data-lucide="triangle-alert" data-ref="ajuda-dispositivo-icone"><use href="#i-triangle-alert"/></svg><span class="corta" data-ref="ajuda-dispositivo-texto"></span></p>
+          <div><button type="button" class="botao" data-acao="atualizar-disp" data-ref="atualizar-disp" style="height: 34px"><svg class="ic" data-lucide="refresh-cw"><use href="#i-refresh-cw"/></svg><span data-t>Atualizar dispositivos</span></button></div>
+        </div>
+        <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="folder-open"><use href="#i-folder-open"/></svg><span data-t>Pasta das gravações</span></span>
+          <div class="par"><span class="caminho corta" data-ref="op-pasta"></span><button type="button" class="botao" data-acao="op-pasta" data-ref="op-pasta-btn"><span data-t>Escolher</span></button></div>
+        </div>
+        <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="cpu"><use href="#i-cpu"/></svg><span data-t>Processar em</span></span>
+          <div class="segmentos" data-grupo="processar"><button type="button" data-acao="seg" aria-pressed="true">Auto</button><button type="button" data-acao="seg" aria-pressed="false">GPU</button><button type="button" data-acao="seg" aria-pressed="false">NPU</button><button type="button" data-acao="seg" aria-pressed="false">CPU</button></div>
+          <p class="opcao-ajuda" data-t>Auto usa a iGPU quando dá. A NPU está desligada para o modelo turbo.</p>
+        </div>
+        <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="captions"><use href="#i-captions"/></svg><span data-t>Texto ao vivo durante a gravação</span></span>
+          <div class="par"><span class="opcao-ajuda" data-t>Rascunho na tela; a versão final sai ao parar.</span><button type="button" class="botao chave" role="switch" aria-checked="false" data-acao="ao-vivo" data-ref="ao-vivo"><span data-ref="ao-vivo-texto">Desligado</span></button></div>
+        </div>
+        <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="languages"><use href="#i-languages"/></svg><span data-t>Idioma</span></span>
+          <div class="segmentos" data-grupo="idioma"><button type="button" data-acao="idioma" data-idioma="pt" aria-pressed="true">Português</button><button type="button" data-acao="idioma" data-idioma="en" aria-pressed="false">English</button></div>
+        </div>
+        <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="sun-moon"><use href="#i-sun-moon"/></svg><span data-t>Aparência</span></span>
+          <div class="segmentos" data-grupo="aparencia"><button type="button" data-acao="aparencia" data-tema="sistema" aria-pressed="true"><span data-t>Sistema</span></button><button type="button" data-acao="aparencia" data-tema="claro" aria-pressed="false"><span data-t>Claro</span></button><button type="button" data-acao="aparencia" data-tema="escuro" aria-pressed="false"><span data-t>Escuro</span></button></div>
+        </div>
+        <div class="opcao">
+          <span class="opcao-nome"><svg class="ic" data-lucide="keyboard"><use href="#i-keyboard"/></svg><span data-t>Atalho de teclado</span></span>
+          <div class="par"><span class="opcao-ajuda" data-num>Ctrl+Shift+R</span><button type="button" class="botao" data-acao="atalho"><span data-t>Criar atalho</span></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detalhe" data-ref="detalhe" role="dialog" aria-label="Detalhes do erro">
+      <div class="painel-titulo"><svg class="ic" data-lucide="circle-alert"><use href="#i-circle-alert"/></svg><span data-t>Detalhes do erro</span></div>
+      <pre data-ref="detalhe-texto"></pre>
+      <div class="detalhe-acoes">
+        <button type="button" class="botao" data-tom="acao" data-acao="copiar-erro"><svg class="ic" data-lucide="clipboard-copy"><use href="#i-clipboard-copy"/></svg><span data-t>Copiar</span></button>
+        <button type="button" class="botao" data-acao="fechar-detalhe"><svg class="ic" data-lucide="x"><use href="#i-x"/></svg><span data-t>Fechar</span></button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="status" data-area="status" data-sinal="info">
+    <svg class="ic status-icone" data-lucide="info" data-ref="status-icone"><use href="#i-info"/></svg>
+    <span class="status-texto" data-ref="status-texto"></span>
+    <button type="button" class="status-detalhes" data-acao="detalhes" data-ref="status-detalhes" data-escondido><span data-t>Detalhes</span></button>
+  </footer>
+</section>
+</template>
+
+<script>
+(() => {
+'use strict';
+// Condutor de estados (DESIGN.md § Condutor): ?direcao=&tela=&estado=&tema=&texto=&versao= e window.vitrine.definir({...}).
+// Atualização pontual: cada função muda textContent e atributos; a árvore da janela nasce uma vez e nunca é refeita.
+const ESTADOS = {
+  gravar: ['motor-subindo', 'pronto', 'gravando', 'gravando-ao-vivo', 'nota-gravando', 'pausado', 'parado', 'transcrevendo', 'transcricao-pronta', 'erro', 'erro-detalhe'],
+  biblioteca: ['vazia', 'lista', 'selecionada', 'transcrevendo-item', 'resumindo', 'busca-sem-resultado', 'erro'],
+  arquivo: ['nada-escolhido', 'escolhido', 'transcrevendo', 'convertendo', 'pronto', 'erro'],
+  opcoes: ['normal', 'durante-gravacao', 'dispositivo-ausente'],
+};
+const TELAS = Object.keys(ESTADOS);
+const DIRECOES = ['a', 'b', 'c'];
+const PADRAO = { gravar: 'pronto', biblioteca: 'lista', arquivo: 'nada-escolhido', opcoes: 'normal' };
+const VALORES = { direcao: ['todas', ...DIRECOES], tema: ['sistema', 'claro', 'escuro'], texto: ['normal', 'longo-pt', 'longo-en'], versao: ['nao', 'sim'] };
+const GRAVANDO = new Set(['gravando', 'gravando-ao-vivo', 'nota-gravando', 'pausado']);
+const s = { direcao: 'todas', tela: 'gravar', estado: 'pronto', tema: 'sistema', texto: 'normal', versao: 'nao' };
+const porTela = { ...PADRAO };
+let modo = 'gravacao', aoVivo = false, aviso = null, segundos = 0;
+
+// ---- textos: a frase em PT é a chave (como no reco.py); EN só no modo "longo-en"
+const EN = {
+  'Gravar': 'Record', 'Biblioteca': 'Library', 'Arquivo': 'File', 'Opções': 'Options', 'Microfone': 'Microphone', 'Sistema': 'System',
+  'Gravação': 'Recording', 'Nota': 'Note', 'Preparando o motor de gravação': 'Starting the recording engine',
+  'Leva uns 5 segundos depois de abrir. O botão Gravar libera sozinho; a transcrição não precisa estar pronta.': 'Takes about 5 seconds after opening. Record unlocks by itself; transcription does not need to be ready.',
+  'Entrada': 'Input', 'Saída': 'Output', 'Pasta': 'Folder', 'Ao parar, um clique salva e copia o caminho do arquivo.': 'When you stop, one click saves the file and copies its path.',
+  'Esquerda: você. Direita: quem está na chamada.': 'Left: you. Right: everyone else on the call.', 'Nota de voz': 'Voice note',
+  'Grava só o microfone. Ao parar, a fala vira texto (.md) e o caminho é copiado; o áudio vai para a Lixeira.': 'Records the microphone only. When you stop, speech becomes text (.md) and the path is copied; the audio goes to the Recycle Bin.',
+  'Salvar e transcrever': 'Save and transcribe', 'Só salvar': 'Save only', 'Transcrever e apagar o áudio': 'Transcribe and delete the audio', 'Ouvir': 'Play',
+  'Excluir (vai para a Lixeira)': 'Delete (to the Recycle Bin)', 'Transcrevendo na iGPU': 'Transcribing on the iGPU', 'Parar transcrição': 'Stop transcription',
+  'Transcrição pronta': 'Transcript ready', 'Texto': 'Text', 'Abrir transcrição': 'Open transcript', 'Copiar caminho': 'Copy path', 'Abrir pasta': 'Open folder',
+  'A gravação não começou': 'Recording did not start',
+  'O dispositivo de saída não respondeu. Nada foi gravado. Confira o fone em Opções ou tente de novo.': 'The output device did not respond. Nothing was recorded. Check the headset in Options or try again.',
+  'Tentar de novo': 'Try again', 'Ver dispositivos': 'See devices', 'Data': 'Date', 'Duração': 'Length', 'Gravar a primeira': 'Record the first one', 'Limpar busca': 'Clear search',
+  'Não deu para ler a pasta das gravações. Ela pode ter sido movida ou estar num disco desligado.': 'Could not read the recordings folder. It may have moved or be on a disconnected drive.',
+  'Escolher outra pasta': 'Choose another folder', 'Abrir texto': 'Open text', 'Excluir': 'Delete', 'Atualizar': 'Refresh',
+  'Escolha um áudio ou vídeo': 'Choose an audio or video file', 'MP3, WAV, M4A, OGG, MP4, MKV e outros': 'MP3, WAV, M4A, OGG, MP4, MKV and more',
+  'Escolher arquivo': 'Choose file', 'Trocar arquivo': 'Change file', 'Transcrever': 'Transcribe', 'Converter para MP3': 'Convert to MP3', 'Parar': 'Stop',
+  'Transcrever gera um .txt ao lado do arquivo. Converter gera um MP3 leve (16 kHz, mono), bom para mandar por mensagem.': 'Transcribe writes a .txt next to the file. Convert writes a light MP3 (16 kHz, mono), good for sending in a chat.',
+  'Esse arquivo não tem áudio': 'This file has no audio',
+  'O vídeo não traz trilha de som que o Reco consiga ler. Escolha outro arquivo ou exporte o áudio antes.': 'The video has no sound track the Reco can read. Choose another file or export the audio first.',
+  'Entrada (microfone)': 'Input (microphone)', 'Automático (padrão do Windows)': 'Automatic (Windows default)', 'Saída (sistema)': 'Output (system)',
+  'Atualizar dispositivos': 'Refresh devices', 'Pasta das gravações': 'Recordings folder', 'Escolher': 'Choose', 'Processar em': 'Process on',
+  'Auto usa a iGPU quando dá. A NPU está desligada para o modelo turbo.': 'Auto uses the iGPU when it can. The NPU is off for the turbo model.',
+  'Texto ao vivo durante a gravação': 'Live text while recording', 'Rascunho na tela; a versão final sai ao parar.': 'Draft on screen; the final version comes when you stop.',
+  'Idioma': 'Language', 'Aparência': 'Appearance', 'Claro': 'Light', 'Escuro': 'Dark', 'Atalho de teclado': 'Keyboard shortcut', 'Criar atalho': 'Create shortcut',
+  'Detalhes do erro': 'Error details', 'Copiar': 'Copy', 'Fechar': 'Close', 'Detalhes': 'Details', 'Gravar nota': 'Record note', 'Salvar e copiar caminho': 'Save and copy path',
+  'Pausar': 'Pause', 'Continuar': 'Resume', 'Pronto': 'Ready', 'Preparando': 'Starting', 'Gravando': 'Recording', 'Ao vivo': 'Live', 'Pausado': 'Paused', 'Parado': 'Stopped',
+  'Transcrevendo': 'Transcribing', 'Texto pronto': 'Text ready', 'Erro': 'Error', 'Resumo IA': 'AI summary', 'Resumindo': 'Summarizing', 'Ligado': 'On', 'Desligado': 'Off',
+  'Nova': 'New', 'Auto comunicação': 'Auto communications',
+};
+const en = () => s.texto === 'longo-en';
+const t = (pt) => (en() && EN[pt]) || pt;
+
+const CONTEUDO = {
+  normal: {
+    mic: 'Microfone (Realtek(R) Audio)', sis: 'Alto-falantes (Realtek(R) Audio)', padrao: 'Alto-falantes (Realtek(R) Audio)',
+    arquivo: '2026-11-11_1432_reco.mp3', origem: 'reuniao-fornecedor.mp4', pasta: 'C:\\Gravações\\Reco', crono: 0 * 3600 + 42 * 60 + 17,
+    busca: 'orçamento verão', ausente: false,
+  },
+  longo: {
+    mic: 'Microfone de matriz (Tecnologia Intel(R) Smart Sound para microfones digitais)', sis: 'Fones de ouvido (QCY H3 Hands-Free AG Audio)',
+    padrao: 'Alto-falantes (Realtek(R) Audio)', arquivo: '2026-11-11_1432_reco_reuniao-mensal-fornecedores-calcados-planejamento-verao.mp3',
+    origem: 'gravacao-da-reuniao-trimestral-com-os-franqueados-da-regiao-sul-e-fornecedores.mp4',
+    pasta: 'C:\\Gravações\\Reco\\Reuniões com fornecedores e franqueados\\2026\\novembro', crono: 12 * 3600 + 34 * 60 + 56,
+    busca: 'orçamento de calçados com o fornecedor de Franca para a coleção de verão', ausente: true,
+  },
+};
+const c = () => CONTEUDO[s.texto === 'normal' ? 'normal' : 'longo'];
+const relogio = (n) => [Math.floor(n / 3600), Math.floor(n / 60) % 60, n % 60].map((x) => String(x).padStart(2, '0')).join(':');
+const semExt = (n) => n.replace(/\.[^.]+$/, '');
+
+const FALAS = {
+  pt: [['Eu', 'Bom dia, pessoal. Vamos começar pelo pedido de verão?'], ['Outros', 'Bom dia. A grade fechou ontem; faltam só os tamanhos 39 e 40.'],
+    ['Eu', 'Certo. E a entrega continua para a segunda semana de dezembro?'], ['Outros', 'Continua, mas o frete subiu um pouco. Mando a tabela nova hoje à tarde.'],
+    ['Eu', 'Manda sim, que eu passo para o financeiro ainda hoje.'], ['Outros', 'Outra coisa: a amostra do modelo novo chega na quinta, e aí a gente']],
+  en: [['Me', 'Morning, everyone. Shall we start with the summer order?'], ['Others', 'Morning. The grid closed yesterday; only sizes 39 and 40 are missing.'],
+    ['Me', 'Right. Is delivery still on for the second week of December?'], ['Others', 'It is, but freight went up a little. I will send the new table this afternoon.'],
+    ['Me', 'Please do, I will pass it to finance today.'], ['Others', 'One more thing: the sample of the new model arrives on Thursday, and then we']],
+};
+const ITENS = [
+  ['2026-11-11_1432_reco.mp3', '11/11 14:32', '42:17', true], ['2026-11-11_0915_reco.mp3', '11/11 09:15', '1:03:40', false],
+  ['2026-11-10_1600_reco.mp3', '10/11 16:00', '27:05', true], ['2026-11-10_1030_reco.mp3', '10/11 10:30', '12:48', true],
+  ['2026-11-07_1745_reco.mp3', '07/11 17:45', '58:12', true], ['2026-11-07_1100_reco.mp3', '07/11 11:00', '6:31', false],
+  ['2026-11-06_1415_reco.mp3', '06/11 14:15', '1:21:09', true], ['2026-11-05_0930_reco.mp3', '05/11 09:30', '34:50', true],
+  ['2026-11-04_1620_reco.mp3', '04/11 16:20', '19:44', false], ['2026-11-04_0900_reco.mp3', '04/11 09:00', '45:02', true],
+  ['2026-11-03_1500_reco.mp3', '03/11 15:00', '8:17', true], ['2026-10-31_1130_reco.mp3', '31/10 11:30', '52:36', true],
+];
+const ERRO_DETALHE = (k) => [
+  'Erro ao abrir o dispositivo de saída', '', 'Dispositivo: ' + k.sis, 'Modo: WASAPI loopback, 16 kHz, estéreo',
+  'Código: AUDCLNT_E_DEVICE_INVALIDATED (0x88890004)', 'O dispositivo foi desconectado ou mudou de formato enquanto o Reco abria a captura.', '',
+  'Traceback (most recent call last):', '  File "reco.py", in _open_streams', '    rec_sys = self._sys.recorder(samplerate=16000, channels=2, blocksize=352)',
+  '  File "soundcard/mediafoundation.py", in recorder', '    return _Recorder(self._get_audio_client(), samplerate, channels, blocksize, True)',
+  'RuntimeError: Error 0x88890004 (AUDCLNT_E_DEVICE_INVALIDATED)', '', 'Pasta: ' + k.pasta, 'Gravação: nenhum arquivo criado.',
+].join('\n');
+
+// ---- status: uma linha por tela e estado, com o sinal (ícone + texto, R12)
+function status() {
+  const k = c(), E = en(), nome = k.arquivo, txt = semExt(nome) + '.txt';
+  const disp = E ? `mic: ${k.mic} · system: ${k.sis}` : `mic: ${k.mic} · sistema: ${k.sis}`;
+  const ausente = k.ausente ? (E ? `  Output chosen is missing: using the Windows default (${k.padrao})` : `  Saída escolhida ausente: usando o padrão do Windows (${k.padrao})`) : '';
+  const errLinha = E ? `Could not open the output device: ${k.sis} did not respond (0x88890004, device invalidated)` : `Erro ao abrir o dispositivo de saída: ${k.sis} não respondeu (0x88890004, dispositivo invalidado)`;
+  const M = {
+    gravar: {
+      'motor-subindo': ['espera', E ? 'Starting the engine… Record unlocks in a few seconds.' : 'Preparando o motor… Gravar libera em alguns segundos.'],
+      'pronto': ['info', E ? `Ready to record.  ${disp}` : `Pronto para gravar.  ${disp}`],
+      'gravando': [k.ausente ? 'aviso' : 'rec', (E ? `Recording…  ${disp}` : `Gravando…  ${disp}`) + ausente],
+      'gravando-ao-vivo': [k.ausente ? 'aviso' : 'rec', (E ? `Recording with live text…  ${disp}` : `Gravando com texto ao vivo…  ${disp}`) + ausente],
+      'nota-gravando': ['rec', E ? `Recording note…  (microphone only): ${k.mic}` : `Gravando nota…  (só microfone): ${k.mic}`],
+      'pausado': ['info', E ? `Paused at ${relogio(k.crono)}. Resume continues the same file.` : `Pausado em ${relogio(k.crono)}. Continuar segue no mesmo arquivo.`],
+      'parado': ['info', E ? `Stopped: ${nome} (${relogio(k.crono)}). Choose what to do with it.` : `Parado: ${nome} (${relogio(k.crono)}). Escolha o que fazer com a gravação.`],
+      'transcrevendo': ['espera', E ? `Transcribing… 42%  ${nome}` : `Transcrevendo… 42%  ${nome}`],
+      'transcricao-pronta': ['ok', E ? `Transcript saved: ${txt}` : `Transcrição salva: ${txt}`],
+      'erro': ['erro', errLinha], 'erro-detalhe': ['erro', errLinha],
+    },
+    biblioteca: {
+      'vazia': ['info', E ? `No recordings in ${k.pasta} yet` : `Nenhuma gravação em ${k.pasta} ainda`],
+      'lista': ['info', E ? `12 recordings in ${k.pasta}` : `12 gravações em ${k.pasta}`],
+      'selecionada': ['info', E ? `${nome}: 42:17, transcribed` : `${nome}: 42:17, transcrita`],
+      'transcrevendo-item': ['espera', E ? `Transcribing… 38%  ${ITENS[1][0]}` : `Transcrevendo… 38%  ${ITENS[1][0]}`],
+      'resumindo': ['espera', E ? `Writing the AI summary of ${nome}…` : `Gerando o resumo IA de ${nome}…`],
+      'busca-sem-resultado': ['info', E ? `Nothing found for “${k.busca}”` : `Nada encontrado para “${k.busca}”`],
+      'erro': ['erro', E ? `Could not read ${k.pasta}: access denied` : `Não deu para ler ${k.pasta}: acesso negado`],
+    },
+    arquivo: {
+      'nada-escolhido': ['info', E ? 'Choose an audio or video file to transcribe or convert.' : 'Escolha um áudio ou vídeo para transcrever ou converter.'],
+      'escolhido': ['info', E ? `${k.origem} is ready to transcribe or convert` : `${k.origem} pronto para transcrever ou converter`],
+      'transcrevendo': ['espera', E ? `Transcribing… 63%  ${k.origem}` : `Transcrevendo… 63%  ${k.origem}`],
+      'convertendo': ['espera', E ? `Converting to MP3… 27%  ${k.origem}` : `Convertendo para MP3… 27%  ${k.origem}`],
+      'pronto': ['ok', E ? `Transcript saved: ${semExt(k.origem)}.txt` : `Transcrição salva: ${semExt(k.origem)}.txt`],
+      'erro': ['erro', E ? `Could not read ${k.origem}: no audio track` : `Não deu para ler ${k.origem}: sem trilha de áudio`],
+    },
+    opcoes: {
+      'normal': ['info', E ? 'Options are saved as you change them.' : 'As opções se salvam sozinhas.'],
+      'durante-gravacao': ['info', E ? 'Recording: devices and folder can change again when it stops.' : 'Gravando: dispositivos e pasta voltam a mudar quando a gravação parar.'],
+      'dispositivo-ausente': ['aviso', E ? `Output chosen is missing: using the Windows default (${k.padrao})` : `Saída escolhida ausente: usando o padrão do Windows (${k.padrao})`],
+    },
+  };
+  return M[s.tela][s.estado];
+}
+const ICONE_SINAL = { info: 'info', ok: 'circle-check', aviso: 'triangle-alert', erro: 'circle-alert', espera: 'hourglass', rec: 'circle' };
+
+// ---- montagem: uma janela por direção, a partir do mesmo molde
+const molde = document.getElementById('molde-janela');
+const janelas = DIRECOES.map((dir) => {
+  const raiz = molde.content.firstElementChild.cloneNode(true);
+  raiz.dataset.direcao = dir;
+  const r = {};
+  raiz.querySelectorAll('[data-ref]').forEach((e) => { r[e.dataset.ref] = e; });
+  raiz.querySelectorAll('[data-t]').forEach((e) => { e.dataset.t = e.textContent; });
+  const corpo = r['lista-corpo'];
+  r.itens = ITENS.map(([nome, data, dur, tem], i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'item lista-grade'; b.setAttribute('role', 'option'); b.dataset.acao = 'item'; b.dataset.i = i;
+    b.innerHTML = '<span class="corta item-nome"></span><span class="item-dur" data-num></span>'
+      + '<span class="item-texto"><svg class="ic" data-lucide="file-check"><use href="#i-file-check"/></svg><span data-num></span></span>';
+    b.children[1].textContent = dur; b.title = data;
+    b.querySelector('use').setAttribute('href', tem ? '#i-file-check' : '#i-file-minus');
+    b.querySelector('svg').dataset.lucide = tem ? 'file-check' : 'file-minus';
+    corpo.append(b);
+    return { b, nome: b.children[0], tem, texto: b.children[2].lastElementChild };
+  });
+  [r['sel-mic'], r['sel-sis']].forEach((sel) => { sel.append(new Option(''), new Option(''), new Option('')); });
+  document.querySelector(`[data-moldura="${dir}"]`).append(raiz);
+  raiz.addEventListener('click', (ev) => { const b = ev.target.closest('[data-acao]'); if (b && raiz.contains(b)) acao(b); });
+  r['ganho-mic'].addEventListener('input', () => ganho(r['ganho-mic'], r['ganho-mic-valor']));
+  r['ganho-sis'].addEventListener('input', () => ganho(r['ganho-sis'], r['ganho-sis-valor']));
+  return { dir, raiz, r };
+});
+function ganho(inp, out) { out.textContent = Number(inp.value).toFixed(1).replace('.', en() ? '.' : ',') + '×'; }
+
+const usar = (svg, nome) => { svg.dataset.lucide = nome; svg.firstElementChild.setAttribute('href', '#i-' + nome); };
+const ativar = (el, sim) => { if (sim) el.setAttribute('data-ativa', ''); else el.removeAttribute('data-ativa'); };
+const esconder = (el, sim) => { if (sim) el.setAttribute('data-escondido', ''); else el.removeAttribute('data-escondido'); };
+const texto = (el, v) => { if (el.textContent !== v) el.textContent = v; };
+
+// ---- uma função por parte da janela
+function aplicarGeral(j) {
+  const { raiz, r } = j;
+  if (s.tema === 'sistema') raiz.removeAttribute('data-tema'); else raiz.dataset.tema = s.tema;
+  raiz.querySelectorAll('[data-t]').forEach((e) => texto(e, t(e.dataset.t)));
+  esconder(r.versao, s.versao !== 'sim');
+  texto(r['versao-texto'], t('Nova') + ' 2.0');
+  r.versao.title = en() ? 'New version 2.0 available' : 'Nova versão 2.0 disponível';
+  const gravandoAgora = (s.tela === 'gravar' && (GRAVANDO.has(s.estado) || s.estado === 'transcrevendo')) || (s.tela === 'opcoes' && s.estado === 'durante-gravacao');
+  raiz.querySelectorAll('.aba').forEach((a) => {
+    a.setAttribute('aria-selected', String(a.dataset.tela === s.tela));
+    a.tabIndex = 0;
+    if (a.dataset.tela === 'arquivo') {
+      a.setAttribute('aria-disabled', String(gravandoAgora));
+      a.title = gravandoAgora ? (en() ? 'Locked while recording or transcribing' : 'Bloqueada enquanto grava ou transcreve') : '';
+      usar(r['aba-arquivo-icone'], gravandoAgora ? 'lock' : 'file-audio');
+    }
+  });
+  raiz.querySelectorAll('[data-tela-painel]').forEach((p) => ativar(p, p.dataset.telaPainel === s.tela));
+  ganho(r['ganho-mic'], r['ganho-mic-valor']); ganho(r['ganho-sis'], r['ganho-sis-valor']);
+}
+
+function aplicarStatus(j) {
+  const { raiz, r } = j;
+  const [sinal, txt] = aviso || status();
+  const area = raiz.querySelector('[data-area="status"]');
+  area.dataset.sinal = sinal; usar(r['status-icone'], ICONE_SINAL[sinal]);
+  texto(r['status-texto'], txt); area.title = txt;
+  esconder(r['status-detalhes'], !(s.tela === 'gravar' && s.estado === 'erro'));
+  const det = s.tela === 'gravar' && s.estado === 'erro-detalhe';
+  ativar(r.detalhe, det);
+  texto(r['detalhe-texto'], ERRO_DETALHE(c()));
+  raiz.querySelectorAll('.tela').forEach((p) => { p.inert = det; });
+}
+
+const REC = {
+  'motor-subindo': ['espera', 'hourglass', 'Preparando'], 'pronto': ['info', 'circle', 'Pronto'], 'gravando': ['rec', 'circle', 'Gravando'],
+  'gravando-ao-vivo': ['rec', 'circle', 'Ao vivo'], 'nota-gravando': ['rec', 'circle', 'Nota'], 'pausado': ['info', 'pause', 'Pausado'],
+  'parado': ['info', 'square', 'Parado'], 'transcrevendo': ['espera', 'file-text', 'Transcrevendo'], 'transcricao-pronta': ['ok', 'circle-check', 'Texto pronto'],
+  'erro': ['erro', 'circle-alert', 'Erro'], 'erro-detalhe': ['erro', 'circle-alert', 'Erro'],
+};
+const VARIANTE = {
+  'motor-subindo': 'motor', 'pronto': 'pronto', 'gravando': 'gravando', 'gravando-ao-vivo': 'aovivo', 'nota-gravando': 'nota', 'pausado': 'gravando',
+  'parado': 'parado', 'transcrevendo': 'transcrevendo', 'transcricao-pronta': 'pronta', 'erro': 'erro', 'erro-detalhe': 'erro',
+};
+function aplicarGravar(j) {
+  const { raiz, r } = j, k = c(), e = porTela.gravar;
+  const [sinal, icone, rotulo] = REC[e];
+  r.rec.dataset.sinal = sinal; usar(r.rec.firstElementChild, icone); texto(r['rec-texto'], t(rotulo));
+  r.cronometro.toggleAttribute('data-gravando', sinal === 'rec');
+  const rodando = GRAVANDO.has(e) || e === 'parado';
+  if (!rodando) segundos = 0;
+  texto(r.crono, relogio(rodando ? k.crono + (GRAVANDO.has(e) && e !== 'pausado' ? segundos : 0) : 0));
+  const nota = e === 'nota-gravando' || (modo === 'nota' && !GRAVANDO.has(e));
+  if (e === 'nota-gravando') modo = 'nota';
+  r['medidor-sis'].toggleAttribute('data-fora', nota);
+  // ações: um botão principal e um secundário, sempre no mesmo lugar
+  const P = {
+    'motor-subindo': ['grava', 'circle', nota ? 'Gravar nota' : 'Gravar', true], 'pronto': ['grava', 'circle', nota ? 'Gravar nota' : 'Gravar', false],
+    'gravando': ['acao', 'square', 'Parar', false], 'gravando-ao-vivo': ['acao', 'square', 'Parar', false], 'nota-gravando': ['acao', 'square', 'Parar', false],
+    'pausado': ['acao', 'square', 'Parar', false], 'parado': ['acao', 'copy', 'Salvar e copiar caminho', false],
+    'transcrevendo': ['grava', 'circle', 'Gravar', true], 'transcricao-pronta': ['grava', 'circle', 'Gravar', false],
+    'erro': ['grava', 'circle', 'Gravar', false], 'erro-detalhe': ['grava', 'circle', 'Gravar', false],
+  }[e];
+  r.principal.dataset.tom = P[0]; usar(r['principal-icone'], P[1]); texto(r['principal-texto'], t(P[2])); r.principal.disabled = P[3];
+  const pausa = e === 'pausado', parado = e === 'parado';
+  usar(r['secundario-icone'], pausa || parado ? 'play' : 'pause'); texto(r['secundario-texto'], t(pausa ? 'Continuar' : parado ? 'Ouvir' : 'Pausar'));
+  r.secundario.disabled = !(GRAVANDO.has(e) || parado);
+  raiz.querySelectorAll('.modo-op').forEach((b) => { b.setAttribute('aria-checked', String(b.dataset.modo === (nota ? 'nota' : 'gravacao'))); b.disabled = !(e === 'pronto' || e === 'transcricao-pronta' || e === 'erro'); });
+  // painel: uma camada por variante, trocada por visibilidade
+  const v = VARIANTE[e];
+  raiz.querySelectorAll('.painel [data-variante]').forEach((p) => ativar(p, p.dataset.variante === v));
+  texto(r['info-mic'], k.mic); texto(r['info-sis'], k.sis); texto(r['info-pasta'], k.pasta);
+  texto(r['grav-arquivo'], k.arquivo); texto(r['grav-mic'], k.mic); texto(r['grav-sis'], k.ausente ? k.padrao : k.sis);
+  texto(r['tr-arquivo'], k.arquivo); r['tr-barra'].style.setProperty('--progresso', '42%'); texto(r['pronta-arquivo'], semExt(k.arquivo) + '.txt');
+  const falas = FALAS[en() ? 'en' : 'pt'];
+  if (r.aovivo.childElementCount === 0) falas.forEach(() => { const p = document.createElement('p'); p.innerHTML = '<span class="quem"></span><span></span>'; r.aovivo.append(p); });
+  falas.forEach(([quem, fala], i) => { const p = r.aovivo.children[i]; texto(p.firstChild, quem); p.dataset.quem = i % 2 ? 'outros' : 'eu'; texto(p.lastChild, fala + (i === falas.length - 1 ? '…' : '')); p.lastChild.className = i === falas.length - 1 ? 'rascunho' : ''; });
+  if (v === 'aovivo') r.aovivo.scrollTop = r.aovivo.scrollHeight;
+}
+
+function aplicarBiblioteca(j) {
+  const { raiz, r } = j, k = c(), e = porTela.biblioteca;
+  const camada = { vazia: 'lib-vazia', 'busca-sem-resultado': 'lib-sem', erro: 'lib-erro' }[e] || '';
+  raiz.querySelectorAll('.lista [data-variante]').forEach((p) => ativar(p, p.dataset.variante === camada));
+  r['lista-corpo'].inert = !!camada;
+  texto(r['vazia-texto'], en() ? `No recordings in ${k.pasta} yet.` : `Nenhuma gravação em ${k.pasta} ainda.`);
+  texto(r['sem-texto'], en() ? `Nothing with “${k.busca}” in the name or the text.` : `Nada com “${k.busca}” no nome nem no texto.`);
+  r.busca.value = e === 'busca-sem-resultado' ? k.busca : '';
+  r.busca.placeholder = en() ? 'Search name or text' : 'Buscar no nome ou no texto';
+  texto(r['busca-conta'], e === 'vazia' || e === 'busca-sem-resultado' || e === 'erro' ? '0' : '12');
+  const sel = { selecionada: 0, 'transcrevendo-item': 1, resumindo: 0 }[e];
+  r.itens.forEach((it, i) => {
+    texto(it.nome, i === 0 ? k.arquivo : ITENS[i][0]); it.b.title = it.nome.textContent + ' (' + ITENS[i][1] + ')';
+    it.b.setAttribute('aria-selected', String(i === sel));
+    texto(it.texto, e === 'transcrevendo-item' && i === 1 ? '38%' : (it.tem ? (en() ? 'yes' : 'sim') : (en() ? 'no' : 'não')));
+  });
+  const temItem = sel !== undefined;
+  raiz.querySelectorAll('[data-precisa-item]').forEach((b) => { b.disabled = !temItem || !!camada; });
+  const trAndando = e === 'transcrevendo-item';
+  usar(r['lib-transcrever-icone'], trAndando ? 'square' : 'file-text'); texto(r['lib-transcrever-texto'], t(trAndando ? 'Parar' : 'Transcrever'));
+  texto(r['lib-resumo-texto'], t(e === 'resumindo' ? 'Resumindo' : 'Resumo IA'));
+  if (e === 'resumindo') r['lib-resumo'].disabled = true;
+}
+
+function aplicarArquivo(j) {
+  const { raiz, r } = j, k = c(), e = porTela.arquivo;
+  const escolhido = e !== 'nada-escolhido', andando = e === 'transcrevendo' || e === 'convertendo';
+  raiz.querySelectorAll('.origem [data-variante]').forEach((p) => ativar(p, p.dataset.variante === (escolhido ? 'arq-escolhido' : 'arq-nada')));
+  texto(r['arq-nome'], k.origem); r['arq-nome'].title = k.origem;
+  texto(r['arq-meta'], en() ? 'MP4 video, 48:12, 312 MB' : 'Vídeo MP4, 48:12, 312 MB');
+  r['arq-transcrever'].disabled = !escolhido || andando || e === 'erro';
+  r['arq-converter'].disabled = !escolhido || andando || e === 'erro';
+  r['arq-parar'].disabled = !andando; r['arq-trocar'].disabled = andando;
+  const v = andando ? 'arq-andando' : ({ pronto: 'arq-pronto', erro: 'arq-erro' }[e] || 'arq-ocioso');
+  raiz.querySelectorAll('.progresso [data-variante]').forEach((p) => ativar(p, p.dataset.variante === v));
+  const conv = e === 'convertendo';
+  texto(r['arq-tarefa'], conv ? (en() ? 'Converting to MP3' : 'Convertendo para MP3') : (en() ? 'Transcribing on the iGPU' : 'Transcrevendo na iGPU'));
+  texto(r['arq-pct'], conv ? '27%' : '63%'); r['arq-barra'].style.setProperty('--progresso', conv ? '27%' : '63%');
+  texto(r['arq-falta'], conv ? (en() ? 'about 40 s left' : 'faltam uns 40 s') : (en() ? 'about 4 min left' : 'faltam uns 4 min'));
+  texto(r['arq-saida'], semExt(k.origem) + '.txt');
+}
+
+function aplicarOpcoes(j) {
+  const { raiz, r } = j, k = c(), e = porTela.opcoes;
+  const durante = e === 'durante-gravacao';
+  [[r['sel-mic'], k.mic], [r['sel-sis'], k.sis]].forEach(([sel, nome]) => {
+    sel.options[0].textContent = t('Automático (padrão do Windows)'); sel.options[1].textContent = t('Auto comunicação'); sel.options[2].textContent = nome;
+    sel.selectedIndex = s.texto === 'normal' ? 0 : 2; sel.disabled = durante; sel.title = sel.options[sel.selectedIndex].textContent;
+  });
+  r['atualizar-disp'].disabled = durante; r['op-pasta-btn'].disabled = durante;
+  texto(r['op-pasta'], k.pasta); r['op-pasta'].title = k.pasta;
+  const ajuda = r['ajuda-dispositivo'];
+  if (e === 'normal') { ajuda.removeAttribute('data-sinal'); texto(r['ajuda-dispositivo-texto'], ''); }
+  else {
+    ajuda.dataset.sinal = durante ? 'info' : 'aviso'; usar(r['ajuda-dispositivo-icone'], durante ? 'lock' : 'triangle-alert');
+    const msg = durante ? (en() ? 'Locked while recording.' : 'Bloqueado enquanto grava.')
+      : (en() ? `Headset missing: using ${k.padrao}` : `Fone ausente: usando ${k.padrao}`);
+    texto(r['ajuda-dispositivo-texto'], msg); ajuda.title = msg;
+  }
+  r['ao-vivo'].setAttribute('aria-checked', String(aoVivo)); texto(r['ao-vivo-texto'], t(aoVivo ? 'Ligado' : 'Desligado'));
+  raiz.querySelectorAll('[data-acao="aparencia"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tema === s.tema)));
+  raiz.querySelectorAll('[data-acao="idioma"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.idioma === (en() ? 'en' : 'pt'))));
+}
+
+function aplicarJanela(j) { aplicarGeral(j); aplicarGravar(j); aplicarBiblioteca(j); aplicarArquivo(j); aplicarOpcoes(j); aplicarStatus(j); }
+
+// ---- casca: controles e URL
+const segEstado = document.querySelector('[data-controle="estado"]');
+const gruposEstado = TELAS.map((tela) => {
+  const grupo = document.createElement('div'); grupo.className = 'seg seg-grupo'; grupo.dataset.tela = tela;
+  ESTADOS[tela].forEach((est) => {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.valor = est; b.dataset.tela = tela; b.textContent = est.replace(/-/g, ' '); grupo.append(b);
+  });
+  segEstado.append(grupo);
+  return grupo;
+});
+function aplicarCasca() {
+  document.querySelectorAll('[data-controle]').forEach((g) => {
+    const nome = g.dataset.controle;
+    g.querySelectorAll('button').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.valor === s[nome] && (nome !== 'estado' || b.dataset.tela === s.tela)));
+    });
+  });
+  gruposEstado.forEach((grupo) => grupo.toggleAttribute('data-oculto', grupo.dataset.tela !== s.tela));
+  document.querySelectorAll('[data-quadro]').forEach((q) => q.toggleAttribute('data-oculto', s.direcao !== 'todas' && q.dataset.quadro !== s.direcao));
+  try { history.replaceState(null, '', '?' + new URLSearchParams(s).toString()); } catch (e) { /* página embutida sem history */ }
+}
+
+function definir(p = {}) {
+  for (const n of ['direcao', 'tema', 'texto', 'versao']) if (p[n] !== undefined && VALORES[n].includes(p[n])) s[n] = p[n];
+  if (p.tela !== undefined && TELAS.includes(p.tela)) s.tela = p.tela;
+  const est = p.estado !== undefined ? p.estado : (p.tela !== undefined ? porTela[s.tela] : s.estado);
+  s.estado = ESTADOS[s.tela].includes(est) ? est : PADRAO[s.tela];
+  porTela[s.tela] = s.estado;
+  if (s.tela === 'gravar' && s.estado === 'gravando-ao-vivo') aoVivo = true;
+  if (s.tela === 'gravar' && s.estado === 'nota-gravando') modo = 'nota';
+  if (s.tela === 'gravar' && (s.estado === 'gravando' || s.estado === 'gravando-ao-vivo')) modo = 'gravacao';
+  aviso = null;
+  janelas.forEach(aplicarJanela); aplicarCasca();
+  return { ...s };
+}
+
+// ---- cliques dentro da janela: a vitrine anda como o app andaria
+function acao(b) {
+  const a = b.dataset.acao, e = s.estado;
+  const vai = (tela, estado) => definir({ tela, estado });
+  const diz = (sinal, pt, ing) => { aviso = [sinal, en() ? ing : pt]; janelas.forEach(aplicarStatus); };
+  if (a === 'aba') {
+    if (b.getAttribute('aria-disabled') === 'true') return diz('info', 'Arquivo fica bloqueado enquanto grava ou transcreve.', 'File is locked while recording or transcribing.');
+    return vai(b.dataset.tela);
+  }
+  const G = {
+    principal: () => {
+      if (e === 'parado') { vai('gravar', 'pronto'); return diz('ok', `Caminho copiado: "${c().pasta}\\${c().arquivo}"`, `Path copied: "${c().pasta}\\${c().arquivo}"`); }
+      if (GRAVANDO.has(e)) return vai('gravar', 'parado');
+      return vai('gravar', modo === 'nota' ? 'nota-gravando' : (aoVivo ? 'gravando-ao-vivo' : 'gravando'));
+    },
+    secundario: () => e === 'parado' ? diz('info', 'No app, Ouvir abre o MP3 no player do Windows.', 'In the app, Play opens the MP3 in the Windows player.') : vai('gravar', e === 'pausado' ? (modo === 'nota' ? 'nota-gravando' : aoVivo ? 'gravando-ao-vivo' : 'gravando') : 'pausado'),
+    modo: () => { modo = b.dataset.modo; janelas.forEach(aplicarGravar); },
+    'salvar-transcrever': () => vai('gravar', 'transcrevendo'), 'transcrever-apagar': () => vai('gravar', 'transcrevendo'),
+    'so-salvar': () => vai('gravar', 'pronto'), excluir: () => vai('gravar', 'pronto'), 'parar-transcricao': () => vai('gravar', 'pronto'),
+    tentar: () => vai('gravar', 'gravando'), 'ir-opcoes': () => vai('opcoes', 'normal'), detalhes: () => vai('gravar', 'erro-detalhe'),
+    'fechar-detalhe': () => vai('gravar', 'erro'), 'ir-gravar': () => vai('gravar', 'pronto'), 'limpar-busca': () => vai('biblioteca', 'lista'),
+    item: () => vai('biblioteca', 'selecionada'), 'lib-transcrever': () => vai('biblioteca', e === 'transcrevendo-item' ? 'selecionada' : 'transcrevendo-item'),
+    'lib-resumo': () => vai('biblioteca', 'resumindo'), 'lib-atualizar': () => vai('biblioteca', 'lista'),
+    'arq-escolher': () => vai('arquivo', 'escolhido'), 'arq-transcrever': () => vai('arquivo', 'transcrevendo'),
+    'arq-converter': () => vai('arquivo', 'convertendo'), 'arq-parar': () => vai('arquivo', 'escolhido'),
+    'ao-vivo': () => { aoVivo = !aoVivo; janelas.forEach(aplicarOpcoes); },
+    aparencia: () => definir({ tema: b.dataset.tema }), idioma: () => definir({ texto: b.dataset.idioma === 'en' ? 'longo-en' : 'normal' }),
+    seg: () => b.parentElement.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))),
+    minimizar: () => diz('info', 'No app, minimizar e fechar levam o Reco para a bandeja.', 'In the app, minimize and close send the Reco to the tray.'),
+    fechar: () => diz('info', 'No app, minimizar e fechar levam o Reco para a bandeja.', 'In the app, minimize and close send the Reco to the tray.'),
+  };
+  if (G[a]) G[a]();
+}
+
+document.querySelectorAll('[data-controle]').forEach((g) => g.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const nome = g.dataset.controle;
+  definir(nome === 'estado' ? { tela: b.dataset.tela, estado: b.dataset.valor } : nome === 'tela' ? { tela: b.dataset.valor } : { [nome]: b.dataset.valor });
+}));
+
+// ---- só para olhar: medidores e cronômetro por timer (sem transição CSS no preenchimento)
+let fase = 0;
+setInterval(() => {
+  fase += 1;
+  const e = porTela.gravar, ativo = GRAVANDO.has(e) && e !== 'pausado';
+  if (ativo && fase % 10 === 0) segundos += 1;
+  janelas.forEach(({ r }) => {
+    const nivel = (canal, base) => {
+      const vivo = !(s.tela === 'gravar' && (e === 'motor-subindo' || e === 'erro' || e === 'erro-detalhe')) && !(canal === 'sis' && r['medidor-sis'].hasAttribute('data-fora'));
+      const x = vivo ? (ativo ? base + 0.35 * Math.abs(Math.sin(fase * (canal === 'mic' ? 0.9 : 0.55)) * Math.sin(fase * 0.13 + (canal === 'mic' ? 0 : 2))) : 0.05 + 0.03 * Math.abs(Math.sin(fase * 0.4))) : 0;
+      const barra = r['barra-' + canal];
+      barra.style.setProperty('--nivel', Math.round(x * 100) + '%');
+      barra.style.setProperty('--pico', Math.min(97, Math.round((x + 0.08) * 100)) + '%');
+      barra.style.setProperty('--pico-op', x > 0.04 ? '1' : '0');
+    };
+    nivel('mic', 0.34); nivel('sis', 0.4);
+    if (ativo && fase % 10 === 0) texto(r.crono, relogio(c().crono + segundos));
+  });
+}, 100);
+
+window.vitrine = { direcoes: DIRECOES, telas: TELAS, estados: ESTADOS, definir, estado: () => ({ ...s }) };
+const q = new URLSearchParams(location.search), ini = {};
+for (const n of ['direcao', 'tela', 'estado', 'tema', 'texto', 'versao']) if (q.has(n)) ini[n] = q.get(n);
+definir(ini);
+})();
+</script>
+</body>
+</html>
