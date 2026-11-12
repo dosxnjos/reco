@@ -97,6 +97,27 @@ bundle as an offline fallback; the **default model is `large-v3-turbo`**, which
 downloads (~0.8 GB) the first time you transcribe — no internet, no download,
 and it uses `small` instead.
 
+### New app (under construction)
+A new desktop app is being built next to the current one: a Tauri 2 shell in Rust (`app/src-tauri`) with a
+fixed-size interface in TypeScript (`app/ui`), driving the windowless engine (`engine/`) as a child process.
+It is **not the app to use yet**: it has not passed its first real recording test, and the current
+`Reco.exe` stays the one in use until then.
+```powershell
+powershell -ExecutionPolicy Bypass -File app/build.ps1
+# -> <CARGO_TARGET_DIR or app/src-tauri/target>\release\bundle\nsis\Reco Novo_<version>_x64-setup.exe
+```
+The script freezes the engine (PyInstaller, needs the Python deps above plus `pyinstaller`), runs a smoke
+test on it (hello, ready without error, device list, clean shutdown), then `npm ci`, the interface build
+and `tauri build` (Rust and Node required). It takes about 25 minutes, most of it compressing the ~500 MB
+engine into the installer. The installer is called **"Reco Novo"** so it never replaces the current app's
+shortcut. Both apps share one single-instance lock: only one runs at a time, and opening the second just
+brings the first one up.
+
+To work on the interface without the shell: `npm --prefix app install`, `npm --prefix app run ui:build`
+and `npm --prefix app run ui:preview` (port 1431) open it in a browser with a fake engine. Its tests are
+`node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs` and `paridade.cjs`, plus the
+`design/testar-*.cjs` ones with `--url`.
+
 ### How it works
 - Capture uses `soundcard` (WASAPI): each physical device is listed once, mics and
   speakers are separated, and system audio is captured via real loopback.
@@ -113,8 +134,8 @@ and it uses `small` instead.
 - The model is downloaded once (or bundled in the `.exe`) and cached locally.
 - A windowless engine (`engine/`) runs the same recording and transcription code behind a JSON Lines
   protocol ([docs/PROTOCOL.md](docs/PROTOCOL.md)), in preparation for a new interface.
-- The new interface is being designed in [design/DESIGN.md](design/DESIGN.md): fixed-size window that
-  never jumps when you click; the real screen and a new screenshot come with the new app.
+- The new interface follows [design/DESIGN.md](design/DESIGN.md): fixed-size window that never jumps when
+  you click. It exists in the new app above; the screenshot comes when it replaces the current one.
 
 ### License
 [MIT](LICENSE) © 2026 Gabriel dos Anjos
@@ -213,6 +234,27 @@ vai embutido, e o runtime do VC++ também está incluso. O modelo Whisper
 `large-v3-turbo`**, que baixa (~0,8 GB) na primeira transcrição — sem internet,
 sem download, e usa o `small` no lugar.
 
+### App novo (em construção)
+Um app novo está sendo construído ao lado do atual: um casco Tauri 2 em Rust (`app/src-tauri`) com uma
+interface de tamanho fixo em TypeScript (`app/ui`), que comanda o motor sem janela (`engine/`) como processo
+filho. **Ainda não é o app de uso**: falta o primeiro teste real de gravação, e até lá o `Reco.exe` atual
+continua sendo o que se usa.
+```powershell
+powershell -ExecutionPolicy Bypass -File app/build.ps1
+# -> <CARGO_TARGET_DIR ou app/src-tauri/target>\release\bundle\nsis\Reco Novo_<versão>_x64-setup.exe
+```
+O script congela o motor (PyInstaller; precisa das dependências Python acima e do `pyinstaller`), testa o
+motor congelado (hello, ready sem erro, lista de dispositivos e saída limpa) e roda `npm ci`, o build da
+interface e o `tauri build` (precisa de Rust e Node). Leva uns 25 minutos, quase tudo comprimindo os ~500 MB
+do motor no instalador. O instalador se chama **"Reco Novo"** para nunca trocar o atalho do app atual. Os
+dois apps dividem a mesma trava de instância única: só um roda por vez, e abrir o segundo só traz o primeiro
+para a frente.
+
+Para mexer na interface sem o casco: `npm --prefix app install`, `npm --prefix app run ui:build` e
+`npm --prefix app run ui:preview` (porta 1431) abrem a interface no navegador com um motor falso. Os testes
+são `node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs` e `paridade.cjs`, mais os
+`design/testar-*.cjs` com `--url`.
+
 ### Como funciona
 - A captura usa `soundcard` (WASAPI): cada dispositivo físico aparece uma vez, mics
   e alto-falantes são separados, e o áudio do sistema é capturado por loopback real.
@@ -229,8 +271,8 @@ sem download, e usa o `small` no lugar.
 - O modelo é baixado uma vez (ou embutido no `.exe`) e fica em cache local.
 - Um motor sem janela (`engine/`) roda o mesmo código de gravação e transcrição por trás de um
   protocolo JSON Lines ([docs/PROTOCOL.md](docs/PROTOCOL.md)), em preparação para a interface nova.
-- A interface nova está em desenho em [design/DESIGN.md](design/DESIGN.md): janela de tamanho fixo, que não
-  pula a cada clique; a tela de verdade e o print novo chegam com o app novo.
+- A interface nova segue o [design/DESIGN.md](design/DESIGN.md): janela de tamanho fixo, que não pula a cada
+  clique. Ela já existe no app novo acima; o print novo chega quando ele substituir o atual.
 
 Scripts de apoio em `tools/` (rodam pelo fonte, não entram no executável): ver
 [docs/TOOLS.md](docs/TOOLS.md).

@@ -86,7 +86,8 @@ caso em `_migra_config()`:
 Importa o `reco.py` sem mudá-lo e é o dono do config; contrato em [docs/PROTOCOL.md](docs/PROTOCOL.md).
 Mudou o motor: `python tools/test_engine_protocol.py` antes de commitar.
 Interface nova segue `design/DESIGN.md`; testes `node design/testar-anti-pulo.cjs` e `testar-contrato.cjs`
-antes de mexer em tela.
+antes de mexer em tela. App novo (`app/`, casco Tauri): build por `app/build.ps1` (nunca o abre: mesmo mutex
+do velho); provas em [docs/ARQUITETURA.md § Casco](docs/ARQUITETURA.md#casco-tauri-e-interface-nova-app-12112026).
 
 ## Onde está o resto
 

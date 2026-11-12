@@ -16,7 +16,8 @@ Um link por doc, com o que tem dentro e quando ler. A regra que vale sempre est�
   entrada, versionado): entrada nova é `python tools/visoes.py novo "título"`, nunca `Edit` na página.
 - [ARQUITETURA.md](ARQUITETURA.md): como cada peça funciona por dentro e o que **não** é
   acidente (build, MP3 por container, `_pump`, AEC só na transcrição, anti-loop, biblioteca e
-  resumo IA, ícones, config). Leia antes de mudar comportamento do app ou recompilar.
+  resumo IA, ícones, config, motor e o casco Tauri do app novo em `app/`). Leia antes de mudar
+  comportamento do app ou recompilar.
 - [PROTOCOL.md](PROTOCOL.md): contrato JSON Lines entre o motor sem janela (`engine/`) e a
   interface nova (comandos, eventos, códigos de erro, timeouts, CLIs, contrato de falha). Leia antes
   de mexer no motor ou de escrever o casco Tauri (Fase 3 do roadmap Reco em Rust).

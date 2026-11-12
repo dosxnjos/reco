@@ -334,7 +334,7 @@ com 1); a Fase 3 roda os mesmos testes contra a interface real com `--url`.
 ## Motor (`engine/`) (11/11/2026)
 
 Motor sem janela que a interface nova (Tauri, Fase 3 do
-[roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco-em-rust.md)) vai comandar. Contrato
+[roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco-em-rust.md)) comanda (§ Casco, abaixo). Contrato
 completo (comandos, eventos, códigos, timeouts, CLIs): [PROTOCOL.md](PROTOCOL.md). O app Tk segue
 sendo o que se usa; nada do motor entra no `Reco.exe`.
 
@@ -360,8 +360,53 @@ sendo o que se usa; nada do motor entra no `Reco.exe`.
 - **Biblioteca** acha `x.txt` e, se faltar, `x.mp3.txt` (o app só a primeira).
 - **Build do motor**: `python engine/build.py` (PyInstaller onedir, `engine/reco-engine.spec`) sai em
   `engine/dist/reco-engine/` e `engine/build/` (fora do git, e longe do `dist/Reco` do app aberto);
-  `--smoke` mede spawn → `hello`/`ready`. Sem pyarrow e duckdb, sem o modelo `small`, com `tkinter` e
+  `--smoke` mede spawn → `hello`/`ready` e **sai com 1** se o `ready` vier com `error` (o `hello` responde
+  antes do `import reco`: um congelamento sem um import oculto diz `hello ok` e responde `unavailable` a tudo)
+  ou se o `devices.list` falhar; `--motor <cmd…>` roda o mesmo julgamento contra outro processo. Sem pyarrow e duckdb, sem o modelo `small`, com `tkinter` e
   `PIL` (o `reco.py` os importa sem guarda), `console=True` escondido pelo `CREATE_NO_WINDOW` de quem
   sobe.
 - **Teste**: `python tools/test_engine_protocol.py` (rodada padrão sem gravar; flags em
   [TOOLS.md](TOOLS.md)). Rodar antes de commitar mudança no motor.
+
+## Casco Tauri e interface nova (`app/`) (12/11/2026)
+
+App novo da Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco-em-rust.md), ainda em teste
+(instalador "Reco Novo"; o `Reco.exe` Tk segue o de uso até a Fase 4). Três camadas, cada uma com um dono:
+
+| camada | onde | é dona de |
+| --- | --- | --- |
+| interface | `app/ui` (TypeScript + Vite, sem framework) | o desenho: a tela é projeção de uma `Vista` |
+| casco | `app/src-tauri` (Rust, Tauri 2) | janela, bandeja, hover, instância única, atalho, notificações, ciclo de vida do motor |
+| motor | `engine/` (Python congelado, § Motor) | gravar, transcrever, config, biblioteca |
+
+- **Protocolo**: JSON Lines por stdin/stdout ([PROTOCOL.md](PROTOCOL.md)). A interface fala com o motor só
+  pelo comando `engine_request` do casco (`shutdown` reservado a ele); eventos chegam como `engine-event`, e
+  `engine-status` diz quando o motor sobe ou cai. O casco nunca grava `~/.reco_config.json` (D6): as
+  preferências dele são chaves `casco_*` gravadas pelo motor.
+- **Módulos do casco** (`app/src-tauri/src`): `motor/` (Router por id, processo com reinício e backoff, log com
+  rotação, prazos por comando, `saida.rs` do Sair seguro), `comandos/` (motor, arquivos, janela), `estado.rs`
+  (reações puras aos eventos), `bandeja.rs`, `hover.rs`, `instancia.rs`, `atalho.rs`, `avisos.rs`.
+- **Quem encadeia o parar** (F3-D13): `parar_gravacao` pede `rec.stop` e, com `auto` (nota ou passada final),
+  o `rec.conclude` em segundo plano; o resultado vai à tela pelo evento `reco-conclusao`. Tela e bandeja param
+  pelo mesmo caminho. A ordem entre esse evento e a resposta do `parar_gravacao` não é garantida: a tela guarda
+  a conclusão que chega antes.
+- **Contrato de falha (D11)**: Sair gravando pede `rec.stop` e espera a resposta (até 120 s) antes do
+  `shutdown`; com o arquivo em `stopping` (Parar seguido de Sair), espera o `state` sair dele, sem `rec.stop`
+  novo. Motor caído com arquivo aberto (`recording`, `paused`, `starting`, `stopping`) → ícone em idle,
+  notificação e o alarme "A gravação foi interrompida" na tela, que nunca segue "gravando"; motor caído ocioso
+  → aviso "motor fora do ar" com Gravar desabilitado até ele voltar. O reinício nunca religa a gravação.
+- **Instância única**: o mesmo mutex `Local\Reco.SingleInstance` do app velho, por Win32 próprio (F3-D2),
+  e a mensagem `Reco.Show` nos dois sentidos. O exe do casco com `--transcribe …` repassa ao motor antes do mutex (D6, F3-D14).
+- **Interface** (`app/ui/src`): a estrutura nasce uma vez no `index.html` (áreas `data-area` do DESIGN.md) e
+  `render/*.ts` só troca texto, atributo e variável CSS (nada de refazer a árvore, VU sem criar nó);
+  `controle/*.ts` leva eventos e cliques à `Vista`. O botão principal ignora o 2º clique do duplo clique, o
+  aperto que começou antes de ele trocar de papel e outro clique com um pedido curto em voo. Skin e tema saem
+  de um cache local antes do primeiro desenho e se reconciliam com o config do motor.
+- **Anti-pulo**: a interface real passa nos testes da Fase 1 com `--url` (`design/testar-anti-pulo.cjs` e
+  `testar-contrato.cjs`, contra o `ui:preview` na porta 1431, com o backend falso `mock.ts` e o condutor de
+  estados `window.vitrine`).
+- **Provas**: `cargo test --manifest-path app/src-tauri/Cargo.toml -- --include-ignored` (os ignorados sobem
+  um motor falso em Python), `npm --prefix app run i18n:check`, `node app/ui/tests/{gravar,telas,revisao,paridade}.cjs`.
+- **Build**: `powershell -ExecutionPolicy Bypass -File app/build.ps1` congela o motor, roda o smoke (que
+  reprova `ready` com erro), `npm ci`, a interface e o `tauri build` (NSIS). O instalador fica em
+  `<CARGO_TARGET_DIR>\release\bundle\nsis` (nesta máquina `C:\pt`), fora do repo; o script nunca abre o app.
