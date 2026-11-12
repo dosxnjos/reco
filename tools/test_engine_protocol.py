@@ -49,6 +49,7 @@ def _padrao(a, guard: RealConfigGuard) -> None:
     import engine_checks_modelo
     import engine_checks_proto
     engine_checks_proto.run(a.exe)
+    engine_checks_proto.run_shutdown_como_o_casco(a.exe)
     engine_checks_modelo.run_em_voo(a.exe)
     engine_checks_modelo.run_espera_vaga()
     engine_checks_config.run(guard, a.exe)

@@ -45,7 +45,7 @@ global (sem pedido) vai **sem** `id`; o casco testa `event` antes de `id`.
 | cmd | args | data | eventos | timeout sugerido |
 | --- | --- | --- | --- | --- |
 | `hello` | `{}` | `{engine_version, reco_version\|null, protocol:1, platform, ready, uptime_s}`; responde antes do `import reco` | — | 10 s |
-| `shutdown` | `{}` | `{}` e o processo sai (fecha o MP3 se estiver gravando) | — | 60 s |
+| `shutdown` | `{}` | `{}` e o processo sai (fecha o MP3 se estiver gravando); roda na thread leitora, então o EOF que o casco manda logo atrás não troca o motivo do log (`encerrando (shutdown)`) | — | 60 s |
 | `state` | `{}` | `{ready, rec_state, elapsed_s, transcribing, live, last_rec\|null, auto\|null}`: retrato para ressincronizar | — | 60 s |
 | `config.get` | `{}` | `{config:{…com defaults e migração em memória}, output_dir_efetivo, lang_efetivo}` | — | 60 s |
 | `config.set` | `{changes:{chave:valor}}` | o mesmo de `config.get`, depois de gravar e reler | — | 60 s |

@@ -53,6 +53,32 @@ def _idle_paths(eng: Engine) -> str:
     return "state idle, rec.stop/pause refused, conclude not_found, set_gain, cancel sem alvo"
 
 
+SAIDAS_COMO_O_CASCO = 16
+
+
+def run_shutdown_como_o_casco(exe: str | None = None) -> None:
+    """Defeito 4 do passo 17: o casco escreve `shutdown` e fecha o stdin logo em seguida (`processo.rs`, EOF como
+    segundo pedido de saída, D11). O motor tem de registrar `encerrando (shutdown)`: o pedido chegou primeiro, e o
+    EOF que vem atrás não pode ganhar a corrida pelo motivo.
+
+    Antes do conserto era corrida: 1 em 8 rodadas deu `eof` no fonte e 4 em 8 no congelado (12/11/2026); por isso
+    16 rodadas. Depois dele é determinístico (o motivo é marcado na thread leitora, antes de ela ler o EOF)."""
+    motivos = []
+    for _ in range(SAIDAS_COMO_O_CASCO):
+        eng = Engine(make_home({"_migracao": 2}), exe)
+        try:
+            eng.ok("hello", timeout=10)
+            eng.send("shutdown")
+            eng.close_stdin()
+            check(eng.wait_exit(15) == 0, "o motor não saiu com 0 depois de shutdown + EOF")
+            linha = eng.wait_stderr("encerrando (", 5) or ""
+            motivos.append(linha.rsplit("encerrando ", 1)[-1])
+        finally:
+            eng.kill()
+    check(all(m == "(shutdown)" for m in motivos), f"shutdown seguido de EOF registrou outro motivo: {motivos}")
+    print(f"OK saída como o casco: shutdown + EOF imediato → encerrando (shutdown) nas {len(motivos)} rodadas")
+
+
 def run(exe: str | None = None) -> None:
     eng = Engine(make_home({"_migracao": 2}), exe)
     try:

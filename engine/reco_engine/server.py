@@ -90,6 +90,12 @@ class Server:
                 self.fail(rid, "internal", "id repetido em andamento")
                 return
             self._inflight.add(rid)
+        if cmd == "shutdown":
+            # Na própria thread leitora: o casco escreve `shutdown` e fecha o stdin logo depois (EOF, D11). Numa
+            # thread à parte, o EOF lido em seguida ganhava a corrida pelo motivo e o log dizia "eof" (defeito 4 do
+            # passo 17). Aqui o motivo `shutdown` fica marcado antes de a leitora voltar ao stdin.
+            self._run(rid, cmd, COMMANDS[cmd], args)
+            return
         threading.Thread(target=self._run, args=(rid, cmd, COMMANDS[cmd], args),
                          name=f"cmd:{cmd}", daemon=True).start()
 
