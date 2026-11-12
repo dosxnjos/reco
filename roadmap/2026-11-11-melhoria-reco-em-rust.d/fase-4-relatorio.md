@@ -209,8 +209,10 @@ nos arquivos de `tools/` que os passos citam → vazio; as linhas que a revisão
   `docs/PROTOCOL.md` (linha do `hello`) diz que o `engine_version` acompanha a versão do casco a cada instalador e que
   `protocol` só sobe se o contrato quebrar. A checagem `tools/engine_checks_proto.py`, que tinha `"0.1.0"` cravado,
   compara com o `__version__` lido do fonte (assim um motor congelado velho reprova). **Prova:** `python
-  tools/test_engine_protocol.py` (rodada padrão, sem gravar) → 13 linhas `OK`, rc 0. O motor mudou, então o build
-  foi refeito (abaixo).
+  tools/test_engine_protocol.py` (rodada padrão, sem gravar) → 13 linhas `OK`, rc 0; `--conferir-doc` → `OK doc: 22
+  comandos no registro, 22 na tabela do PROTOCOL.md, nenhum faltando`, rc 0. `git diff --stat 818c257 9b6294b -- app
+  engine reco.py tray.py` → só `engine/reco_engine/__init__.py`. O motor mudou, então o build foi refeito (abaixo).
+  Lacuna do teste novo: nenhum caso dele produz `ALERTA` (as regras de alerta seguem provadas só pela linha de base, G04 e G08).
 - **5 (baixo) Reserva incompleta.** Real em duas partes, falso numa:
   - Config: copiado `~/.reco_config.json` para `%LOCALAPPDATA%\Reco-reserva\reco_config.json` às 16:51:39, `Get-FileHash`
     igual nos dois, JSON válido (`_migracao` 2). Ele já não era o das 15:55: `sys_gain` 0.5 → 1.0, o ajuste que o dono
