@@ -6,8 +6,9 @@ transcrição durante a consulta inteira ao Hugging Face, e o `rec.start {mode: 
 
 - **em voo (processo real):** o motor consulta um servidor local (`HF_ENDPOINT`) que segura a resposta; com a
   consulta parada lá, o `state` tem de dizer `transcribing: false` (é o que a nota lê). Depois o servidor
-  responde 500: a checagem falha calada (fail-safe do `reco.py`) e nada é baixado. `LOCALAPPDATA` temporário, para
-  a pasta de modelos do usuário não entrar na busca.
+  responde 500: a checagem falha calada (fail-safe do `reco.py`) e nada é baixado. `LOCALAPPDATA` temporário com um
+  modelo de mentira (só o arquivo sentinela): a pasta de modelos real do usuário e a `models/` do repo nunca são
+  o alvo, e o motor congelado (`--exe`, sem modelo dentro) também consulta.
 - **troca espera a vaga (no processo do teste):** com revisão nova, `modelo.atualizar` só ocupa a vaga e chama
   `reco.update_model_if_newer` quando o motor está ocioso (sem gravação, nota parada, transcrição ou ao vivo).
 """
@@ -52,6 +53,12 @@ def run_em_voo(exe: str | None = None) -> None:
     srv = _hub_falso()
     home = make_home({"_migracao": 2})
     local = Path(tempfile.mkdtemp(prefix="reco_localappdata_"))
+    # modelo de mentira na pasta do usuário (vence a busca do `_find_model_dir`): o congelado não traz modelo, e o
+    # fonte nunca chega a consultar pela pasta `models/` real do repo
+    falso = local / "Reco" / "models" / "whisper-teste-int8-ov"
+    falso.mkdir(parents=True)
+    (falso / "openvino_encoder_model.xml").write_text("", encoding="utf-8")
+    (falso / ".hf_revision").write_text("revisao-local-do-teste", encoding="utf-8")
     env = {"HF_ENDPOINT": f"http://127.0.0.1:{srv.server_address[1]}", "HF_HUB_OFFLINE": None,
            "LOCALAPPDATA": str(local)}
     eng = Engine(home, exe, env_extra=env)
@@ -68,6 +75,8 @@ def run_em_voo(exe: str | None = None) -> None:
         check(st["rec_state"] == "idle", f"state durante a checagem: {st}")
         check(r["ok"], f"model.update_check com o hub fora do ar não respondeu ok: {r}")
         check(eng.ok("state")["transcribing"] is False, "a vaga ficou ocupada depois da checagem")
+        check(sorted(p.name for p in falso.iterdir()) == [".hf_revision", "openvino_encoder_model.xml"],
+              "a checagem com o hub fora do ar mexeu na pasta do modelo")
         check(eng.shutdown(10) == 0, "exit != 0")
         eng.assert_clean_stdout()
     finally:
