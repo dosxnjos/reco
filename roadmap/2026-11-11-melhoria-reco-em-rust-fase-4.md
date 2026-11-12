@@ -82,13 +82,17 @@
 
 ### A. Reserva e régua, antes de instalar
 
-1. [ ] Resolver `$prod`, `$ver`, `$ident` e o binário em `app/src-tauri/tauri.conf.json`; anotar no relatório. — **prova:** `node -p "const c=require('./app/src-tauri/tauri.conf.json');[c.productName,c.version,c.identifier,c.mainBinaryName].join(' ')"` → 4 valores, versão ≥ `0.3.0`
+1. [x] Resolver `$prod`, `$ver`, `$ident` e o binário em `app/src-tauri/tauri.conf.json`; anotar no relatório. — **prova:** `node -p "const c=require('./app/src-tauri/tauri.conf.json');[c.productName,c.version,c.identifier,c.mainBinaryName].join(' ')"` → 4 valores, versão ≥ `0.3.0`
    **reprova se:** a versão é ≤ `0.2.0` (o app velho é `0.2.0`, `reco.py:34`, e o release `v0.2.0` é o Latest do GitHub), `productName` vem vazio,
    ou `identifier` é igual a `productName` sem diferença de maiúsculas (ex.: `Reco`). Esperado aqui: `Reco Novo` e `io.github.dosxnjos.reco` (Fase 3, passo 3).
    - Versão abaixo: subir para `0.3.0` em `tauri.conf.json` e onde a Fase 3 a espelhou (`Cargo.toml`, `package.json`, e os lockfiles que mudarem).
    - Por que o `identifier`: com a caixa "apagar dados" marcada, a desinstalação faz `RmDir /r "$LOCALAPPDATA\${BUNDLEID}"`
      (molde do Tauri CLI 2.12.4). Se o identifier for `Reco`, isso apaga `%LOCALAPPDATA%\Reco` inteira, com os modelos.
      Corrigir para domínio reverso (ex.: `io.github.dosxnjos.reco`) antes de seguir.
+   - Nota (2026-11-12, frescor): `mainBinaryName` não existe no `tauri.conf.json`; o binário sai com o nome do pacote
+     Cargo (`reco`), ou seja `reco.exe` (a Fase 3 o viu instalado em `%LOCALAPPDATA%\Reco Novo\reco.exe`). A versão
+     estava em `0.1.0` e subiu para `0.3.0` em `tauri.conf.json`, `Cargo.toml`, `Cargo.lock` (pacote `reco`),
+     `package.json` e `package-lock.json` (as duas entradas). O `condutor.ts` (dados inventados do backend falso) segue com `0.1.0`.
 2. [ ] Congelar uma cópia da reserva em `%LOCALAPPDATA%\Reco-reserva\Reco` (F4-D3). — **prova:** a conferência do primeiro sub-item → `True`
    **reprova se:** sai `False`, erro de caminho, ou falta `_internal` ou `models` na cópia.
    - Conferência: `$r="$env:LOCALAPPDATA\Reco-reserva"; $a=(Get-FileHash "$r\Reco\Reco.exe").Hash; $b=(Get-FileHash C:\Dev\Reco\dist\Reco\Reco.exe).Hash; ($a -eq $b) -and (Test-Path "$r\Reco\_internal") -and (Test-Path "$r\models")`.
@@ -136,6 +140,10 @@
    - Pasta: se `output_dir` do config não for nulo, trocar `$HOME/Documents/Reco` por ela (em 11/11/2026 era nulo).
      Nomes sem espaço, por isso o `$(ls ...)` sem aspas funciona depois do `cd`.
    - Se a Fase 0 já guardou essa contagem, reusar e citar. Referência histórica: salto em 16 de 43 (37%).
+   - Nota (2026-11-12, frescor): uma das 10 mais recentes tem **espaço no nome** (o dono renomeou à mão), então o
+     `$(ls ...)` sem aspas quebra. E a regra é ler as gravações só por **cópia**: copiar as 10 (com o `x.txt` ao lado, se
+     houver, nomes originais) para uma pasta temporária fora do repo e passar a lista entre aspas. No relatório, nomes
+     viram G01 a G10 (repo público).
 7. [ ] Provar que o transcritor dos agentes é determinístico antes de usá-lo como régua byte a byte. — **prova:** 2 rodadas `--forcar` (sub-itens), depois `cmp temp/det1.txt temp/det2.txt && echo IGUAL` → `IGUAL`
    **reprova se:** os dois diferem. Aí vale F4-D8: a comparação byte a byte sai da régua e fica só `pior` + diarizado.
    - Copiar antes a gravação para `temp/det/` (com o `x.txt` do app ao lado, para o último sub-item).
@@ -145,6 +153,9 @@
    - Usar gravação de 3 a 10 min com fala dos dois lados (o anti-loop refaz janela com temperatura, `reco.py:2117-2183`).
    - Se deu `IGUAL`, linha de base do byte a byte no app velho: `python tools/paridade.py <a mesma gravação, na pasta do app> --txt-contra-script`
      → `script=igual`. Se o velho já sai `DIFERENTE`, o byte a byte não serve para julgar o novo no passo 18 (F4-D8).
+   - Nota (2026-11-12, frescor): nunca rodar o `tools/transcrever.py --forcar` sobre arquivo **dentro** da pasta do app: lá
+     o destino é o `x.txt` do app (`destino()`, `tools/transcrever.py:87-99`), que seria reescrito. As rodadas e a linha de
+     base usam a cópia em pasta temporária, com o `x.txt` do app copiado ao lado. Duas rodadas só, sem repetir até bater.
 
 ### B. Instalar e trocar
 
@@ -158,6 +169,15 @@
    - Antes do build, para o passo 14: `grep -n "ready em" engine/reco_engine/boot.py` → 1 linha que loga no stderr `ready em <n> s`
      quando o evento `ready` sai. Se não houver, acrescentar essa linha (sem mudar comportamento); o build congela o motor de novo.
    - Anotar o tamanho do instalador no relatório (hoje não há número; o Lacre sem OpenVINO deu 30,6 MB).
+   - Nota (2026-11-12, frescor): o `.app_name("Reco Novo")` está em `app/src-tauri/src/lib.rs:207`; o `atalho.rs:7` só o
+     cita num comentário. Outros `Reco Novo` versionados em `app/`: `build.ps1:107` (título), `lib.rs:38` (comentário),
+     `windows/hooks.nsh:1,6` (comentários, só ASCII) e `o.versao-texto` em `ui/src/i18n/pt.ts` e `en.ts`. O `app/ui/dist`
+     (fora do git) só sai limpo depois do build, então o grep da prova roda depois dele. O mutex
+     (`instancia.rs:58`, `Local\Reco.SingleInstance`) não depende do nome e não muda.
+   - Nota (2026-11-12, frescor): o motor loga pelo `logging` com `%(asctime)s %(levelname)s %(name)s: %(message)s`
+     (`engine/reco_engine/server.py:178-179`), então a linha nasce `<data hora> INFO reco_engine.boot: ready em <n> s`, e o
+     `^ready em ` do passo 14 nunca casaria. A linha entra por `log.info` em `boot._announce` (só no `ready` sem erro), e o
+     passo 14 casa `'reco_engine.boot: ready em '`.
 9. [ ] Desinstalar o "Reco Novo" e só então instalar o "Reco", em silêncio, com os dois apps fechados pelo Gabriel na bandeja. — **prova:** `Test-Path "$env:LOCALAPPDATA\Reco Novo\uninstall.exe"` → `False`; depois `Start-Process $setup -ArgumentList '/S' -Wait; Test-Path $exe` → `True`
    **reprova se:** o velho ou o "Reco Novo" ainda está vivo (parar: pode estar gravando), o "Reco Novo" segue instalado ou no Menu Iniciar, `False` no fim, ou SmartScreen/Defender bloqueia.
    - Com os dois apps fechados, antes de instalar: as checagens que gravam do bloco "Herdado da Fase 3" (acima); depois
@@ -216,7 +236,8 @@
 14. [ ] Medir "pronto para gravar" no app instalado (D12), com método próprio. — **prova:** o laço do 1º sub-item em 3 aberturas a quente → mediana ≤ a mediana de `abrir_pronta_s` do relatório da Fase 0; Gravar clicado logo depois do `ready` põe o cronômetro a andar sem esperar `aquecimento pronto`
     **reprova se:** a mediana passa da de `abrir_pronta_s`, o laço sai pelo teto de 60 s (não achou janela ou `ready em`), ou Gravar espera o aquecimento da transcrição.
     - Laço (PowerShell, `$log` dos Nomes): `$n=@(Get-Content $log -EA 0).Count; $sw=[Diagnostics.Stopwatch]::StartNew(); $p=Start-Process $exe -PassThru;`
-      `do { Start-Sleep -m 50; $w=(Get-Process -Id $p.Id -EA 0).MainWindowHandle -ne 0; $r=@(Get-Content $log -EA 0 | Select -Skip $n) -match '^ready em ' }`
+      `do { Start-Sleep -m 50; $w=(Get-Process -Id $p.Id -EA 0).MainWindowHandle -ne 0; $r=@(Get-Content $log -EA 0 | Select -Skip $n) -match 'reco_engine.boot: ready em ' }`
+      (2026-11-12: era `'^ready em '`, que não casa com o formato do log do motor; ver a nota do passo 8)
       `until (($w -and $r) -or $sw.Elapsed.TotalSeconds -gt 60); $sw.Elapsed.TotalSeconds` → acima de 60 = "não achou" (o processo saiu, ou falta a linha do passo 8).
     - Por que não o método da Fase 0: ele acha `TkTopLevel` e os HWND `Button`, que o WebView2 não tem. Pronto = janela visível
       e evento `ready` do motor (Gravar habilitado, Fase 3 passo 12); no velho Gravar funciona assim que a janela chega a
@@ -340,6 +361,12 @@ Cada linha vira ✓ ou ✗ no relatório, com a evidência. "Script" = comando c
 | F4-D7 | Só instalador NSIS, sem MSI | NSIS faz `currentUser` sem admin; o MSI do Tauri instala para a máquina (premissa) e dobra o artefato | média | alguém pedir MSI ou distribuição por política de empresa |
 | F4-D8 | Byte a byte só em gravações ≤ 10 min e só se o passo 7 provar determinismo | o transcritor leva minutos por hora de áudio; sem determinismo a comparação mente | alta | o passo 7 falhar: régua fica `pior` + diarizado, e a diferença vai ao relatório |
 | F4-D9 | Versão do app novo `0.3.0` | maior que `0.2.0` do velho e do release Latest; o aviso de versão compara números (`reco.py:1268-1272`) | alta | — |
+
+> Nota (2026-11-12, frescor): o `app.update_check` do motor chama `reco.check_app_update()` (`engine/reco_engine/extras.py:82-85`),
+> que compara o release Latest com o `reco.APP_VERSION` (`0.2.0`, `reco.py:34`, `:1284`), **não** com a versão do casco.
+> Hoje isso não muda nada (Latest `v0.2.0` não é maior que `0.2.0`), e P23 passa. Mas, se um dia sair um release `v0.3.0`,
+> o app novo (motor com `reco` 0.2.0) passaria a avisar "versão nova" para sempre. Decidir antes do release (Pendente):
+> o casco mandar a própria versão no `app.update_check`, ou o `APP_VERSION` subir junto. Esta fase não mexe no `reco.py`.
 
 As 6 gravações de F4-D1:
 

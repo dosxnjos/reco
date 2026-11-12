@@ -1,7 +1,7 @@
 {
   "name": "reco-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Reco: casco Tauri 2 (interface nova) sobre o motor Python em engine/.",
   "license": "MIT",
   "type": "module",

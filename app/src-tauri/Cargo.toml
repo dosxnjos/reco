@@ -1,6 +1,6 @@
 [package]
 name = "reco"
-version = "0.1.0"
+version = "0.3.0"
 description = "Reco: grava microfone + som do PC e transcreve local (casco Tauri sobre o motor Python)"
 authors = ["dosxnjos"]
 license = "MIT"
