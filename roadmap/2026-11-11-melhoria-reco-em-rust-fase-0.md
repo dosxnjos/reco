@@ -125,7 +125,7 @@
 
 ### Bloco B — janela com o Reco do Gabriel fechado
 
-9. [ ] Modo `--esperar-fechado`: checar que nada grava, pedir ao Gabriel o Sair pela bandeja e esperar o processo sumir — **prova:** `medir_partida.py --esperar-fechado` → `pode sair`; depois `medir_partida.py --esperar-fechado --so-esperar` → `fechado pid N em <s> s`
+9. [x] Modo `--esperar-fechado`: checar que nada grava, pedir ao Gabriel o Sair pela bandeja e esperar o processo sumir — **prova:** `medir_partida.py --esperar-fechado` → `pode sair`; depois `medir_partida.py --esperar-fechado --so-esperar` → `fechado pid N em <s> s`
    **reprova se:** a 1ª chamada recusa (`gravação em curso: <arquivo>` ou `ocupado: cpu=<N>%`) ou a 2ª estoura (`ainda aberto após 8 min`, código 5). Aí nada se força: o Bloco B fica para quando o Gabriel puder.
    - Duas chamadas, porque a saída de um comando só aparece quando ele termina e o Bash corta em 10 min: a 1ª checa e sai com `pode sair`; o executor pede o Sair; a 2ª só espera (a cada 2 s, até 8 min). Estourou: pedir de novo e repetir a 2ª.
    - O executor **nunca** mata o `Reco.exe` do Gabriel (`taskkill /F` perde uma gravação em curso), como nas Fases 2 e 3. Quem fecha é ele, pelo menu da bandeja → Sair (Pendente, abaixo).
@@ -142,14 +142,14 @@
      - Somar (PowerShell): `(Get-ChildItem -Recurse <pasta> | Measure-Object Length -Sum).Sum` nas duas pastas; anotar o valor para o passo 14.
    - Guardar também o config: toda instância de teste regrava o `~/.reco_config.json` ao abrir (`load_config(persist=True)`, `reco.py:2869`). **prova:** `cp ~/.reco_config.json C:/Dev/Reco/temp/medicoes/reco_config.antes.json && cmp ~/.reco_config.json C:/Dev/Reco/temp/medicoes/reco_config.antes.json && echo igual` → `igual`
      **reprova se:** o `cp` falha ou o `cmp` acusa diferença. Aí não seguir para o passo 10.
-10. [ ] Acrescentar o modo `--descobrir` e conferir como achar os botões da janela Tk de fora — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --descobrir` → `janela=TkTopLevel botoes_visiveis=1 gravar=<x,y,w,h>` e o processo de teste encerrado no fim
+10. [x] Acrescentar o modo `--descobrir` e conferir como achar os botões da janela Tk de fora — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --descobrir` → `janela=TkTopLevel botoes_visiveis=1 gravar=<x,y,w,h>` e o processo de teste encerrado no fim
     **reprova se:** `botoes_visiveis=0`, ou seja, o Tk não cria um HWND por botão. Aí reverter a F0-D2 para o caminho do menu da bandeja e reescrever o passo 11.
     - Toda instância de teste dos passos 10 a 13 (aqui, no passo 11 e no `mutex.py` do 13) abre com `HF_HUB_OFFLINE=1` só no ambiente do `Popen` (P8): a checagem de modelo novo falha calada e não troca a pasta. Nunca na máquina toda, nem na reabertura do passo 14.
     - Abre `dist/Reco/Reco.exe` e acha a janela por `EnumWindows` (classe `TkTopLevel`, título `Reco`, `reco.py:33`, mesmo pid, visível).
     - Lista os filhos com `EnumChildWindows` (classe `Button`, visíveis, ordenados da esquerda para a direita).
     - Em repouso, o único `tk.Button` visível é Gravar (`reco.py:3573-3575`); os botões de janela são `tk.Label` (`reco.py:2998-3005`). Premissa P1: o `tk.Button` do Tk 8.6 no Windows é um controle nativo `BUTTON`.
     - Encerra o processo de teste com `taskkill /PID N /F` (só o pid que ele abriu).
-11. [ ] Implementar a rodada de medição e rodar 3 vezes sem som tocando — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --rodadas 3 --segundos 35` → 3 linhas JSON com as chaves da lista abaixo, `trava_detectada=true` em todas e a nota `mp3_movido=temp/medicoes/<nome>`
+11. [x] Implementar a rodada de medição e rodar 3 vezes sem som tocando — **prova:** `python C:/Dev/Reco/tools/medir_partida.py --rodadas 3 --segundos 35` → 3 linhas JSON com as chaves da lista abaixo, `trava_detectada=true` em todas e a nota `mp3_movido=temp/medicoes/<nome>`
     **reprova se:** alguma chave falta ou sai `null` sem motivo, `trava_detectada=false` (a premissa da trava caiu), `clique_mp3_cresce_s` abaixo de 9 s (o MP3 não cresce antes de 10 s de coleta, `reco.py:1862-1864`: o número mede outra coisa), ou o MP3 de teste continua na pasta do Gabriel.
     - Recusa rodar se já houver `Reco.exe` aberto (código 3): com o mutex, o exe novo sairia em milissegundos e mediria a mensagem `Reco.Show`, não a partida (`reco.py:5201-5211`).
     - `abrir_visivel_s`: do `Popen` até a janela `TkTopLevel` visível. `abrir_pronta_s`: até alfa 255 por `GetLayeredWindowAttributes` (o fade sobe 0,07 a cada 14 ms, `reco.py:3025-3029`).
@@ -174,7 +174,8 @@
     - `--tocar` toca ruído a −6 dBFS pelo alto-falante padrão nos primeiros 15 s, numa thread, como o `toca()` do `tools/test_gravacao_alinhada.py:79-85` (soundcard a 48 kHz).
     - Com eco medível, o alinhamento fecha em `ALIGN_COLETA_S = 10` s (`reco.py:1491`, `1862-1864`).
     - Toca som na máquina do Gabriel: rodar só nesta janela, nunca com ele em chamada.
-13. [ ] Provar a exclusão mútua spike × Reco nos dois sentidos (D7) — **prova:** `python C:/Dev/Reco/temp/spike-bandeja/mutex.py` → `spike_primeiro: reco_saiu_em_ms=<N> reco_vivos=0` e `reco_primeiro: spike_saiu_em_ms=<N> mutex_existente_no_log=true`, com N < 3000
+    - 11/11, 23:46: `tocou=true` nas 2, mas `clique_mp3_cresce_s` = 33,5 e 31,4 s. O PyAV só cria o arquivo no 1º pacote, então o número que esta prova quer é `clique_arquivo_criado_s` (11,0–11,2 s com eco detectado). Trocar a chave da prova; detalhe no relatório § Bloco B.
+13. [x] Provar a exclusão mútua spike × Reco nos dois sentidos (D7) — **prova:** `python C:/Dev/Reco/temp/spike-bandeja/mutex.py` → `spike_primeiro: reco_saiu_em_ms=<N> reco_vivos=0` e `reco_primeiro: spike_saiu_em_ms=<N> mutex_existente_no_log=true`, com N < 3000
     **reprova se:** `reco_vivos=1` (o Reco abriu junto) ou o spike continua vivo depois de 3 s com o Reco aberto.
     - `mutex.py` (descartável, só `ctypes` e `subprocess`) faz os dois sentidos e abre o `Reco.exe` com `HF_HUB_OFFLINE=1` no ambiente (passo 10, P8).
     - Sentido 1: abre o spike sem `SPIKE_SEM_MUTEX`, espera o log `icone_rect`, abre `dist/Reco/Reco.exe` e mede quanto ele leva para sair.
@@ -188,6 +189,7 @@
     - Soma igual (de primeira ou depois de repor): só então o `Start-Process`, e depois dele apagar `temp/medicoes/models-reserva` (790 MB).
     - O app reabre com a janela centralizada, não escondida na bandeja (`reco.py:2930-2937`): é o comportamento normal ao abrir.
     - Conferir também que `tasklist` não lista nenhum `reco-spike-bandeja.exe`.
+    - 11/11, 23:49: conferências verdes (soma 828.097.157, config igual, pasta sem MP3 de teste, nenhum spike). A reabertura ficou para a última etapa do lote, que ainda precisa do app fechado.
 
 ### Bloco C — registrar e propagar
 

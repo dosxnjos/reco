@@ -29,6 +29,9 @@ MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
 HWND_TOPMOST = wt.HWND(-1)
 SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE = 0x0001, 0x0002, 0x0010
+WS_EX_TOPMOST = 0x00000008
+GA_ROOT = 2
+SPI_GETWORKAREA = 0x0030
 
 
 class PROCESS_MEMORY_COUNTERS_EX(ctypes.Structure):
@@ -80,6 +83,9 @@ u32.GetLayeredWindowAttributes.argtypes = [wt.HWND, ctypes.POINTER(wt.DWORD),
                                            ctypes.POINTER(ctypes.c_ubyte), ctypes.POINTER(wt.DWORD)]
 u32.WindowFromPoint.argtypes = [wt.POINT]
 u32.WindowFromPoint.restype = wt.HWND
+u32.GetAncestor.argtypes = [wt.HWND, wt.UINT]
+u32.GetAncestor.restype = wt.HWND
+u32.SystemParametersInfoW.argtypes = [wt.UINT, wt.UINT, ctypes.c_void_p, wt.UINT]
 u32.SetForegroundWindow.argtypes = [wt.HWND]
 u32.SetWindowPos.argtypes = [wt.HWND, wt.HWND, ctypes.c_int, ctypes.c_int,
                              ctypes.c_int, ctypes.c_int, wt.UINT]
@@ -235,16 +241,65 @@ def _trazer_para_frente(topo) -> None:
     time.sleep(0.3)
 
 
+def _centro(hwnd_botao) -> tuple[int, int]:
+    x, y, w, h = retangulo(hwnd_botao)
+    return x + w // 2, y + h // 2
+
+
+def quem_cobre(x: int, y: int) -> str:
+    """Classe, processo, topmost e retângulo da janela de topo no ponto (sem o título:
+    o texto vai para o relatório de um repo público)."""
+    raiz = u32.GetAncestor(u32.WindowFromPoint(wt.POINT(x, y)), GA_ROOT)
+    pid = pid_da_janela(raiz)
+    r = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                       capture_output=True, timeout=30)
+    linha = next(csv.reader(r.stdout.decode("mbcs", errors="replace").splitlines() or [""]), [""])
+    topmost = bool(u32.GetWindowLongW(raiz, GWL_EXSTYLE) & WS_EX_TOPMOST)
+    return (f"classe={_texto(u32.GetClassNameW, raiz)} processo={linha[0] or '?'} pid={pid} "
+            f"topmost={topmost} rect={retangulo(raiz)}")
+
+
+def _area_util() -> tuple[int, int, int, int]:
+    r = wt.RECT()
+    u32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(r), 0)
+    return r.left, r.top, r.right, r.bottom
+
+
+def _mover_para_livre(topo, hwnd_botao, pid: int) -> bool:
+    """Leva a janela de teste (só ela) aos cantos da área útil até o botão ficar à mostra."""
+    esq, cima, dir_, baixo = _area_util()
+    _, _, w, h = retangulo(topo)
+    for x, y in ((esq, cima), (dir_ - w, cima), (esq, baixo - h), (dir_ - w, baixo - h)):
+        u32.SetWindowPos(topo, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE)
+        time.sleep(0.3)
+        if _ponto_do_pid(*_centro(hwnd_botao), pid):
+            return True
+    return False
+
+
+def liberar_ponto(hwnd_botao, pid: int, topo=None) -> str:
+    """Garante que o centro do botão é do pid de teste: 'direto', 'topmost' ou 'movida'.
+    Nunca mexe em janela de outro processo; se nada resolve, recusa (RuntimeError)
+    dizendo quem cobre o ponto."""
+    if _ponto_do_pid(*_centro(hwnd_botao), pid):
+        return "direto"
+    if topo:
+        _trazer_para_frente(topo)
+        if _ponto_do_pid(*_centro(hwnd_botao), pid):
+            return "topmost"
+        if _mover_para_livre(topo, hwnd_botao, pid):
+            return "movida"
+    cx, cy = _centro(hwnd_botao)
+    raise RuntimeError(f"ponto {cx},{cy} coberto por outra janela ({quem_cobre(cx, cy)}); "
+                       "clique recusado")
+
+
 def clicar(hwnd_botao, pid: int, topo=None) -> float:
     """Clique esquerdo real no centro do botão; devolve o perf_counter do SendInput.
     Recusa (RuntimeError) se o ponto não for do pid aberto pela ferramenta: nunca
-    clica em janela de outro processo."""
-    x, y, w, h = retangulo(hwnd_botao)
-    cx, cy = x + w // 2, y + h // 2
-    if not _ponto_do_pid(cx, cy, pid) and topo:
-        _trazer_para_frente(topo)
-    if not _ponto_do_pid(cx, cy, pid):
-        raise RuntimeError(f"ponto {cx},{cy} coberto por outra janela; clique recusado")
+    clica em janela de outro processo. Quem chama lê o caminho em `clicar.via`."""
+    clicar.via = liberar_ponto(hwnd_botao, pid, topo)
+    cx, cy = _centro(hwnd_botao)
     antes = wt.POINT()
     u32.GetCursorPos(ctypes.byref(antes))
     u32.SetCursorPos(cx, cy)

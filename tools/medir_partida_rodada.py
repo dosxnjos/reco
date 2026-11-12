@@ -7,6 +7,7 @@ abre com HF_HUB_OFFLINE=1 só no ambiente do Popen (a checagem de modelo novo fa
 calada), é encerrada pelo pid que a ferramenta abriu, e o MP3 dela vai para
 temp/medicoes/ (mover é reversível; nada se apaga).
 """
+import ctypes
 import json
 import os
 import shutil
@@ -113,7 +114,13 @@ def _abrir(r: dict, proc, t0: float):
 
 
 def _tocar(som: dict, parar: threading.Event) -> None:
-    """Ruído a −6 dBFS de pico, 48 kHz, no alto-falante padrão (test_gravacao_alinhada.py:79-85)."""
+    """Ruído a −6 dBFS de pico, 48 kHz, no alto-falante padrão (test_gravacao_alinhada.py:79-85).
+    O soundcard só inicia o COM na thread que o importa: importado numa thread de rodada,
+    a 2ª rodada daria 0x800401f0 (CO_E_NOTINITIALIZED). Por isso o `rodadas` o importa na
+    thread principal (o MTA fica vivo) e cada thread entra no MTA aqui, depois do import
+    (antes dele, o soundcard veria S_FALSE e recusaria)."""
+    ole32 = ctypes.WinDLL("ole32")
+    ole32.CoInitializeEx(None, 0)       # COINIT_MULTITHREADED, como o soundcard
     try:
         import numpy as np
         import soundcard as sc
@@ -127,6 +134,8 @@ def _tocar(som: dict, parar: threading.Event) -> None:
         som["tocou"] = True
     except Exception as e:      # sem saída de áudio: a rodada segue, tocou=false
         som["erro_tocar"] = str(e)
+    finally:
+        ole32.CoUninitialize()
 
 
 def _ver_arquivo(o: dict, pasta, antes: set, el: float) -> None:
@@ -180,6 +189,7 @@ def _gravar(r: dict, proc, hwnd, ctx: tuple, tocar: bool) -> dict:
     if tocar:
         th.start()
     t = w.clicar(bts[0][0], proc.pid, hwnd)
+    r["clique_via"] = w.clicar.via      # direto | topmost | movida
     o = _observar(proc.pid, hwnd, ctx, t)
     parar.set()
     if tocar:
@@ -203,6 +213,7 @@ def _parar(r: dict, proc, hwnd, mp3) -> None:
     if len(bts) != 2:       # sem Parar e Pausar, o clique cairia no Gravar de novo
         raise RuntimeError(f"estado não é gravando ({len(bts)} botões visíveis); Parar não clicado")
     t = w.clicar(bts[0][0], proc.pid, hwnd)      # Parar é o mais à esquerda (reco.py:3576-3580)
+    r["parar_via"] = w.clicar.via
     r.update(_primeira_vez({
         "parar_arquivo_fechado_s": lambda: mp3 is not None and mp3.exists() and not w.arquivo_preso(mp3),
         "parar_ui_parado_s": lambda: len(w.botoes_visiveis(hwnd)) == 3,    # Salvar, Excluir, Reproduzir
@@ -252,6 +263,8 @@ def rodadas(a) -> int:
     if cod := _recusa_se_aberto():
         return cod
     w.dpi_fisico()
+    if a.tocar:
+        import soundcard  # noqa: F401  (COM na thread principal; ver _tocar)
     mp.MEDICOES.mkdir(parents=True, exist_ok=True)
     ruins = 0
     for i in range(1, a.rodadas + 1):
