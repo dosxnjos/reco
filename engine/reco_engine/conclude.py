@@ -33,9 +33,10 @@ def make_live(core, reco, cfg: dict) -> tuple:
     if tr is None:
         return None, None, False
     with core.lock:                 # confere e reserva juntos: nenhuma transcrição entra no meio
-        if core.transcribing:
+        if core.transcribing or core.live_active:   # live_active aqui = worker anterior ainda gerando
             return None, None, True
         core.live_active = True
+        core.live_gen += 1
     # modelo e device do config, como o App faz no __init__ (reco.py:2881-2882)
     tr.set_model(cfg.get("model", reco._CFG_DEFAULTS["model"]))
     tr.set_device(cfg.get("device", "AUTO"))

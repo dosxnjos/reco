@@ -97,21 +97,40 @@ def _abort_to_idle(core) -> None:
 
 
 def _stop_live(core, wait: bool) -> None:
+    """Para o ao vivo. Com `wait`, drena (até 15 s) e solta a vaga, como antes. Sem `wait` (abort, falha no start
+    ou no stop, saída), descarta a fila e só solta `live_active` quando o worker termina o `generate` em curso:
+    soltar antes deixava a troca do modelo ou um `transcribe.file` entrarem no mesmo pipeline com ele gerando."""
     with core.lock:
         live, core.live = core.live, None
+        gen = core.live_gen
+    if live is None:
+        return
     try:
-        if live is None:
-            return
         if wait:
             live.stop(wait=True, timeout=15.0, discard=True)
         else:
-            live.stop(wait=False)
+            live.stop(wait=False, discard=True)
     except Exception as e:  # noqa: BLE001
         log.warning("ao vivo não parou limpo: %s", short(e))
-    finally:
-        if live is not None:
-            with core.lock:
-                core.live_active = False
+    th = getattr(live, "_thread", None)
+    if not wait and th is not None and th.is_alive():
+        threading.Thread(target=_soltar_live_depois, args=(core, th, gen), name="live-solta", daemon=True).start()
+    else:
+        _soltar_live(core, gen)
+
+
+LIVE_SOLTA_MAX_S = 120.0     # worker travado não prende a vaga para sempre
+
+
+def _soltar_live(core, gen: int) -> None:
+    with core.lock:
+        if core.live_gen == gen:            # um ao vivo ligado depois (outro rec.start) segue com a marca
+            core.live_active = False
+
+
+def _soltar_live_depois(core, th, gen: int) -> None:
+    th.join(LIVE_SOLTA_MAX_S)
+    _soltar_live(core, gen)
 
 
 # ------------------------------------------------------------ rec.start

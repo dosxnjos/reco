@@ -92,9 +92,12 @@ Notas por comando:
   resumo.
 - `model.update_check` (`modelo.py`, 12/11/2026): a consulta ao hub (revisão do repo × `.hf_revision`) não
   ocupa a vaga da transcrição, então uma nota pedida logo depois de abrir não leva `busy`. Sem revisão nova ou
-  sem resposta do hub, responde `{}` e acabou. Com revisão nova, espera o motor ficar ocioso (`idle`, sem
-  transcrição nem ao vivo), ocupa a vaga e só então baixa e troca (`reco.update_model_if_newer`); durante esse
-  download, `transcribe.file` e `rec.start nota` levam `busy`.
+  sem resposta do hub (a consulta tem prazo de 15 s), responde `{}` e acabou. Com revisão nova, baixa para uma
+  pasta temporária **sem ocupar a vaga** (o download leva minutos; nota e transcrição seguem livres), espera o
+  motor ficar ocioso (`idle`, sem transcrição nem ao vivo) e ocupa a vaga só para a troca de pasta (segundos):
+  nesse instante, `transcribe.file` e `rec.start nota` levam `busy`. Os passos do `reco.update_model_if_newer`
+  moram em `modelo.py` (o `reco.py` não muda); troca que falha no meio devolve a pasta antiga e a temporária
+  sempre sai (revisão adversarial dos consertos, 12/11/2026).
 
 ## Sequência de parar e concluir (F2-D12)
 

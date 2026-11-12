@@ -32,6 +32,7 @@ class Core:
         self.live = None                        # reco.LiveTranscriber durante a gravação
         self.live_was_on = False
         self.live_active = False                # ao vivo ligado: nenhuma outra transcrição entra
+        self.live_gen = 0                       # sobe a cada ao vivo ligado: a soltura atrasada não apaga o novo
         self.early_errors: list = []            # erros de canal antes do estado `recording`
         self.start_ts = 0.0
         self.accum = 0.0
