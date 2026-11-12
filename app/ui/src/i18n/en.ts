@@ -221,6 +221,8 @@ export const en: Record<Chave, string> = {
   "av.nada-gravado": "Nothing was recorded: no audio arrived.",
   "av.parando": "Stopping… closing the recording file.",
   "av.parado-salvo": "The recording stayed in the recordings folder: {nome}",
+  "av.ocupado-transcrevendo": "Reco is busy with a transcription or a model update. Try again when it ends.",
+  "av.ocupado-tente": "Not right now: Reco was finishing another task. Try again.",
 
   "erro.bad_args": "Invalid request",
   "erro.busy": "Reco is busy with another task",

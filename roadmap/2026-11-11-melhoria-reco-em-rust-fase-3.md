@@ -101,6 +101,8 @@ batem; o que muda é forma de resposta e estado, e vale no lugar da tabela acima
   `{q, items}`; `library.delete` → `{path, deleted}`.
 - `convert.extract_mp3` → `{path, src_bytes, dst_bytes}`, `progress` com `pct` inteiro e `text: null`.
 - `resumo.ia` → `{path, existia}`; `model.update_check` → `{}` e pode responder `busy` (o casco engole).
+  **Corrigido em 12/11 (defeito 1 do passo 17):** a consulta não ocupa mais a vaga da transcrição; só a troca, com
+  revisão nova e o motor ocioso (`engine/reco_engine/modelo.py`). A tela não engole `busy` no Gravar: diz o motivo.
 - `rec.error.channel` é `mic|sys|save`. Códigos do próprio casco, fora da lista do motor: `timeout` (Router) e
   `hotkey_taken` (passo 10).
 - Nenhum comando novo no motor foi preciso para os passos 2 a 10.

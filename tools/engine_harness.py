@@ -63,11 +63,17 @@ def read_config(home: Path) -> dict:
     return json.loads((home / ".reco_config.json").read_text(encoding="utf-8"))
 
 
-def child_env(home: Path, path_env: str | None = None) -> dict:
+def child_env(home: Path, path_env: str | None = None, extra: dict | None = None) -> dict:
+    """Ambiente do motor de teste; em `extra`, valor `None` tira a variável (ex.: `HF_HUB_OFFLINE`)."""
     env = dict(os.environ)
     env.update(PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8", PYTHONUTF8="1", USERPROFILE=str(home))
     if path_env is not None:
         env["PATH"] = path_env
+    for k, v in (extra or {}).items():
+        if v is None:
+            env.pop(k, None)
+        else:
+            env[k] = v
     return env
 
 
@@ -76,11 +82,13 @@ def engine_cmd(exe: str | None) -> list:
 
 
 class Engine:
-    def __init__(self, home: Path, exe: str | None = None, path_env: str | None = None) -> None:
+    def __init__(self, home: Path, exe: str | None = None, path_env: str | None = None,
+                 env_extra: dict | None = None) -> None:
         self.t0 = time.perf_counter()
         self.p = subprocess.Popen(engine_cmd(exe), cwd=str(ENGINE_DIR), stdin=subprocess.PIPE,
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                  creationflags=CREATE_NO_WINDOW, env=child_env(home, path_env))
+                                  creationflags=CREATE_NO_WINDOW,
+                                  env=child_env(home, path_env, env_extra))
         self.msgs: list = []           # (t, msg) de tudo que veio no stdout
         self.bad: list = []            # linhas do stdout que não são JSON (reprova sempre)
         self.stderr: list = []

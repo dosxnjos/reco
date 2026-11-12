@@ -1,10 +1,9 @@
-"""Extras: `convert.extract_mp3`, `resumo.ia`, `model.update_check`, `app.update_check`.
+"""Extras: `convert.extract_mp3`, `resumo.ia`, `app.update_check` (o `model.update_check` mora em `modelo.py`).
 
 - conversão espelha `_cv_convert` (reco.py:4783-4824) sobre `reco.extract_mp3`;
 - resumo espelha `_lib_resumo` (reco.py:4663-4711): `claude -p <prompt> --model sonnet` (flag cravada),
   transcrição no stdin, timeout de 900 s, saída em `<gravação>.resumo.md`; o `.txt` segue as duas
-  convenções da biblioteca (`x.txt`, senão `x.mp3.txt`);
-- `model.update_check` troca a pasta do modelo no lugar: ocupa o lugar da transcrição (`busy`).
+  convenções da biblioteca (`x.txt`, senão `x.mp3.txt`).
 """
 from __future__ import annotations
 
@@ -80,16 +79,6 @@ def cmd_resumo(core, rid, args) -> dict:
     return {"path": str(resumo), "existia": False}
 
 
-def cmd_model_update(core, rid, args) -> dict:
-    reco = boot.reco()
-    core.claim_transcription()          # troca a pasta do modelo no lugar: nada transcreve junto
-    try:
-        reco.update_model_if_newer(lambda m: core.emit("progress", rid, pct=None, text=m))
-    finally:
-        core.release_transcription()
-    return {}
-
-
 def cmd_app_update(core, rid, args):
     reco = boot.reco()
     r = reco.check_app_update()
@@ -99,6 +88,5 @@ def cmd_app_update(core, rid, args):
 COMMANDS = {
     "convert.extract_mp3": cmd_extract_mp3,
     "resumo.ia": cmd_resumo,
-    "model.update_check": cmd_model_update,
     "app.update_check": cmd_app_update,
 }

@@ -15,8 +15,8 @@ import threading
 from typing import Any
 from collections.abc import Callable
 
-from . import (__version__, boot, conclude, config_cmd, devices, extras, library, recording,
-               transcribe)
+from . import (__version__, boot, conclude, config_cmd, devices, extras, library, modelo,
+               recording, transcribe)
 from .core import PROTOCOL_VERSION, Core
 from .errors import EngineError, short
 
@@ -47,6 +47,7 @@ COMMANDS: dict[str, Callable] = {
     **transcribe.COMMANDS,
     **library.COMMANDS,
     **extras.COMMANDS,
+    **modelo.COMMANDS,
 }
 
 

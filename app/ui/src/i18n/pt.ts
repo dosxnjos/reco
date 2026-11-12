@@ -228,6 +228,8 @@ export const pt = {
   "av.nada-gravado": "Nada foi gravado: o áudio não chegou.",
   "av.parando": "Parando… fechando o arquivo da gravação.",
   "av.parado-salvo": "A gravação ficou na pasta das gravações: {nome}",
+  "av.ocupado-transcrevendo": "O Reco está ocupado com uma transcrição ou uma atualização do modelo. Tente de novo quando ela terminar.",
+  "av.ocupado-tente": "Não deu agora: o Reco estava terminando outra tarefa. Tente de novo.",
 
   // códigos de erro do protocolo (docs/PROTOCOL.md) e do casco
   "erro.bad_args": "Pedido inválido",

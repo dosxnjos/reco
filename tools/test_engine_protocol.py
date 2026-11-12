@@ -4,8 +4,8 @@ Sobe o motor como o casco Tauri vai subir (JSON Lines por stdin/stdout, CREATE_N
 contrato. Este arquivo só tem as flags e o despacho; as checagens moram em `tools/engine_checks_*.py`.
 
 Uso (Git Bash, na raiz do repo):
-    python tools/test_engine_protocol.py                    # padrão: protocolo, ready, ocioso, config,
-                                                            # dispositivos, biblioteca, extras
+    python tools/test_engine_protocol.py                    # padrão: protocolo, ready, ocioso, checagem do
+                                                            # modelo, config, dispositivos, biblioteca, extras
     python tools/test_engine_protocol.py --exe engine/dist/reco-engine/reco-engine.exe   # idem, congelado
     python tools/test_engine_protocol.py --conferir-doc     # COMMANDS × tabela do PROTOCOL.md
     python tools/test_engine_protocol.py --transcrever <mp3 do Reco com fala>   # GPU, minutos
@@ -46,8 +46,11 @@ def _args() -> argparse.Namespace:
 def _padrao(a, guard: RealConfigGuard) -> None:
     import engine_checks_config
     import engine_checks_lib
+    import engine_checks_modelo
     import engine_checks_proto
     engine_checks_proto.run(a.exe)
+    engine_checks_modelo.run_em_voo(a.exe)
+    engine_checks_modelo.run_espera_vaga()
     engine_checks_config.run(guard, a.exe)
     engine_checks_lib.run_library(a.exe, a.lixeira)
     engine_checks_lib.run_extras(a.exe)

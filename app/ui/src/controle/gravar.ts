@@ -43,11 +43,11 @@ export function mostrarInterrompida(app: App): void {
 }
 
 /** Retrato do motor (`state`) para a tela voltar a bater com ele: depois de abrir, de um reinício ou de um pedido
- *  recusado (`busy`/`refused`: a tela estava atrasada em relação ao motor). */
-export async function ressincronizar(app: App): Promise<void> {
+ *  recusado (`busy`/`refused`: a tela estava atrasada em relação ao motor). Devolve o retrato (null sem resposta). */
+export async function ressincronizar(app: App): Promise<Estado | null> {
   const v = app.v, e = v.estado.gravar;
   const s = await app.pedir<Estado>("state").catch(() => null);
-  if (!s) return;
+  if (!s) return null;
   if (s.rec_state === "recording" || s.rec_state === "paused") {
     v.g.segundos = Math.round(s.elapsed_s ?? 0);
     v.ocupado = true; v.g.aoVivo = s.live; v.estado.opcoes = "durante-gravacao";
@@ -60,10 +60,20 @@ export async function ressincronizar(app: App): Promise<void> {
     v.ocupado = false; app.ir("gravar", "pronto"); app.diz("info", "av.parado-salvo", { nome: v.g.arquivo });
   }
   app.desenhar();
+  return s;
+}
+
+/** `busy`/`refused` num pedido da tela: ressincroniza e, se o retrato do motor não mostra o que o pedido queria
+ *  (a tela segue onde estava), diz o motivo em vez de engolir o clique (defeito 1 do passo 17: a nota logo depois de
+ *  abrir voltava a "Pronto" calada enquanto o motor checava o modelo). */
+async function recusado(app: App, antes: string): Promise<void> {
+  const s = await ressincronizar(app);
+  if (app.v.estado.gravar !== antes) return; // o motor explicou: a tela já mudou para o estado dele
+  app.diz("aviso", s?.transcribing ? "av.ocupado-transcrevendo" : "av.ocupado-tente");
 }
 
 async function comecar(app: App): Promise<void> {
-  const g = app.v.g;
+  const g = app.v.g, antes = app.v.estado.gravar;
   comecando = true;
   try {
     const r = await app.pedir<Inicio>("rec.start", { mode: g.modo === "nota" ? "nota" : "rec" });
@@ -72,7 +82,7 @@ async function comecar(app: App): Promise<void> {
     app.ir("gravar", estadoGravando(app));
   } catch (e) {
     const code = erroDe(e).code;
-    if (code === "busy" || code === "refused") { comecando = false; await ressincronizar(app); return; }
+    if (code === "busy" || code === "refused") { comecando = false; await recusado(app, antes); return; }
     const nota = t(code === "no_device" ? "g.erro-comecar-nota" : code === "unavailable" ? "g.erro-motor-nota" : "g.erro-comecar-nota-outro");
     g.erro = erroDeGravacao(e, t("g.erro-comecar"), nota, "opcoes");
     app.ir("gravar", "erro");
@@ -83,7 +93,7 @@ async function comecar(app: App): Promise<void> {
 
 /** Para pelo casco (o Rust pede `rec.stop` e, se houver `auto`, a conclusão; o resultado chega por `reco-conclusao`). */
 async function parar(app: App): Promise<void> {
-  const g = app.v.g;
+  const g = app.v.g, antes = app.v.estado.gravar;
   parandoAgora = true;
   try {
     const r = await app.be.pararGravacao();
@@ -93,7 +103,7 @@ async function parar(app: App): Promise<void> {
     const code = erroDe(e).code;
     zerarNiveis();
     // recusado ou ocupado: o motor não estava onde a tela achava (outro parar em curso): ele diz onde está
-    if (code === "refused" || code === "busy") { parandoAgora = false; await ressincronizar(app); return; }
+    if (code === "refused" || code === "busy") { parandoAgora = false; await recusado(app, antes); return; }
     app.v.ocupado = false;
     if (code === "no_audio") { app.ir("gravar", "pronto"); app.diz("aviso", "av.nada-gravado"); return; }
     g.erro = erroDeGravacao(e, t("g.erro-interrompida"), t("g.erro-interrompida-nota"), "pasta");

@@ -23,6 +23,10 @@ export interface ControleMock {
   atraso: Record<string, number>;
   /** A conclusão encadeada chega antes da resposta do parar_gravacao (o Rust não garante a ordem). */
   conclusaoAntes: boolean;
+  /** Recusa a próxima chamada do comando com o código dado (uma vez só), como o motor real ocupado. */
+  recusar: Record<string, string>;
+  /** O `state` diz `transcribing: true` sem trabalho de verdade (a checagem do modelo ocupando a vaga). */
+  vagaOcupada: boolean;
   /** Menu da bandeja como o lib.rs faz: Gravar sempre no modo `rec`; Parar pelo mesmo `parar_gravacao`. */
   bandeja(item: "gravar" | "parar"): Promise<unknown>;
   /** Força o estado do motor sem evento (simula o `stopping` que o motor real mostra enquanto fecha o MP3). */
@@ -107,14 +111,16 @@ class MotorFalso {
     if (!this.ready && !["hello", "state"].includes(cmd)) await this.espera(700);
     const extra = this.ctl.atraso[cmd];
     if (extra) await new Promise<void>((ok) => setTimeout(ok, extra));
-    const f = (this as unknown as Record<string, (a: Args, id: string) => unknown>)["c_" + cmd.replace(/\./g, "_")];
+    const recusa = this.ctl.recusar[cmd];
+    if (recusa) { delete this.ctl.recusar[cmd]; falha(recusa, "recusa do teste"); }
+    const f =(this as unknown as Record<string, (a: Args, id: string) => unknown>)["c_" + cmd.replace(/\./g, "_")];
     if (!f) falha("internal", "comando desconhecido: " + cmd);
     return f.call(this, args, id);
   }
 
   c_hello() { return { engine_version: "0.1.0-falso", reco_version: "falso", protocol: 1, platform: "navegador", ready: this.ready, uptime_s: 1 }; }
   c_state() {
-    return { ready: this.ready, rec_state: this.rec, elapsed_s: this.elapsed, transcribing: !!this.trabalho, live: this.live, last_rec: this.lastRec, auto: this.auto };
+    return { ready: this.ready, rec_state: this.rec, elapsed_s: this.elapsed, transcribing: !!this.trabalho || this.ctl.vagaOcupada, live: this.live, last_rec: this.lastRec, auto: this.auto };
   }
   c_config_get() { return { config: { ...this.config }, output_dir_efetivo: this.pasta(), lang_efetivo: this.config.language ?? "pt" }; }
   c_config_set(a: Args) {
@@ -215,7 +221,7 @@ export function criarMock(): Backend {
   };
   const ctl: ControleMock = {
     chamadas: [], area: "", velocidade: 1, versao: null, proximoArquivo: "C:\\Vídeos\\reuniao-fornecedor.mp4", proximaPasta: "C:\\Notas",
-    atalhoOcupado: false, passosTranscricao: 6, congelado: false, atraso: {}, conclusaoAntes: false,
+    atalhoOcupado: false, passosTranscricao: 6, congelado: false, atraso: {}, conclusaoAntes: false, recusar: {}, vagaOcupada: false,
     derrubar: (o = {}) => {
       // como o estado.rs: `stopping` também tem arquivo aberto (o MP3 pode não ter fechado)
       const gravando = ["recording", "paused", "starting", "stopping"].includes(motor.rec);

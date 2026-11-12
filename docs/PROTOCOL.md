@@ -64,7 +64,7 @@ global (sem pedido) vai **sem** `id`; o casco testa `event` antes de `id`.
 | `library.delete` | `{path}` | `{path, deleted}`: só áudio da pasta da biblioteca, à Lixeira; `.txt` e `.resumo.md` ficam | — | 60 s |
 | `convert.extract_mp3` | `{path}` | `{path, src_bytes, dst_bytes}` (MP3 16 kHz mono) | `progress` (`pct` inteiro, `text:null`) | 2 h |
 | `resumo.ia` | `{path}` (o áudio) | `{path (.resumo.md), existia}`; `existia:true` = já havia, o casco abre | `progress` | 960 s |
-| `model.update_check` | `{}` | `{}`; troca a pasta do modelo se houver revisão nova (ocupa o lugar da transcrição) | `progress` (`pct:null`) | 2 h |
+| `model.update_check` | `{}` | `{}`; consulta a revisão sem ocupar nada e só troca a pasta se houver revisão nova (ver notas) | `progress` (`pct:null`) | 2 h |
 | `app.update_check` | `{}` | `{tag, url}` ou `null`; o casco abre a URL | — | 60 s |
 
 Notas por comando:
@@ -90,6 +90,11 @@ Notas por comando:
 - `resumo.ia`: `claude -p <prompt> --model sonnet` (flag cravada) com a transcrição no stdin;
   `claude_missing` sem o `claude` no PATH (herdado do casco), `not_found` sem `.txt`, `busy` com outro
   resumo.
+- `model.update_check` (`modelo.py`, 12/11/2026): a consulta ao hub (revisão do repo × `.hf_revision`) não
+  ocupa a vaga da transcrição, então uma nota pedida logo depois de abrir não leva `busy`. Sem revisão nova ou
+  sem resposta do hub, responde `{}` e acabou. Com revisão nova, espera o motor ficar ocioso (`idle`, sem
+  transcrição nem ao vivo), ocupa a vaga e só então baixa e troca (`reco.update_model_if_newer`); durante esse
+  download, `transcribe.file` e `rec.start nota` levam `busy`.
 
 ## Sequência de parar e concluir (F2-D12)
 
