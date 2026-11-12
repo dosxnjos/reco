@@ -98,6 +98,34 @@ def medir(path: Path) -> dict:
             "taxa": taxa, "rms": rms}
 
 
+def _envelope(x: np.ndarray, quadro: int = 1600) -> np.ndarray:
+    """RMS por quadro de 100 ms a 16 kHz."""
+    n = len(x) // quadro
+    return np.sqrt(np.mean(x[:n * quadro].reshape(n, quadro) ** 2, axis=1)) if n else np.zeros(1)
+
+
+def _pearson(a: np.ndarray, b: np.ndarray) -> float:
+    a, b = a - a.mean(), b - b.mean()
+    den = float(np.linalg.norm(a) * np.linalg.norm(b))
+    return float(np.dot(a, b)) / den if den else 0.0
+
+
+def lados(path: Path) -> tuple:
+    """Maior correlação do envelope do clipe (em laço) com o de L e o de R, em qualquer atraso.
+
+    O clipe só sai no alto-falante: R (sistema, loopback) segue o envelope dele; L (mic) só pega o
+    que vaza pela sala. Lados trocados dão L alto e R baixo (Fase 2, passo 15: lados por dado)."""
+    mic, sis = reco.decode_16k(path, split=True)
+    clip = reco.decode_16k(CLIP)[0].astype(np.float32)
+    ref = _envelope(np.tile(clip, len(sis) // max(len(clip), 1) + 2))
+    corr = []
+    for lado in (mic, sis):
+        e = _envelope(lado)
+        passos = range(0, max(len(ref) - len(e), 0) + 1)
+        corr.append(max((_pearson(e, ref[k:k + len(e)]) for k in passos), default=0.0))
+    return corr[0], corr[1]
+
+
 def mais_novo(pasta: Path) -> Path:
     mp3s = sorted(pasta.glob("gravacao_reco_*.mp3"), key=lambda p: p.stat().st_mtime)
     check(mp3s, f"nenhuma gravação em {pasta}")
@@ -162,6 +190,10 @@ def run_gravar(segundos: float, exe: str | None, saida_real: bool) -> None:
     finally:
         eng.kill()
     print(f"OK gravação: {resumo} (clipe via {clipe.via})")
+    if segundos >= 10:
+        c_l, c_r = lados(Path(g["fim"]["path"]))
+        check(c_r >= 0.5 and c_r > c_l, f"lados: clipe×R {c_r:.2f}, clipe×L {c_l:.2f} (R devia seguir o clipe)")
+        print(f"OK lados: clipe×R {c_r:.2f} > clipe×L {c_l:.2f} (voz do PC no canal direito)")
     if saida_real:
         print(f"PARA OUVIR (Gabriel): {g['fim']['path']}")
     else:
