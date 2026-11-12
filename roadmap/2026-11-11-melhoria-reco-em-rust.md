@@ -25,7 +25,7 @@ Pedido: reco-rust | Reco em Rust, com interface bonita e que não fica pulando |
 | 1 Identidade visual e contrato de tela | [fase-1](2026-11-11-melhoria-reco-em-rust-fase-1.md) | 0 (medições de tempo e da bandeja) | fechada (12/11) |
 | 2 Motor Python como servidor | [fase-2](2026-11-11-melhoria-reco-em-rust-fase-2.md) | 0 | fechada (12/11) |
 | 3 Casco Tauri e telas novas | [fase-3](2026-11-11-melhoria-reco-em-rust-fase-3.md) | 1 (direção escolhida) e 2 | fechada (12/11) |
-| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 | **próxima**: depende do Gabriel usar o app novo (Pendente) |
+| 4 Paridade, troca e reserva | [fase-4](2026-11-11-melhoria-reco-em-rust-fase-4.md) | 3 | **em curso**: passos 1 a 8 feitos em 12/11 (instalador `Reco_0.3.0` gerado, não instalado); o 9 espera o Gabriel fechar o Reco velho, e o fechamento, ele usar o app novo (Pendente) |
 | 5 Captura e MP3 em Rust | [fase-5](2026-11-11-melhoria-reco-em-rust-fase-5.md) | 4 | — |
 | 6 Transcrição em Rust (spike com portão) | [fase-6](2026-11-11-melhoria-reco-em-rust-fase-6.md) | 5 | — |
 | 7 Aposentar a interface Tk e propagar | [fase-7](2026-11-11-melhoria-reco-em-rust-fase-7.md) | 4 e 6 (o veredito do portão, aberto ou fechado) | — |
