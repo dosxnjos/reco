@@ -40,4 +40,6 @@ O Gabriel pediu (13/11): "Reconstrua a página do reco no GitHub. screenshots et
 4. [x] Descrição e tópicos do repo — **prova:** `gh repo view --json description,repositoryTopics`
    - 13/11: descrição do app novo e 10 tópicos (windows, tauri, rust, transcription, whisper, openvino,
      audio-recorder, speech-to-text, diarization, local-first) conferidos no `gh repo view`
-5. [ ] Commit, push, hub e diário
+5. [x] Commit, push, hub e diário
+   - 13/11: `9c3558a` no Reco (README, 9 PNGs, ARQUITETURA, este plano), push na `master`; hub `reco.md` (Estado
+     agora) e fragmento `cerebro/pessoal/diario/2026-11-13/1304-4c65eb01-reco-pagina-github.md` no `C:\Dev`
