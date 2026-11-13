@@ -390,6 +390,12 @@
 
 ### D. Documentação e fechamento
 
+> Atualizado em 2026-11-13: o README foi refeito para o app novo pelo plano `roadmap/2026-11-13-pagina-do-github.md`
+> (commit `9c3558a`: telas em `docs/screenshots/`, instalação pelo `app\build.ps1` nas duas línguas, sem prometer
+> release). Os números de linha abaixo não valem mais. Prova nova do passo 20: `grep -c "docs/screenshots/" README.md`
+> → ≥ 6 e `grep -c "build.ps1" README.md` → ≥ 2; o `docs/screenshot.png` antigo deixa de ser critério. Falta só,
+> depois do «aprovo», a linha do download quando houver release.
+
 20. [ ] `README.md`: telas novas nas listas de recursos (EN `:22-75`, PT `:133-188`), instalação pelo instalador e o `app\build.ps1` (`:89-98`, `:201-210`), screenshot novo. — **prova:** `grep -c "setup.exe" README.md` → ≥ 2 e `git diff --stat docs/screenshot.png` → binário alterado
     **reprova se:** só uma língua mudou, ou o screenshot é o antigo.
     - O release público é decisão pendente do Gabriel: até o "sim", o README descreve gerar o `setup.exe` pelo build
