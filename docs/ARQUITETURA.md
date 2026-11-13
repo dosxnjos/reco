@@ -372,8 +372,9 @@ sendo o que se usa; nada do motor entra no `Reco.exe`.
 
 ## Casco Tauri e interface nova (`app/`) (12/11/2026)
 
-App novo da Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco-em-rust.md), ainda em teste
-(instalador "Reco Novo"; o `Reco.exe` Tk segue o de uso até a Fase 4). Três camadas, cada uma com um dono:
+App novo da Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco-em-rust.md), o de uso desde
+12/11/2026 (instalador `Reco_0.3.0`; o `Reco.exe` Tk fica de reserva até a Fase 4 fechar). O instalador de teste 0.1.0
+se chamava "Reco Novo": quem o tem desinstala antes. Três camadas, cada uma com um dono:
 
 | camada | onde | é dona de |
 | --- | --- | --- |
@@ -415,9 +416,16 @@ App novo da Fase 3 do [roadmap Reco em Rust](../roadmap/2026-11-11-melhoria-reco
   estados `window.vitrine`).
 - **Provas**: `cargo test --manifest-path app/src-tauri/Cargo.toml -- --include-ignored` (os ignorados sobem
   um motor falso em Python), `npm --prefix app run i18n:check`, `node app/ui/tests/{gravar,telas,revisao,passo17,paridade}.cjs`,
-  `python tools/test_nsis_atalho.py` (hooks do instalador: `/S` sem atalho na Área de Trabalho). O backend falso
+  `python tools/test_nsis_atalho.py` (hooks do instalador: `/S` sem atalho na Área de Trabalho). O Playwright não
+  está no `app/package.json`: os `.cjs` o acham por `PLAYWRIGHT_CORE`, `playwright-core`, `playwright` ou o global de
+  `npm root -g` (`npm i -g playwright` e `npx playwright install chromium`); o `--include-ignored` pede `python` no
+  PATH, e o `motor_real_hello`, Python com o `requirements.txt`. O backend falso
   manda o que o motor manda (ex.: `console`/`comm` do `devices.list` são nomes, não ids): forma divergente deixa a
   tela quebrada no app e verde nos testes (defeito 2 do passo 17).
+- **Pronto para gravar**: o README diz "menos de 1 s". Medido: mediana 0,773 s de três aberturas a quente do
+  instalador `96B45826` com a CPU abaixo de 30%, contra 1,515 s do app Tk (Fase 0, máquina livre); com a CPU a 79–85%
+  por outras sessões deu 1,986 s ([relatório da Fase 4](../roadmap/2026-11-11-melhoria-reco-em-rust.d/fase-4-relatorio.md),
+  passo 14). Builds completos levaram de 342 a 656 s (uma vez 1435 s) na máquina de desenvolvimento.
 - **Build**: `powershell -ExecutionPolicy Bypass -File app/build.ps1` congela o motor, roda o smoke (que
   reprova `ready` com erro), `npm ci`, a interface e o `tauri build` (NSIS). O instalador fica em
   `<CARGO_TARGET_DIR>\release\bundle\nsis` (nesta máquina `C:\pt`), fora do repo; o script nunca abre o app.

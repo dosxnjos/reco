@@ -1,309 +1,203 @@
 # Reco
 
-**Record your microphone *and* your computer's audio at the same time, then transcribe it locally — with speaker separation.**
+**Records your microphone and your computer's audio together, then transcribes the call on your own PC, with who said what.**
 
-A small desktop app that captures the mic and the system output together
-(real WASAPI loopback — no "Stereo Mix" needed), saves a compact MP3, and
-transcribes it **on your machine**, labeling who said what. Nothing is uploaded.
-The interface is bilingual (Portuguese / English), auto-detected from your system.
-
-Transcription runs in-process via **OpenVINO GenAI** on Windows/Linux (Intel
-**iGPU → NPU → CPU**, auto-selected) and via **MLX** on macOS Apple Silicon — so
-the bundled app is fully self-contained (no Python, no ffmpeg).
+**Grava o microfone e o áudio do computador juntos e transcreve a conversa no seu próprio PC, com quem falou o quê.**
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="Reco — main window" width="320">
+<img src="docs/screenshots/hero.png" alt="Reco recording with live text, in its three skins: Tape, Notebook and Instrument" width="900">
 </p>
+
+Windows 10/11 · any x64 CPU (GPU and NPU acceleration on Intel only) · local Whisper on OpenVINO · Portuguese or English · [MIT](LICENSE)
+
+**Status:** no installer for this version yet. [Build it from source](#install), or use the
+[v0.2.0 release](https://github.com/dosxnjos/reco/releases/tag/v0.2.0), which is the older Tkinter app.
+
+**Estado:** ainda não há instalador desta versão. [Gere pelo código](#instalar) ou use o
+[release v0.2.0](https://github.com/dosxnjos/reco/releases/tag/v0.2.0), que é o app antigo, em Tkinter.
+
+### [English](#english) · [Português](#português)
+
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="docs/screenshots/record-live-dark.png" alt="Record tab, dark theme, recording with live text" width="380"><br>
+<sub>Recording with live text · Gravando com texto ao vivo</sub>
+</td>
+<td align="center" width="50%">
+<img src="docs/screenshots/stopped-light.png" alt="Record tab, light theme, stopped, with Save and copy path and the other options" width="380"><br>
+<sub>Stopped: save and copy the path, or choose another action · Parado: salvar e copiar o caminho, ou outra ação</sub>
+</td>
+</tr>
+<tr>
+<td align="center">
+<img src="docs/screenshots/library.png" alt="Library tab with search, durations and actions" width="380"><br>
+<sub>Library: search names and transcripts · Biblioteca: busca no nome e no texto</sub>
+</td>
+<td align="center">
+<img src="docs/screenshots/file.png" alt="File tab transcribing a video file at 63 percent" width="380"><br>
+<sub>File: transcribe or convert any audio or video · Arquivo: transcrever ou converter áudio e vídeo</sub>
+</td>
+</tr>
+</table>
+
+The captures show the interface in Portuguese; the app switches to English in Options.
 
 ---
 
 ## English
 
+Reco is a small Windows tray app for calls. It records your microphone on the left channel and the computer's audio on
+the right channel of one stereo MP3, so the transcript knows who spoke without guessing from voices. It captures the PC
+audio directly, with no "Stereo Mix" to turn on. Transcription runs on your PC with Whisper `large-v3-turbo` through
+OpenVINO GenAI: no account, no API key, and no audio leaves the machine. The network is used only to download the model
+from Hugging Face, to check for a newer model and for new releases of this repo, and by the optional AI summary.
+
 ### Features
-- 🎙️ **Mic + system audio together** — capture a call/meeting with both sides, via
-  true WASAPI loopback (works even when "Stereo Mix" is disabled).
-- 🗣️ **Channel diarization** — the mic and the system are kept on separate channels,
-  so the transcript is labeled **"Eu" / "Me"** (you) and **"Interlocutor(es)" /
-  "Speaker(s)"** (the other side). Always on.
-- 🔇 **Echo cancellation** — if you're on speakers, the PC audio leaking into the
-  mic is removed (offline adaptive filter using the loopback as reference), so the
-  other party isn't duplicated across both channels.
-- 📊 Live level meters for mic and system, each with a **draggable gain slider** —
-  drag the handle over a meter to boost or attenuate what that channel records.
-  Center is unity (**1.0×**, no change); left attenuates down to 0×, right boosts
-  up to **10×**, and the current multiplier is shown under the bar. Handy when the
-  mic records much quieter than the system audio. The gain is baked into the saved
-  file and remembered between sessions.
-- ⏸️ **Pause / resume** a recording before saving — paused time is dropped from the
-  audio and from the clock, so a break doesn't end up in the file.
-- 🔔 **Lives in the tray** — closing the window hides Reco into the notification area
-  (a recording keeps running, and the icon shows a red dot with the elapsed time).
-  **Hover** the icon to bring the compact window back over the tray (stop, start,
-  convert, transcribe); **click** to pin it; **right-click** for Record/Stop,
-  Pause/Resume, Open and Quit. Quitting mid-recording saves the MP3 first.
-- 🎧 Saves a compact **MP3** (16 kHz stereo, 96 kbps — small, plenty for speech),
-  encoded *while* recording, so stopping is instant no matter how long the meeting was.
-- 📋 **Save and copy the path** — after stopping, the main button saves the recording
-  and copies its full path, already in double quotes, ready to paste into a terminal
-  or chat. Hover it for the other choices (save + transcribe, save only, transcribe + delete).
-- 📝 **Local transcription** that auto-saves a `.txt` next to your recordings. No
-  cloud, fully private.
-- 🔴 **Live transcription (draft)** — optional, off by default (Options): shows
-  text as you record, on the iGPU. It's a *draft* — closed-segment (VAD-based),
-  not a sliding window, so lines never rewrite themselves once they appear.
-  When you stop, a final pass (same engine as regular transcription — channel
-  diarization + echo cancellation + dominance) replaces the draft. **New** —
-  try it on one of your own meetings before relying on it for a long recording.
-- 🎵 **MP4 → MP3** — pick a video (or a heavy audio file) in the Transcribe view and
-  hit *Extract MP3*: it re-encodes to the same lightweight format Reco records in
-  (16 kHz mono, 64 kbps), typically a fraction of the original size. The MP3 is
-  saved next to the source and stays selected, ready to transcribe.
-- 🗂️ **Recordings library** — the *Recordings…* view lists everything in your
-  recordings folder (date, length, transcript status) and searches by file
-  name **and transcript content**. Play, transcribe, open the .txt or delete
-  (to the Recycle Bin) from one place.
-- ✦ **AI summary (optional)** — with [Claude Code](https://claude.com/claude-code)
-  installed, one click turns a transcribed recording into `<name>.resumo.md`
-  (summary, decisions, action items) using your local `claude` CLI. No API
-  key, no cloud added to the app — and everything else works without it.
-- 🌐 **Bilingual UI** (PT/EN), auto-detected, switchable in Options.
-- 🎨 **Custom theme** — pick background and accent colors in Options; text contrast
-  adjusts automatically. Frameless window with its own title bar.
-- ▶️ Play back the last recording. Record and Transcribe are one-or-the-other views.
 
-> Windows 10/11 (uses WASAPI). Recordings are saved to `Documents\Reco` (changeable in Options).
+- **Record:** microphone and system audio in a 16 kHz stereo MP3 at 96 kbps, encoded while it records. Pause and
+  resume, a level meter and a gain control (0× to 10×) per channel.
+- **After you stop:** the main button saves the file and copies its full path in double quotes, ready to paste into a
+  terminal or a chat. The other options are buttons on screen: save and transcribe, save only, transcribe and delete
+  the audio, delete (to the Recycle Bin).
+- **Note mode:** records the microphone only and turns the speech into a `.md` file.
+- **Transcript:** a `.txt` next to the recording, labeled by channel ("Me" and "Speaker(s)"). Echo from speakers is
+  removed when transcribing; the MP3 stays as recorded. Optional live text shows a draft while you record.
+- **Language:** the transcript uses the app language (Portuguese or English, set in Options); switch it before
+  transcribing a call in the other language.
+- **File tab:** transcribe any audio or video file, or convert it to a light MP3.
+- **Library:** search file names and transcript text; play, transcribe, open the text, delete. The optional **AI
+  summary** uses your own [Claude Code](https://claude.com/claude-code) CLI and sends the transcript text (never the
+  audio) to Claude under your account.
+- **Window:** lives in the tray (hovering the icon shows it without taking focus, clicking pins it). Optional
+  Ctrl+Shift+R shortcut and start with Windows. Three skins, set in [Options](docs/screenshots/options-skins.png):
+  [Tape](docs/screenshots/skin-tape.png) (default), [Notebook](docs/screenshots/skin-notebook.png) and
+  [Instrument](docs/screenshots/skin-instrument.png), each in light or dark.
+- **Process on:** Auto (recommended; it prefers the Intel GPU), GPU, NPU or CPU. The NPU is experimental: with this
+  model it failed on the test machine, and its first run spends several minutes compiling.
+- Ready to record in under a second after opening.
 
-### Run from source
+### Install
+
+Requirements: Windows 10/11 64-bit and any x64 CPU (GPU and NPU acceleration need Intel hardware). To build: Python 3.14
+(the version it is built and tested with) with [requirements.txt](requirements.txt) and `pyinstaller`, Rust 1.90 or newer
+(MSVC toolchain), and Node.js with npm.
+
 ```powershell
-pip install -r requirements.txt
-python reco.py
-```
-Or run `./setup.ps1` to install the dependencies. The optional **Ctrl+Shift+R**
-keyboard shortcut is *opt-in* — enable it inside Reco under **Options** (never
-created automatically).
-
-Required: `soundcard`, `numpy`, `av`, `scipy`, `huggingface_hub`.
-Transcription backend: `openvino` + `openvino-genai` + `openvino-tokenizers`
-(Windows/Linux), or `mlx-whisper` (macOS Apple Silicon).
-
-### Build a standalone app
-```powershell
-./build.ps1 -Clean      # -> dist/Reco/Reco.exe  (folder, ~810 MB)
-```
-Onedir build: ship the whole **`dist/Reco/`** folder and run `Reco.exe` inside it.
-It's **plug-n-play** — no Python, no ffmpeg, the OpenVINO runtime is bundled and
-the VC++ runtime is included too. The **`small`** Whisper model ships in the
-bundle as an offline fallback; the **default model is `large-v3-turbo`**, which
-downloads (~0.8 GB) the first time you transcribe — no internet, no download,
-and it uses `small` instead.
-
-### New app (in testing)
-A new desktop app is being built next to the current one: a Tauri 2 shell in Rust (`app/src-tauri`) with a
-fixed-size interface in TypeScript (`app/ui`), driving the windowless engine (`engine/`) as a child process.
-It passed its first real recording test and is now in day-to-day use testing; the current `Reco.exe` stays
-as the fallback until the switch.
-
-**Install:** build the installer (below) and run `Reco_<version>_x64-setup.exe`. Up to 0.1.0 it was called
-"Reco Novo" (`%LOCALAPPDATA%\Reco Novo`); uninstall that one first. It installs for the current user only (no
-admin) in `%LOCALAPPDATA%\Reco`, the folder that also holds the transcription models, and adds a **"Reco"**
-Start Menu shortcut. Closing the window keeps it in the tray; **Quit** is in the tray menu. Uninstall from
-Windows Settings → Apps or with `%LOCALAPPDATA%\Reco\uninstall.exe` (that this keeps the `models` folder is still
-being proven). Windows may warn about an unsigned installer (SmartScreen).
-
-**The new Reco and the current Reco never run at the same time.** They share one single-instance lock: opening
-one while the other is running just brings the running one to the front. To switch, quit the open one from its
-tray menu (never while it is recording) and then open the other. Both use the same settings file and save
-recordings to the same folder.
-```powershell
+pip install -r requirements.txt pyinstaller
 powershell -ExecutionPolicy Bypass -File app/build.ps1
 # -> <CARGO_TARGET_DIR or app/src-tauri/target>\release\bundle\nsis\Reco_<version>_x64-setup.exe
 ```
-The script freezes the engine (PyInstaller, needs the Python deps above plus `pyinstaller`), runs a smoke
-test on it (hello, ready without error, device list, clean shutdown), then `npm ci`, the interface build
-and `tauri build` (Rust and Node required). It takes about 25 minutes, most of it compressing the ~500 MB
-engine into the installer. Since 0.3.0 the installer is called **"Reco"**, so its Start Menu shortcut is the
-same `Reco.lnk` that the current app's "Create shortcut" option writes: installing replaces it (without the
-Ctrl+Shift+R hotkey). It creates only the Start Menu shortcut: the silent install (`/S`) leaves no Desktop
-shortcut, and the install with a window offers the box unchecked (`app/src-tauri/windows/hooks.nsh`, proved
-by `python tools/test_nsis_atalho.py`).
 
-To work on the interface without the shell: `npm --prefix app install`, `npm --prefix app run ui:build`
-and `npm --prefix app run ui:preview` (port 1431) open it in a browser with a fake engine. Its tests are
-`node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs`, `passo17.cjs` and `paridade.cjs`, plus the
-`design/testar-*.cjs` ones with `--url`.
+The build takes about 6 to 11 minutes on the development machine; the installer is about 130 MB.
+
+- It installs per user (no admin) to `%LOCALAPPDATA%\Reco`, with a Start Menu shortcut. A Desktop shortcut is optional
+  (unchecked by default). The installer is not signed, so Windows SmartScreen may warn.
+- The transcription model (about 0.8 GB) is downloaded once to `%LOCALAPPDATA%\Reco\models`. Uninstalling keeps it.
+
+**Coming from v0.2.0?** Both apps use the same settings and recordings folder, and only one runs at a time: quit the
+old one from its tray menu before opening the new one.
 
 ### How it works
-- Capture uses `soundcard` (WASAPI): each physical device is listed once, mics and
-  speakers are separated, and system audio is captured via real loopback.
-- Recording is fixed at **16 kHz stereo** (L = mic, R = system), 96 kbps —
-  exactly what transcription, diarization and echo cancellation need.
-- Encoding and decoding both use PyAV (bundled ffmpeg libs). The MP3 is written
-  as the audio arrives, so memory stays flat and stopping only flushes the file. Transcription uses Whisper
-  **large-v3-turbo INT8** through OpenVINO GenAI (iGPU/NPU/CPU) or MLX (Apple
-  GPU). The device defaults to the iGPU — measured fastest here: 2 h of audio in
-  ~19 min end to end **with diarization on**, which transcribes both channels and
-  so does twice the work (~10 min with it off). It is selectable, because the NPU
-  is the better choice while you are on a video call: it barely notices
-  concurrent load, where the iGPU competes with drawing the screen.
-- The model is downloaded once (or bundled in the `.exe`) and cached locally.
-- A windowless engine (`engine/`) runs the same recording and transcription code behind a JSON Lines
-  protocol ([docs/PROTOCOL.md](docs/PROTOCOL.md)), in preparation for a new interface.
-- The new interface follows [design/DESIGN.md](design/DESIGN.md): fixed-size window that never jumps when
-  you click. It exists in the new app above; the screenshot comes when it replaces the current one.
 
-### License
-[MIT](LICENSE) © 2026 Gabriel dos Anjos
+A Tauri 2 shell in Rust (window, tray, shortcut, engine lifecycle) shows an interface in TypeScript and talks in JSON
+Lines to a Python engine, which is the same recording and transcription code as the old app, frozen with PyInstaller.
+Details: [docs/ARQUITETURA.md](docs/ARQUITETURA.md) and [docs/PROTOCOL.md](docs/PROTOCOL.md) (in Portuguese).
+
+### For developers
+
+Run the interface in a browser with a fake engine (`app/ui/src/mock.ts`):
+
+```powershell
+npm --prefix app install
+npm --prefix app run ui:build
+npm --prefix app run ui:preview   # http://127.0.0.1:1431
+```
+
+`?tela=gravar|biblioteca|arquivo|opcoes&estado=<state>&direcao=a|b|c&tema=claro|escuro|sistema` jumps to a state
+(a = Tape, b = Notebook, c = Instrument; the states are in `app/ui/src/tipos.ts`). The screenshots come from it.
+
+Tests: [docs/ARQUITETURA.md § Casco](docs/ARQUITETURA.md#casco-tauri-e-interface-nova-app-12112026). The interface
+tests need Playwright (`npm i -g playwright` and `npx playwright install chromium`, or `PLAYWRIGHT_CORE` pointing to
+it), and `cargo test -- --include-ignored` needs Python with `requirements.txt`. Screen rules and skins:
+[design/DESIGN.md](design/DESIGN.md).
+
+### History
+
+Reco started in 2026 as a Python/Tkinter app (`reco.py`, still in this repo, runs with `python reco.py`), released up
+to v0.2.0. In November 2026 its interface was rebuilt as a Tauri shell over the same Python engine, with a fixed-size
+window and three skins.
 
 ---
 
 ## Português
 
-**Grave o microfone *e* o áudio do computador ao mesmo tempo e transcreva localmente — com separação de quem fala.**
-
-Aplicativo de desktop que captura o microfone e a saída do sistema juntos
-(loopback WASAPI de verdade — não precisa de "Mixagem estéreo"), salva um MP3
-compacto e transcreve **na sua máquina**, identificando quem falou. Nada é enviado
-para a nuvem. A interface é bilíngue (PT/EN), detectada pelo idioma do sistema.
-
-A transcrição roda in-process via **OpenVINO GenAI** no Windows/Linux (Intel
-**iGPU → NPU → CPU**, automático) e via **MLX** no macOS Apple Silicon — então o
-app empacotado é autossuficiente (sem Python, sem ffmpeg).
+O Reco é um app pequeno de bandeja para Windows, feito para chamadas. Ele grava o seu microfone no canal esquerdo e o
+áudio do computador no canal direito de um MP3 estéreo, então a transcrição sabe quem falou sem adivinhar pela voz. Ele
+grava o som do PC direto, sem precisar ativar a "Mixagem estéreo". A transcrição roda no seu PC com o Whisper
+`large-v3-turbo` pelo OpenVINO GenAI: sem conta, sem chave de API, e nenhum áudio sai da máquina. A rede só é usada para
+baixar o modelo do Hugging Face, ver se há modelo novo ou release novo deste repositório e no Resumo IA opcional.
 
 ### Recursos
-- 🎙️ **Mic + áudio do sistema juntos** — grave uma reunião/chamada com os dois
-  lados, via loopback WASAPI real (funciona mesmo sem "Mixagem estéreo").
-- 🗣️ **Diarização por canal** — mic e sistema ficam em canais separados, então a
-  transcrição é rotulada **"Eu"** (você) e **"Interlocutor(es)"** (o outro lado).
-  Sempre ativa.
-- 🔇 **Cancelamento de eco** — se você usa caixa de som, o áudio do PC que vaza para
-  o microfone é removido (filtro adaptativo offline usando o loopback como
-  referência), evitando que o interlocutor apareça duplicado nos dois canais.
-- 📊 Barras de nível ao vivo para mic e sistema, cada uma com um **slider de ganho
-  arrastável** — arraste o marcador sobre o medidor para aumentar ou reduzir o
-  volume que aquele canal grava. O centro é o normal (**1,0×**, sem alteração); à
-  esquerda atenua até 0× e à direita amplifica até **10×**, com o multiplicador
-  atual mostrado embaixo da barra. Útil quando o microfone grava bem mais baixo
-  que o áudio do sistema. O ganho é aplicado ao arquivo salvo e fica memorizado.
-- ⏸️ **Pausar / continuar** a gravação antes de salvar — o tempo pausado não entra
-  no áudio nem no cronômetro, então uma interrupção não vai parar no arquivo.
-- 🔔 **Mora na bandeja** — fechar a janela recolhe o Reco para a área de notificação
-  (a gravação continua, e o ícone ganha um ponto vermelho com o tempo decorrido).
-  **Passe o mouse** sobre o ícone para trazer a janela compacta de volta sobre a
-  bandeja (parar, gravar, converter, transcrever); **clique** para fixá-la;
-  **botão direito** para Gravar/Parar, Pausar/Continuar, Abrir e Sair. Sair no meio
-  de uma gravação salva o MP3 antes de encerrar.
-- 🎧 Salva um **MP3** compacto (16 kHz estéreo, 96 kbps — pequeno e ótimo para fala),
-  codificado *durante* a gravação: parar é instantâneo, não importa o tamanho da reunião.
-- 📋 **Salvar e copiar o caminho** — depois de parar, o botão principal salva a gravação
-  e copia o caminho completo, já entre aspas duplas, pronto para colar no terminal ou
-  no chat. Passe o mouse nele para as outras saídas (salvar + transcrever, só salvar,
-  transcrever + excluir).
-- 📝 **Transcrição local** que salva um `.txt` automaticamente junto das gravações.
-  Sem nuvem, 100% privado.
-- 🔴 **Transcrição ao vivo (rascunho)** — opcional, desligada por padrão (Opções):
-  mostra o texto conforme grava, na iGPU. É um *rascunho* — segmento fechado
-  (por VAD), não janela deslizante: a linha nunca se reescreve depois de
-  aparecer. Ao parar, uma passada final (o mesmo motor da transcrição normal —
-  diarização por canal + cancelamento de eco + dominância) substitui o rascunho.
-  **Novo** — teste numa reunião sua antes de confiar nele numa gravação longa.
-- 🎵 **MP4 → MP3** — escolha um vídeo (ou um áudio pesado) na tela de Transcrição e
-  clique em *Extrair MP3*: ele é reconvertido para o mesmo formato leve em que o
-  Reco grava (16 kHz mono, 64 kbps), normalmente uma fração do tamanho original.
-  O MP3 é salvo ao lado do arquivo de origem e já fica selecionado para transcrever.
-- 🗂️ **Biblioteca de gravações** — a tela *Gravações…* lista tudo o que está na
-  pasta de gravações (data, duração, estado da transcrição) e busca por nome
-  do arquivo **e pelo conteúdo da transcrição**. Reproduzir, transcrever,
-  abrir o .txt ou excluir (para a Lixeira) num lugar só.
-- ✦ **Resumo por IA (opcional)** — com o [Claude Code](https://claude.com/claude-code)
-  instalado, um clique transforma uma gravação transcrita em
-  `<nome>.resumo.md` (resumo, decisões, pendências) usando o seu `claude`
-  local. Sem chave de API, sem nuvem no app — e todo o resto funciona sem ele.
-- 🌐 **Interface bilíngue** (PT/EN), detectada automaticamente, troca em Opções.
-- 🎨 **Tema personalizável** — escolha as cores de fundo e de destaque em Opções; o
-  contraste do texto se ajusta sozinho. Janela sem moldura, com barra própria.
-- ▶️ Reproduza a última gravação. Gravar e Transcrever são telas alternadas (uma ou outra).
 
-> Apenas Windows 10/11 (usa WASAPI). As gravações vão para `Documentos\Reco` (mudável nas Opções).
+- **Gravar:** microfone e áudio do sistema num MP3 estéreo de 16 kHz a 96 kbps, codificado enquanto grava. Pausar e
+  continuar, medidor de nível e controle de ganho (0× a 10×) por canal.
+- **Depois de parar:** o botão principal salva o arquivo e copia o caminho completo entre aspas duplas, pronto para colar
+  no terminal ou no chat. As outras ações são botões na tela: salvar e transcrever, só salvar, transcrever e apagar o
+  áudio, excluir (vai para a Lixeira).
+- **Modo Nota:** grava só o microfone e transforma a fala num arquivo `.md`.
+- **Transcrição:** um `.txt` ao lado da gravação, com cada fala marcada pelo canal ("Eu" e "Interlocutor(es)"). O eco da
+  caixa de som sai na hora de transcrever; o MP3 fica como foi gravado. O texto ao vivo, opcional, mostra um rascunho
+  enquanto grava.
+- **Idioma:** a transcrição usa o idioma do app (português ou inglês, em Opções); troque antes de transcrever uma
+  conversa na outra língua.
+- **Aba Arquivo:** transcreve qualquer arquivo de áudio ou vídeo, ou converte para um MP3 leve.
+- **Biblioteca:** busca no nome do arquivo e no texto transcrito; ouvir, transcrever, abrir o texto, excluir. O **Resumo
+  IA**, opcional, usa o [Claude Code](https://claude.com/claude-code) do seu computador e manda o texto da transcrição
+  (nunca o áudio) para o Claude, na sua conta.
+- **Janela:** mora na bandeja (passar o mouse no ícone mostra a janela sem roubar o foco, clicar fixa). Atalho
+  Ctrl+Shift+R e iniciar com o Windows, os dois opcionais. Três skins, escolhidas em
+  [Opções](docs/screenshots/options-skins.png): [Fita](docs/screenshots/skin-tape.png) (padrão),
+  [Caderno](docs/screenshots/skin-notebook.png) e [Instrumento](docs/screenshots/skin-instrument.png), em claro ou escuro.
+- **Processar em:** Auto (o recomendado; prefere a GPU da Intel), GPU, NPU ou CPU. A NPU é experimental: com este modelo
+  ela falhou na máquina de teste, e a primeira vez nela passa alguns minutos compilando.
+- Pronto para gravar em menos de 1 s depois de abrir.
 
-### Rodar pelo código-fonte
+### Instalar
+
+Requisitos: Windows 10/11 de 64 bits e qualquer CPU x64 (GPU e NPU só aceleram em hardware Intel). Para gerar o
+instalador: Python 3.14 (a versão com que é gerado e testado) com o [requirements.txt](requirements.txt) e o
+`pyinstaller`, Rust 1.90 ou mais novo (toolchain MSVC) e Node.js com npm.
+
 ```powershell
-pip install -r requirements.txt
-python reco.py
-```
-Ou rode `./setup.ps1` para instalar as dependências. O atalho **Ctrl+Shift+R** é
-*opcional* — ative dentro do Reco em **Opções** (nunca é criado automaticamente).
-
-Obrigatórias: `soundcard`, `numpy`, `av`, `scipy`, `huggingface_hub`.
-Backend de transcrição: `openvino` + `openvino-genai` + `openvino-tokenizers`
-(Windows/Linux), ou `mlx-whisper` (macOS Apple Silicon).
-
-### Gerar um app independente
-```powershell
-./build.ps1 -Clean      # -> dist/Reco/Reco.exe  (pasta, ~810 MB)
-```
-Build onedir: distribua a pasta **`dist/Reco/`** inteira e rode o `Reco.exe` de
-dentro dela. É **plug-n-play** — sem Python, sem ffmpeg; o runtime do OpenVINO
-vai embutido, e o runtime do VC++ também está incluso. O modelo Whisper
-**`small`** vai no bundle como fallback offline; o **modelo padrão é o
-`large-v3-turbo`**, que baixa (~0,8 GB) na primeira transcrição — sem internet,
-sem download, e usa o `small` no lugar.
-
-### App novo (em teste)
-Um app novo está sendo construído ao lado do atual: um casco Tauri 2 em Rust (`app/src-tauri`) com uma
-interface de tamanho fixo em TypeScript (`app/ui`), que comanda o motor sem janela (`engine/`) como processo
-filho. Ele passou no primeiro teste real de gravação e agora está em teste de uso no dia a dia; o `Reco.exe`
-atual continua como reserva até a troca.
-
-**Instalar:** gere o instalador (abaixo) e rode `Reco_<versão>_x64-setup.exe`. Até a 0.1.0 ele se chamava
-"Reco Novo" (`%LOCALAPPDATA%\Reco Novo`); desinstale esse antes. Ele instala só para o usuário atual (sem
-administrador) em `%LOCALAPPDATA%\Reco`, a pasta que também guarda os modelos de transcrição, e cria o atalho
-**"Reco"** no Menu Iniciar. Fechar a janela deixa o app na bandeja; o **Sair** fica no menu da bandeja. Para
-desinstalar: Configurações do Windows → Aplicativos, ou `%LOCALAPPDATA%\Reco\uninstall.exe` (que isso mantém a
-pasta `models` ainda está sendo provado). O Windows pode avisar que o instalador não é assinado (SmartScreen).
-
-**O Reco novo e o Reco atual nunca abrem juntos.** Os dois dividem a mesma trava de instância única: abrir um
-com o outro rodando só traz o que está rodando para a frente. Para trocar, saia do que está aberto pelo menu
-da bandeja (nunca no meio de uma gravação) e abra o outro. Os dois usam o mesmo arquivo de configuração e
-gravam na mesma pasta.
-```powershell
+pip install -r requirements.txt pyinstaller
 powershell -ExecutionPolicy Bypass -File app/build.ps1
 # -> <CARGO_TARGET_DIR ou app/src-tauri/target>\release\bundle\nsis\Reco_<versão>_x64-setup.exe
 ```
-O script congela o motor (PyInstaller; precisa das dependências Python acima e do `pyinstaller`), testa o
-motor congelado (hello, ready sem erro, lista de dispositivos e saída limpa) e roda `npm ci`, o build da
-interface e o `tauri build` (precisa de Rust e Node). Leva uns 25 minutos, quase tudo comprimindo os ~500 MB
-do motor no instalador. Desde a 0.3.0 o instalador se chama **"Reco"**, então o atalho dele no Menu Iniciar é o
-mesmo `Reco.lnk` que a opção "Criar atalho" do app atual grava: instalar troca esse atalho (sem a tecla
-Ctrl+Shift+R). Ele cria só o atalho do Menu Iniciar: a instalação silenciosa (`/S`) não deixa atalho na Área de
-Trabalho, e a instalação com tela oferece a caixa desmarcada (`app/src-tauri/windows/hooks.nsh`, provado por
-`python tools/test_nsis_atalho.py`).
 
-Para mexer na interface sem o casco: `npm --prefix app install`, `npm --prefix app run ui:build` e
-`npm --prefix app run ui:preview` (porta 1431) abrem a interface no navegador com um motor falso. Os testes
-são `node app/ui/tests/gravar.cjs`, `telas.cjs`, `revisao.cjs`, `passo17.cjs` e `paridade.cjs`, mais os
-`design/testar-*.cjs` com `--url`.
+O build leva uns 6 a 11 minutos na máquina de desenvolvimento; o instalador fica com uns 130 MB.
+
+- Instala por usuário (sem administrador) em `%LOCALAPPDATA%\Reco`, com atalho no Menu Iniciar. O atalho na Área de
+  Trabalho é opcional (vem desmarcado). O instalador não é assinado, então o SmartScreen do Windows pode avisar.
+- O modelo de transcrição (uns 0,8 GB) é baixado uma vez para `%LOCALAPPDATA%\Reco\models`. Desinstalar mantém essa pasta.
+
+**Vindo da v0.2.0?** Os dois apps usam a mesma configuração e a mesma pasta de gravações, e só um roda por vez: saia do
+antigo pelo menu da bandeja antes de abrir o novo.
 
 ### Como funciona
-- A captura usa `soundcard` (WASAPI): cada dispositivo físico aparece uma vez, mics
-  e alto-falantes são separados, e o áudio do sistema é capturado por loopback real.
-- A gravação é fixa em **16 kHz estéreo** (L = mic, R = sistema), 96 kbps —
-  exatamente o que transcrição, diarização e cancelamento de eco precisam.
-- Codificação e decodificação usam PyAV (libs do ffmpeg embutidas). O MP3 é escrito
-  conforme o áudio chega, então a memória fica estável e parar só fecha o arquivo. A transcrição usa o Whisper
-  **large-v3-turbo INT8** via OpenVINO GenAI (iGPU/NPU/CPU) ou MLX (GPU Apple). O
-  device vem na iGPU — medida como a mais rápida aqui: 2 h de áudio em ~19 min
-  ponta a ponta **com diarização ligada**, que transcreve os dois canais e portanto
-  faz o dobro do trabalho (~10 min sem ela). É selecionável, porque a NPU é a
-  melhor escolha durante uma videochamada: ela quase não sente carga concorrente,
-  enquanto a iGPU disputa com o desenho da tela.
-- O modelo é baixado uma vez (ou embutido no `.exe`) e fica em cache local.
-- Um motor sem janela (`engine/`) roda o mesmo código de gravação e transcrição por trás de um
-  protocolo JSON Lines ([docs/PROTOCOL.md](docs/PROTOCOL.md)), em preparação para a interface nova.
-- A interface nova segue o [design/DESIGN.md](design/DESIGN.md): janela de tamanho fixo, que não pula a cada
-  clique. Ela já existe no app novo acima; o print novo chega quando ele substituir o atual.
 
-Scripts de apoio em `tools/` (rodam pelo fonte, não entram no executável): ver
-[docs/TOOLS.md](docs/TOOLS.md).
+Um shell Tauri 2 em Rust (janela, bandeja, atalho, ciclo de vida do motor) mostra a interface em TypeScript e conversa em
+JSON Lines com um motor em Python, que é o mesmo código de gravação e transcrição do app antigo, congelado com o
+PyInstaller. Detalhes: [docs/ARQUITETURA.md](docs/ARQUITETURA.md) e [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
-### Licença
-[MIT](LICENSE) © 2026 Gabriel dos Anjos
+### Para quem desenvolve
+
+A interface roda no navegador com um motor falso; os comandos estão em [For developers](#for-developers). Na URL,
+`direcao=a|b|c` escolhe a skin (a = Fita, b = Caderno, c = Instrumento). Testes e o que cada um prova:
+[docs/ARQUITETURA.md § Casco](docs/ARQUITETURA.md#casco-tauri-e-interface-nova-app-12112026).
+
+### Histórico
+
+O Reco começou em 2026 como um app em Python/Tkinter (`reco.py`, que continua neste repositório e roda com
+`python reco.py`), publicado até a v0.2.0. Em novembro de 2026 a interface foi refeita como um shell Tauri sobre o mesmo
+motor em Python, com janela de tamanho fixo e três skins.

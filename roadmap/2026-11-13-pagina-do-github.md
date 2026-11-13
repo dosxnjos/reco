@@ -21,12 +21,23 @@ O Gabriel pediu (13/11): "Reconstrua a página do reco no GitHub. screenshots et
 
 ## Passos
 
-1. [ ] Capturas: Gravar (gravando com ao vivo, parado), Biblioteca, Arquivo, Opções; as três skins; claro e escuro;
+1. [x] Capturas: Gravar (gravando com ao vivo, parado), Biblioteca, Arquivo, Opções; as três skins; claro e escuro;
    uma imagem de abertura com as três lado a lado — **prova:** `ls docs/screenshots/*.png | wc -l` → ≥ 8, cada uma
    ≤ 400 KB e sem caminho pessoal visível
-2. [ ] README EN e PT reescrito (o que é, telas, recursos, privacidade, instalar, como funciona, para quem
+   - 13/11: 9 PNGs, de 86 KB (`file.png`) a 332 KB (`hero.png`), todas ≤ 400 KB; as 9 conferidas no olho: só nomes
+     de arquivo e falas de exemplo do backend falso, nenhum caminho nem nome de pessoa
+2. [x] README EN e PT reescrito (o que é, telas, recursos, privacidade, instalar, como funciona, para quem
    desenvolve, histórico) — **prova:** `grep -c "docs/screenshots/" README.md` → ≥ 6 e nenhum link quebrado
    (`python` simples que confere os caminhos relativos)
-3. [ ] Revisão adversarial: fato contra o código (nada prometido que o app não faz) e texto sem cara de IA
-4. [ ] Descrição e tópicos do repo — **prova:** `gh repo view --json description,repositoryTopics`
+   - 13/11: `grep -c` → 10; o checador (caminhos relativos e âncoras dos `.md`) leu 32 links, 0 quebrados. O README
+     caiu de 364 para 203 linhas: estado e instalação logo abaixo da imagem, galeria de 4 telas (as skins viraram
+     links), cada idioma enxuto, testes e medições levados para `docs/ARQUITETURA.md` § Casco
+3. [x] Revisão adversarial: fato contra o código (nada prometido que o app não faz) e texto sem cara de IA
+   - 13/11: 24 achados, todos aplicados (NPU experimental, transcrição no idioma do app, requisito de hardware Intel,
+     tempo de build 6 a 11 min, Python 3.14 como versão testada, letras das skins, "Reco Novo" fora da página,
+     tríade de slogan, "exits", jargão de testes). Nenhum achado falso. O `docs/screenshot.png` antigo fica: o passo 20
+     da Fase 4 (`2026-11-11-melhoria-reco-em-rust-fase-4.md:393`) ainda o usa na prova
+4. [x] Descrição e tópicos do repo — **prova:** `gh repo view --json description,repositoryTopics`
+   - 13/11: descrição do app novo e 10 tópicos (windows, tauri, rust, transcription, whisper, openvino,
+     audio-recorder, speech-to-text, diarization, local-first) conferidos no `gh repo view`
 5. [ ] Commit, push, hub e diário
