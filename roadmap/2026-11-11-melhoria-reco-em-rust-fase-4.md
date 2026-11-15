@@ -388,7 +388,9 @@
       G01 6380,7 s `pior=89` FALHOU (loop); G02 1854,3 s `pior=4` FALHOU (loop); G03 926,6 s ALERTA (desalinhado);
       G04 580,7 s `pior=6` FALHOU (loop); G05 81,7 s FALHOU (sistema-mudo).
       - Loop: G04 `--txt-contra-script` → `script=igual` (2 min 42 s): o motor reproduz o `reco.py` byte a byte, então o
-        loop é do Whisper/anti-loop herdado, não do app novo (a linha de base já tinha `pior=4`). G02 e G01 rodando.
+        loop é do Whisper/anti-loop herdado, não do app novo (a linha de base já tinha `pior=4`). G02 e G01 também
+        `script=igual` (15/11, ~18h): as 3 com loop reproduzem byte a byte no script, nenhuma `DIFERENTE`. O conserto
+        do anti-loop ficou na issue dosxnjos/reco#31, para depois do «aprovo».
         Decisão (técnica, reversível): loop com `script=igual` vai ao relatório como defeito herdado e não reprova a
         paridade; `pior` alto do app velho em gravação longa vira item à parte. Reverte se algum sair `DIFERENTE`.
       - Volume por minuto (cópias): G01 tem o sistema mudo em 105 de 107 min (só o mic: conversa presencial), então não
