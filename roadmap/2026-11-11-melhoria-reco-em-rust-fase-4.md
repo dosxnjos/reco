@@ -383,6 +383,21 @@
     - Nota (2026-11-12, revisão): com `--exigir-txt`, o `x.txt` vazio (`(no content recognized)`) também reprova.
     - G2 com fone: use `--sem-sistema` só se o outro lado de fato não falou; `alinhamento=sem correlacao` é esperado.
     - `ALERTA` de salto: comparar com a linha de base do passo 6 (F4-D2) e anotar carga da máquina na hora.
+    - Parcial (2026-11-15, sessão 4c65eb01): 5 gravações desde a instalação (12/11 18:37), todas com `x.txt` diarizado e
+      `xing=ok`. `paridade.py <as 5> --exigir-txt --anonimo` → `ok=0, ALERTA=1, FALHOU=4`, rc 1:
+      G01 6380,7 s `pior=89` FALHOU (loop); G02 1854,3 s `pior=4` FALHOU (loop); G03 926,6 s ALERTA (desalinhado);
+      G04 580,7 s `pior=6` FALHOU (loop); G05 81,7 s FALHOU (sistema-mudo).
+      - Loop: G04 `--txt-contra-script` → `script=igual` (2 min 42 s): o motor reproduz o `reco.py` byte a byte, então o
+        loop é do Whisper/anti-loop herdado, não do app novo (a linha de base já tinha `pior=4`). G02 e G01 rodando.
+        Decisão (técnica, reversível): loop com `script=igual` vai ao relatório como defeito herdado e não reprova a
+        paridade; `pior` alto do app velho em gravação longa vira item à parte. Reverte se algum sair `DIFERENTE`.
+      - Volume por minuto (cópias): G01 tem o sistema mudo em 105 de 107 min (só o mic: conversa presencial), então não
+        vale como G1 (alto-falante) e o `desalinhado` dela não mede nada; G05 é só mic (nota falada: `--sem-sistema`).
+      - Alinhamento (`varrer_acervo`, cópias): G02 `salto` com só 7% das janelas confiáveis (ruído, cara de fone);
+        G03 mediana 0, 1,8% acima de 50 ms (limítrofe); G04 salto real, amplitude 454 ms, 94% acima de 50 ms. Um salto
+        claro em 3 medíveis, contra 3 em 9 na linha de base: sem sinal de piora (F4-D2 não disparou). Carga da máquina
+        na hora da G04 (13/11 16:37) não foi anotada.
+      - Falta: G1 de verdade (≥ 60 min com o som do PC), uma nota (`.md`) e a com ao vivo.
 19. [ ] O ouvido dos agentes segue igual com o app novo aberto. — **prova:** `python tools/transcrever.py temp/ouvido/<um .opus ou .m4a qualquer> --forcar` → imprime o caminho `<arquivo>.opus.txt`, rc 0; `python tools/test_antiloop.py <G1> large-v3-turbo GPU` → `PASSOU`
     **reprova se:** rc ≠ 0 ou `FALHOU`. Erro de GPU indisponível: repetir com o app fechado para separar disputa de GPU
     (o motor aquecido segura ~1,35 GB, ARMADILHAS) de regressão; se só falha com o app aberto, vira armadilha.
