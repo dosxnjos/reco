@@ -8,7 +8,7 @@
 <img src="docs/screenshots/hero.png" alt="Reco recording with live text, in its three skins: Tape, Notebook and Instrument" width="900">
 </p>
 
-Windows 10/11 · any x64 CPU (GPU and NPU acceleration on Intel only) · local Whisper on OpenVINO · Portuguese or English · [MIT](LICENSE)
+Windows 10/11 · any x64 CPU (GPU and NPU acceleration on Intel only) · local Whisper on OpenVINO · Portuguese, English or Polish · [MIT](LICENSE)
 
 **Status:** no installer for this version yet. [Build it from source](#install), or use the
 [v0.2.0 release](https://github.com/dosxnjos/reco/releases/tag/v0.2.0), which is the older Tkinter app.
@@ -16,7 +16,7 @@ Windows 10/11 · any x64 CPU (GPU and NPU acceleration on Intel only) · local W
 **Estado:** ainda não há instalador desta versão. [Gere pelo código](#instalar) ou use o
 [release v0.2.0](https://github.com/dosxnjos/reco/releases/tag/v0.2.0), que é o app antigo, em Tkinter.
 
-### [English](#english) · [Português](#português)
+### [English](#english) · [Português](#português) · [Polski](#polski)
 
 <table>
 <tr>
@@ -63,8 +63,8 @@ from Hugging Face, to check for a newer model and for new releases of this repo,
 - **Note mode:** records the microphone only and turns the speech into a `.md` file.
 - **Transcript:** a `.txt` next to the recording, labeled by channel ("Me" and "Speaker(s)"). Echo from speakers is
   removed when transcribing; the MP3 stays as recorded. Optional live text shows a draft while you record.
-- **Language:** the transcript uses the app language (Portuguese or English, set in Options); switch it before
-  transcribing a call in the other language.
+- **Language:** the transcript uses the app language (Portuguese, English or Polish, set in Options); switch it before
+  transcribing a call in another language.
 - **File tab:** transcribe any audio or video file, or convert it to a light MP3.
 - **Library:** search file names and transcript text; play, transcribe, open the text, delete. The optional **AI
   summary** uses your own [Claude Code](https://claude.com/claude-code) CLI and sends the transcript text (never the
@@ -149,8 +149,8 @@ baixar o modelo do Hugging Face, ver se há modelo novo ou release novo deste re
 - **Transcrição:** um `.txt` ao lado da gravação, com cada fala marcada pelo canal ("Eu" e "Interlocutor(es)"). O eco da
   caixa de som sai na hora de transcrever; o MP3 fica como foi gravado. O texto ao vivo, opcional, mostra um rascunho
   enquanto grava.
-- **Idioma:** a transcrição usa o idioma do app (português ou inglês, em Opções); troque antes de transcrever uma
-  conversa na outra língua.
+- **Idioma:** a transcrição usa o idioma do app (português, inglês ou polonês, em Opções); troque antes de transcrever
+  uma conversa em outra língua.
 - **Aba Arquivo:** transcreve qualquer arquivo de áudio ou vídeo, ou converte para um MP3 leve.
 - **Biblioteca:** busca no nome do arquivo e no texto transcrito; ouvir, transcrever, abrir o texto, excluir. O **Resumo
   IA**, opcional, usa o [Claude Code](https://claude.com/claude-code) do seu computador e manda o texto da transcrição
@@ -201,3 +201,82 @@ A interface roda no navegador com um motor falso; os comandos estão em [For dev
 O Reco começou em 2026 como um app em Python/Tkinter (`reco.py`, que continua neste repositório e roda com
 `python reco.py`), publicado até a v0.2.0. Em novembro de 2026 a interface foi refeita como um shell Tauri sobre o mesmo
 motor em Python, com janela de tamanho fixo e três skins.
+
+---
+
+## Polski
+
+Reco to mała aplikacja dla Windows, która mieszka w zasobniku i powstała z myślą o rozmowach. Nagrywa Twój mikrofon na
+lewym kanale, a dźwięk komputera na prawym kanale jednego pliku MP3 stereo, więc transkrypcja wie, kto mówił, bez
+zgadywania po głosie. Przechwytuje dźwięk komputera bezpośrednio, bez włączania „Miksu stereo”. Transkrypcja działa na
+Twoim komputerze z Whisperem `large-v3-turbo` przez OpenVINO GenAI: bez konta, bez klucza API i bez wysyłania dźwięku
+poza komputer. Sieć służy tylko do pobrania modelu z Hugging Face, do sprawdzenia, czy jest nowy model albo nowe wydanie
+tego repozytorium, oraz do opcjonalnego Podsumowania AI.
+
+### Funkcje
+
+- **Nagrywaj:** mikrofon i dźwięk systemowy w pliku MP3 stereo 16 kHz, 96 kbps, kodowanym w trakcie nagrywania.
+  Wstrzymywanie i wznawianie, wskaźnik poziomu i regulacja wzmocnienia (od 0× do 10×) dla każdego kanału.
+- **Po zatrzymaniu:** główny przycisk zapisuje plik i kopiuje jego pełną ścieżkę w podwójnym cudzysłowie, gotową do wklejenia w
+  terminalu albo na czacie. Pozostałe działania to przyciski na ekranie: zapisz i transkrybuj, tylko zapisz,
+  transkrybuj i usuń audio, usuń (do Kosza).
+- **Tryb notatki:** nagrywa tylko mikrofon i zamienia mowę w plik `.md`.
+- **Transkrypcja:** plik `.txt` obok nagrania, z każdą wypowiedzią oznaczoną według kanału („Ja” i „Rozmówca(y)”). Echo
+  z głośników jest usuwane podczas transkrypcji; MP3 zostaje taki, jak został nagrany. Opcjonalny tekst na żywo
+  pokazuje szkic w trakcie nagrywania.
+- **Język:** transkrypcja używa języka aplikacji (portugalskiego, angielskiego lub polskiego, w Opcjach); zmień go przed
+  transkrypcją rozmowy w innym języku.
+- **Karta Plik:** transkrybuje dowolny plik audio lub wideo albo konwertuje go na lekki MP3.
+- **Biblioteka:** wyszukiwanie po nazwie pliku i w treści transkrypcji; odtwarzanie, transkrypcja, otwarcie tekstu,
+  usuwanie. Opcjonalne **Podsumowanie AI** korzysta z [Claude Code](https://claude.com/claude-code) na Twoim komputerze
+  i wysyła tekst transkrypcji (nigdy audio) do Claude, na Twoim koncie.
+- **Okno:** mieszka w zasobniku (najechanie kursorem na ikonę pokazuje okno bez przejmowania fokusu, kliknięcie je
+  przypina). Skrót Ctrl+Shift+R i uruchamianie razem z Windows, oba opcjonalne. Trzy skórki do wyboru w
+  [Opcjach](docs/screenshots/options-skins.png): [Taśma](docs/screenshots/skin-tape.png) (domyślna),
+  [Notatnik](docs/screenshots/skin-notebook.png) i [Instrument](docs/screenshots/skin-instrument.png), w wersji jasnej
+  lub ciemnej.
+- **Uruchom na:** Auto (zalecane; w pierwszej kolejności wybiera GPU Intela), GPU, NPU lub CPU. Tryb NPU jest eksperymentalny: z
+  tym modelem nie zadziałał na komputerze testowym, a pierwsze uruchomienie w tym trybie trwa kilka minut, bo model się kompiluje.
+- Gotowe do nagrywania w mniej niż sekundę od otwarcia.
+
+### Instalacja
+
+Wymagania: 64-bitowy Windows 10/11 i dowolny procesor x64 (GPU i NPU przyspieszają tylko na sprzęcie Intela). Do
+zbudowania instalatora: Python 3.14 (wersja, na której jest budowany i testowany) z [requirements.txt](requirements.txt)
+i `pyinstaller`, Rust 1.90 lub nowszy (toolchain MSVC) oraz Node.js z npm.
+
+```powershell
+pip install -r requirements.txt pyinstaller
+powershell -ExecutionPolicy Bypass -File app/build.ps1
+# -> <CARGO_TARGET_DIR lub app/src-tauri/target>\release\bundle\nsis\Reco_<wersja>_x64-setup.exe
+```
+
+Build trwa około 6–11 minut na komputerze deweloperskim; instalator ma około 130 MB.
+
+- Instaluje się dla bieżącego użytkownika (bez uprawnień administratora) w `%LOCALAPPDATA%\Reco`, ze skrótem w Menu
+  Start. Skrót na Pulpicie jest opcjonalny (domyślnie odznaczony). Instalator nie jest podpisany, więc Windows
+  SmartScreen może wyświetlić ostrzeżenie.
+- Model transkrypcji (około 0,8 GB) pobiera się raz do `%LOCALAPPDATA%\Reco\models`. Odinstalowanie zachowuje ten
+  folder.
+
+**Przechodzisz z v0.2.0?** Obie aplikacje używają tych samych ustawień i tego samego folderu nagrań, a naraz działa tylko
+jedna: zamknij starą z menu w zasobniku, zanim otworzysz nową.
+
+### Jak to działa
+
+Powłoka Tauri 2 w Rust (okno, zasobnik, skrót, cykl życia silnika) wyświetla interfejs w TypeScript i komunikuje się w
+formacie JSON Lines z silnikiem w Pythonie, który jest tym samym kodem nagrywania i transkrypcji co w starej aplikacji,
+zamrożonym przez PyInstaller. Szczegóły: [docs/ARQUITETURA.md](docs/ARQUITETURA.md) i
+[docs/PROTOCOL.md](docs/PROTOCOL.md) (po portugalsku).
+
+### Dla programistów
+
+Interfejs działa w przeglądarce z fałszywym silnikiem; polecenia są w [For developers](#for-developers). W adresie URL
+`direcao=a|b|c` wybiera skórkę (a = Taśma, b = Notatnik, c = Instrument). Testy i to, co każdy z nich sprawdza:
+[docs/ARQUITETURA.md § Casco](docs/ARQUITETURA.md#casco-tauri-e-interface-nova-app-12112026).
+
+### Historia
+
+Reco powstało w 2026 roku jako aplikacja w Pythonie/Tkinterze (`reco.py`, który nadal jest w tym repozytorium i
+uruchamia się poleceniem `python reco.py`), wydawana do wersji v0.2.0. W listopadzie 2026 roku interfejs został
+przebudowany jako powłoka Tauri na tym samym silniku w Pythonie, z oknem o stałym rozmiarze i trzema skórkami.
