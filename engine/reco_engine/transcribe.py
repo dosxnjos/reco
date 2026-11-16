@@ -17,6 +17,7 @@ from collections.abc import Callable
 from . import boot
 from .core import arg_path
 from .errors import EngineError
+from .lingua import whisper_lang
 
 SEM_CONTEUDO = "(no content recognized)"
 _PCT = re.compile(r"(\d+)%")
@@ -69,7 +70,7 @@ def _transcribe(core, rid, reco, tr, path: Path) -> str:
         out.update(text=text, err=err)
         done.set()
 
-    tr.transcribe(path, lang="pt" if reco.LANG == "pt" else "en", diarize=opt["diarize"],
+    tr.transcribe(path, lang=whisper_lang(reco), diarize=opt["diarize"],
                   aec=opt["aec"], progress_cb=progress_emitter(core, rid, reco), done_cb=done_cb)
     if core.cancel_pending:          # cancel chegou antes do transcribe() limpar o sinal
         tr.cancel()

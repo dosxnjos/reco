@@ -14,6 +14,7 @@ from pathlib import Path
 
 from . import boot, conclude
 from .errors import EngineError, short
+from .lingua import nota_prefix
 
 log = logging.getLogger("reco_engine.recording")
 
@@ -174,7 +175,7 @@ def _start_kwargs(core, reco, cfg: dict, nota: bool, on_pair) -> dict:
           "on_pair": on_pair, "out_sr": reco.OUT_SR, "out_channels": reco.OUT_CH,
           "bitrate": reco.MP3_BR, "out_dir": out_dir}
     if nota:   # nota: mono, prefixo próprio, nunca ao vivo (reco.py:3836-3856)
-        kw.update(out_channels=1, on_pair=None, prefix="nota" if reco.LANG == "pt" else "note")
+        kw.update(out_channels=1, on_pair=None, prefix=nota_prefix(reco))
     return kw
 
 

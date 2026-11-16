@@ -39,6 +39,18 @@ def _caso_migracao_1(eng: Engine, home) -> None:
     check(read_config(home) == disco, "config.get gravou o arquivo")
 
 
+def _caso_idioma(eng: Engine, home) -> None:
+    """Polonês (PR #7): `pl` aceito e aplicado ao motor; idioma fora de pt/en/pl recusado sem gravar."""
+    antes_lang = eng.ok("config.get")["lang_efetivo"]
+    antes = (home / ".reco_config.json").read_bytes()
+    check(eng.error("config.set", {"changes": {"language": "xx"}}) == "bad_args", "language 'xx' aceito")
+    check((home / ".reco_config.json").read_bytes() == antes, "language recusado mudou o arquivo")
+    check(eng.ok("config.get")["lang_efetivo"] == antes_lang, "language recusado mudou o idioma")
+    got = eng.ok("config.set", {"changes": {"language": "pl"}})
+    check(got["lang_efetivo"] == "pl", f"lang_efetivo depois de pl: {got['lang_efetivo']}")
+    check(read_config(home).get("language") == "pl", f"pl não gravou: {read_config(home)}")
+
+
 def _dispositivos(eng: Engine) -> str:
     d = eng.ok("devices.list", timeout=30)
     mics, spks = d["microphone"]["devs"], d["speaker"]["devs"]
@@ -62,6 +74,7 @@ def run(guard: RealConfigGuard, exe: str | None = None) -> None:
         eng.wait_ready(60)
         _caso_migracao_2(eng, home)
         _caso_migracao_1(eng, home)
+        _caso_idioma(eng, home)
         devs = _dispositivos(eng)
         check(eng.shutdown(10) == 0, "exit != 0")
         eng.assert_clean_stdout()
@@ -69,5 +82,5 @@ def run(guard: RealConfigGuard, exe: str | None = None) -> None:
         eng.kill()
     check(guard.intact(), "o sha256 do ~/.reco_config.json real MUDOU")
     print("OK config: get, set mic_gain=2.5, chave legada preservada, migração não persistida, "
-          "config real intocado (sha256 igual)")
+          "language pl aceito e xx recusado, config real intocado (sha256 igual)")
     print(f"OK dispositivos: {devs}")

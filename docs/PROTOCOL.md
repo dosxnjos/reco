@@ -72,12 +72,14 @@ Notas por comando:
 - `config.set` aceita só chaves de `_CFG_DEFAULTS` ou com o prefixo `casco_` (preferência do casco que
   o `reco.py` não conhece, F2-D16), senão `bad_args`. Relê o arquivo **cru**, faz merge (chave
   desconhecida do arquivo fica), grava e relê para conferir (`save_failed` se divergir). `language`
-  muda o idioma do motor e é recusada com `busy` durante gravação ou transcrição; `mic_gain`/`sys_gain`
+  aceita `null`, `"pt"`, `"en"` ou `"pl"` (polonês desde 15/11/2026; outro valor é `bad_args`), muda o
+  idioma do motor (Whisper em pt ou pl, senão en; prompt do resumo e prefixo da nota pelo idioma) e é
+  recusada com `busy` durante gravação ou transcrição; `mic_gain`/`sys_gain`
   vão também ao gravador ativo. A interface manda `rec.set_gain` no arrasto e `config.set` só ao soltar.
 - `rec.start` recusa com `busy` fora de `idle` (inclusive `stopped`: concluir antes), e `nota` também
   com transcrição em curso. Dispositivos: resolvidos pelo config na hora (`no_device` se nenhum).
   Ao vivo liga se `config.live` e não há transcrição (`live_suprimido:true` se havia). `nota` grava só
-  o mic, mono, prefixo `nota`/`note`, nunca ao vivo. Desde 12/11/2026, `live_suprimido:true` também vem quando o
+  o mic, mono, prefixo `nota`/`notatka`/`note` (pt/pl/outro), nunca ao vivo. Desde 12/11/2026, `live_suprimido:true` também vem quando o
   ao vivo da gravação anterior, parado sem esperar (erro fatal de captura, falha no start ou no stop), ainda
   termina o trecho em curso: ele segura a vaga até acabar (no máximo 120 s), e nesse intervalo `transcribe.file`
   e a nota também levam `busy`.
