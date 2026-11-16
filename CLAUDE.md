@@ -91,8 +91,9 @@ do velho); provas em [docs/ARQUITETURA.md § Casco](docs/ARQUITETURA.md#casco-ta
 
 ## Onde está o resto
 
-[docs/_INDICE.md](docs/_INDICE.md): 1 linha por doc (ARMADILHAS, ARQUITETURA,
-TOOLS, README) e pelo índice dos roadmaps, com o que tem dentro e quando ler.
+[docs/_INDICE.md](docs/_INDICE.md): 1 linha por doc e pelo índice dos roadmaps.
+Texto de tela em pt/en/pl, cada camada com a sua conferência:
+[ARQUITETURA § Idiomas](docs/ARQUITETURA.md#idiomas-pt-en-pl-15112026).
 
 ## Ritual
 

@@ -27,6 +27,33 @@ Sem recompilar, a mudança fica só no fonte e não chega ao app que o Gabriel u
 - Warnings esperados e **inofensivos**: `openvino.torch`/`No module named 'torch'`
   (não usamos o frontend PyTorch). Não são erro de build.
 - Ship: a pasta `dist\Reco\` inteira; rodar o `Reco.exe` de dentro dela.
+- `build-win-portable.sh` (Toni Nowak, PR #7): o mesmo build do app **velho** (Tk, `reco.spec`) feito no Linux, com o
+  Python de Windows e o PyInstaller sob Wine; sai `dist/Reco/` e `dist/Reco-portable-win11-x64.zip`. Sob Wine o
+  `device=AUTO` quebra no `OpenCL.dll` falso do Wine (usar `CPU` lá). Não gera o app novo: esse é o `app/build.ps1`.
+
+## Idiomas (pt, en, pl) (15/11/2026)
+
+Três idiomas em todas as camadas desde o PR #7 de Toni Nowak (polonês), [plano](../roadmap/2026-11-15-polones-pr7.md).
+Valor fora de `pt`/`en`/`pl` segue o de antes: inglês no Tk e no motor, português na interface nova e no casco.
+
+| camada | onde mora o texto | conferência |
+| --- | --- | --- |
+| janela Tk | `t()`/`tf()` no `reco.py` com a chave em PT; `_TR_EN` no `reco.py`, `_TR_PL` em `i18n_pl.py` | `python tools/check_i18n.py` (faltantes EN e PL; mortas nos dois) |
+| resumo IA | `PROMPT_RESUMO` (pt, en, pl) em `i18n_prompts.py`, re-exportado pelo `reco.py` | — |
+| motor | `engine/reco_engine/lingua.py`: idioma do Whisper (`pt`/`pl`, senão `en`), prompt e prefixo da nota | `python tools/test_engine_protocol.py` |
+| interface nova | `app/ui/src/i18n/{pt,en,pl}.ts` | `npm --prefix app run i18n:check` (chaves e `{marcadores}` iguais nas três) |
+| casco | `enum Lingua` em `estado.rs`; textos da bandeja e dos avisos em `bandeja.rs`/`avisos.rs` | `cargo test` |
+
+- **Arquivo e transcrição por idioma:** gravação `gravacao_reco_`/`recording_reco_`/`nagranie_reco_` (o token `reco`
+  marca a gravação de dois canais), nota `nota`/`note`/`notatka`, rótulos `Eu`/`Me`/`Ja` e
+  `Interlocutor(es)`/`Speaker(s)`/`Rozmówca(y)`. Quem reconhece transcrição diarizada pelo rótulo
+  (`tools/transcrever.py`, `tools/pretriar_transcricoes.py`) aceita os três.
+- **Transcrição vazia** grava `(no content recognized)` em todo idioma, de propósito: o motor e o
+  `tools/paridade.py` a reconhecem por esse texto (D8 do plano).
+- **Módulos irmãos do `reco.py`** (`i18n_pl.py`, `i18n_prompts.py`): o `reco.py` está acima do teto da trava de
+  tamanho e não cresce; o que entra de texto vai para módulo novo. Ele põe a própria pasta no `sys.path` antes de
+  importá-los, porque `tools/` carregam o reco por caminho (`spec_from_file_location`); os dois specs do
+  PyInstaller os listam em `hiddenimports`.
 
 ## MP3 por container: o bug, e o que não reintroduzir
 
