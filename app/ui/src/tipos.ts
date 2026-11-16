@@ -5,7 +5,9 @@
 export type Tela = "gravar" | "biblioteca" | "arquivo" | "opcoes";
 export type Skin = "a" | "b" | "c";
 export type Tema = "sistema" | "claro" | "escuro";
-export type Lingua = "pt" | "en";
+export type Lingua = "pt" | "en" | "pl";
+/** Valor do config/protocolo para Lingua: "en" e "pl" passam; qualquer outro vira "pt" (D3 do roadmap 2026-11-15). */
+export const paraLingua = (x: unknown): Lingua => (x === "en" || x === "pl" ? x : "pt");
 export type Sinal = "info" | "ok" | "aviso" | "erro" | "espera" | "rec";
 
 // Estados por tela: os nomes do design/DESIGN.md (o condutor percorre todos).

@@ -14,7 +14,7 @@ export function aplicarGeral(v: Vista, r: Refs, raiz: HTMLElement): void {
   definirLingua(v.lingua);
   if (linguaAplicada !== v.lingua) {
     linguaAplicada = v.lingua;
-    html.lang = v.lingua === "en" ? "en" : "pt-BR";
+    html.lang = ({ pt: "pt-BR", en: "en", pl: "pl" } as const)[v.lingua];
   }
   aplicarTextos(raiz);
   esconder(r.versao, !v.versao);

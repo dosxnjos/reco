@@ -1,9 +1,9 @@
-// i18n-check.cjs: confere que todo texto da interface tem PT e EN (Fase 3, passo 11; o tools/check_i18n.py faz isso
+// i18n-check.cjs: confere que todo texto da interface tem PT, EN e PL (Fase 3, passo 11; o tools/check_i18n.py faz isso
 // no app velho). Uso: npm --prefix app run i18n:check  →  última linha "i18n: <n> chaves, 0 faltando" (saída 0).
-// Confere: (1) pt.ts e en.ts com as mesmas chaves; (2) todo código de erro do docs/PROTOCOL.md, os do casco
-// (timeout, hotkey_taken) e os que o backend falso lança têm erro.<código>; (3) todo estado do motor tem
-// estado.<nome>; (4) toda chave citada no código (t("…")) e no HTML (data-t*) existe; (5) nenhum hexadecimal de cor
-// solto em app/ui/src (cor só nos tokens do design/tokens.css).
+// Confere: (1) pt.ts, en.ts e pl.ts com as mesmas chaves e, em cada chave, os mesmos {marcadores}; (2) todo código de
+// erro do docs/PROTOCOL.md, os do casco (timeout, hotkey_taken) e os que o backend falso lança têm erro.<código> nas
+// três; (3) todo estado do motor tem estado.<nome>; (4) toda chave citada no código (t("…")) e no HTML (data-t*)
+// existe nas três; (5) nenhum hexadecimal de cor solto em app/ui/src (cor só nos tokens do design/tokens.css).
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -11,14 +11,25 @@ const path = require('path');
 const APP = path.resolve(__dirname, '..');
 const RAIZ = path.resolve(APP, '..');
 const SRC = path.join(APP, 'ui', 'src');
-const ler = (p) => fs.readFileSync(p, 'utf8');
+// CRLF vira LF: uma cópia com core.autocrlf=true (worktree no Windows) quebrava o split('\n\n') do PROTOCOL.md
+const ler = (p) => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
 const faltas = [];
 
-const chaves = (arq) => new Set([...ler(path.join(SRC, 'i18n', arq)).matchAll(/^\s*"([^"]+)":\s/gm)].map((m) => m[1]));
-const pt = chaves('pt.ts'), en = chaves('en.ts');
-for (const k of pt) if (!en.has(k)) faltas.push(`EN sem a chave ${k}`);
-for (const k of en) if (!pt.has(k)) faltas.push(`PT sem a chave ${k}`);
-const tem = (k, onde) => { if (!pt.has(k) || !en.has(k)) faltas.push(`${onde}: falta ${k} em ${pt.has(k) ? 'EN' : 'PT'}`); };
+// chave → texto, uma entrada por linha ("chave": "texto",), como pt.ts, en.ts e pl.ts são escritos
+const textos = (arq) => new Map([...ler(path.join(SRC, 'i18n', arq)).matchAll(/^\s*"([^"]+)":\s*"((?:[^"\\]|\\.)*)"/gm)].map((m) => [m[1], m[2]]));
+const LINGUAS = { PT: textos('pt.ts'), EN: textos('en.ts'), PL: textos('pl.ts') };
+const pt = LINGUAS.PT, en = LINGUAS.EN, pl = LINGUAS.PL;
+const marcadores = (s) => [...new Set([...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]))].sort().join(',');
+for (const [nome, dic] of Object.entries(LINGUAS)) {
+  if (nome === 'PT') continue;
+  for (const k of pt.keys()) if (!dic.has(k)) faltas.push(`${nome} sem a chave ${k}`);
+  for (const k of dic.keys()) if (!pt.has(k)) faltas.push(`PT sem a chave ${k} (que ${nome} tem)`);
+  for (const [k, v] of dic) if (pt.has(k) && marcadores(v) !== marcadores(pt.get(k))) faltas.push(`${nome} ${k}: marcadores {${marcadores(v)}} diferentes do PT {${marcadores(pt.get(k))}}`);
+}
+const tem = (k, onde) => {
+  const sem = Object.entries(LINGUAS).filter(([, dic]) => !dic.has(k)).map(([nome]) => nome);
+  if (sem.length) faltas.push(`${onde}: falta ${k} em ${sem.join(', ')}`);
+};
 
 // (2) códigos de erro do protocolo, do casco e do backend falso
 const protocolo = ler(path.join(RAIZ, 'docs', 'PROTOCOL.md'));
@@ -63,5 +74,5 @@ for (const arq of arquivosTs) {
 }
 
 faltas.forEach((f) => console.log('FALTA ' + f));
-console.log(`i18n: ${pt.size} chaves PT, ${en.size} EN, ${codigos.size} códigos de erro, ${estados.size} estados, ${citadas} citações; ${faltas.length} faltando`);
+console.log(`i18n: ${pt.size} chaves PT, ${en.size} EN, ${pl.size} PL, ${codigos.size} códigos de erro, ${estados.size} estados, ${citadas} citações; ${faltas.length} faltando`);
 process.exit(faltas.length ? 1 : 0);

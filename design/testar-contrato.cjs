@@ -280,9 +280,11 @@ async function teclado(page, dir) {
     const { ctx, page, erros } = await abrir({ colorScheme: 'light' });
     const direcoes = (await page.evaluate(() => window.vitrine.direcoes)) || [null];
     direcoesMedidas = direcoes;
+    // textos: os do alvo, se ele expõe (a interface real tem também longo-pl); senão os três da vitrine
+    const textos = (await page.evaluate(() => window.vitrine.textos)) || ['normal', 'longo-pt', 'longo-en'];
     for (const dir of direcoes) {
       const lista = [];
-      for (const texto of ['normal', 'longo-pt', 'longo-en']) lista.push(...await page.evaluate(porEstado, { dir, texto, permitidas: TRANSICAO_OK }));
+      for (const texto of textos) lista.push(...await page.evaluate(porEstado, { dir, texto, permitidas: TRANSICAO_OK }));
       for (const r of ['R3', 'R4', 'R5', 'R7', 'R8', 'R10', 'R12', 'R13', 'R15']) relatar(r, dir, [...new Set(lista.filter(([x]) => x === r).map(([, m]) => m))]);
       const clique = await cliqueParado(page, dir);
       relatar('R6 clique-move', dir, clique.out, `(${clique.n} botões, antes, hover, apertado e depois)`);

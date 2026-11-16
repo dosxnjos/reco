@@ -17,10 +17,10 @@ export function fracParaGanho(f: number): number {
   return Math.max(GANHO_MIN, Math.min(passo, GANHO_MAX));
 }
 
-/** "1,0×" em português (vírgula, como o fmt_gain), "1.0×" em inglês. */
+/** "1,0×" em português e em polonês (vírgula decimal, como o fmt_gain), "1.0×" em inglês. */
 export function fmtGanho(g: number, lingua: Lingua): string {
   const s = g.toFixed(1);
-  return (lingua === "pt" ? s.replace(".", ",") : s) + "×";
+  return (lingua === "en" ? s : s.replace(".", ",")) + "×";
 }
 
 /** Passo do teclado (setas ±0,5; Page Up/Down ±2; Home/End nos extremos), ou null se a tecla não mexe no ganho. */

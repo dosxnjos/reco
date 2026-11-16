@@ -5,7 +5,8 @@
 //   node design/testar-anti-pulo.cjs --sabotar       controle negativo: tira a linha única do status; tem de sair 1
 //                                                    (e acusar em cada skin; se uma não acusa, ela não foi medida: sai 2)
 // Cada medida confere que há uma janela visível só e que ela está na skin pedida (data-direcao).
-// Matriz: direção × escala (1; 1,25; 1,5) × tema × texto (normal, longo PT, longo EN) × versão nova × tela × estado.
+// Matriz: direção × escala (1; 1,25; 1,5) × tema × texto (normal, longo PT, longo EN e, se o alvo expõe
+// window.vitrine.textos, os dele: a interface real soma o longo PL) × versão nova × tela × estado.
 // Linha de base por direção e escala; tema, texto, versão e estado mudam conteúdo, nunca caixa. Saída 0 = nada pulou.
 'use strict';
 const fs = require('fs');
@@ -47,7 +48,8 @@ function percorrer({ direcao, globais }) {
   const caixa = (e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; };
   const base = {}, falhas = [];
   let n = 0;
-  for (const tema of ['claro', 'escuro']) for (const texto of ['normal', 'longo-pt', 'longo-en']) for (const versao of ['nao', 'sim']) {
+  // textos: os do alvo, se ele expõe (a interface real tem também longo-pl); senão os três da vitrine
+  for (const tema of ['claro', 'escuro']) for (const texto of v.textos || ['normal', 'longo-pt', 'longo-en']) for (const versao of ['nao', 'sim']) {
     for (const tela of v.telas) for (const estado of v.estados[tela]) {
       const p = { tela, estado, tema, texto, versao };
       if (direcao) p.direcao = direcao;

@@ -1,5 +1,5 @@
 // Condutor de estados (DESIGN.md § Condutor; F1-D12): no backend falso a página aceita
-// ?direcao=&tela=&estado=&tema=&texto=&versao= e expõe window.vitrine.definir({...}) com os mesmos nomes da vitrine,
+// ?direcao=&tela=&estado=&tema=&texto=&versao= (texto também aceita longo-pl) e expõe window.vitrine.definir({...}) com os mesmos nomes da vitrine,
 // para design/testar-anti-pulo.cjs e design/testar-contrato.cjs rodarem com --url contra a interface real.
 // Cada chamada monta a Vista inteira do cenário (dados inventados de mock-dados.ts) e redesenha na hora.
 import type { App } from "./app";
@@ -9,10 +9,13 @@ import { CONTEUDO, ERRO_DETALHE, FALAS, itensFalsos } from "./mock-dados";
 import { paraItem } from "./controle/dados";
 import { GRAVANDO, PADRAO } from "./vista";
 import { fixarNiveis, pintarAgora, zerarNiveis } from "./vu";
-import { ESTADOS, SKINS, TELAS, type Skin, type Tela, type Tema, type Vista } from "./tipos";
+import { ESTADOS, SKINS, TELAS, type Lingua, type Skin, type Tela, type Tema, type Vista } from "./tipos";
 
 type Param = { direcao?: string; tela?: string; estado?: string; tema?: string; texto?: string; versao?: string };
-const VALORES = { tema: ["sistema", "claro", "escuro"], texto: ["normal", "longo-pt", "longo-en"], versao: ["nao", "sim"] };
+// texto: "longo-pl" (conteúdo longo, interface em polonês) só existe aqui, não na vitrine; os testes leem a lista de
+// window.vitrine.textos quando o alvo a expõe
+const VALORES = { tema: ["sistema", "claro", "escuro"], texto: ["normal", "longo-pt", "longo-en", "longo-pl"], versao: ["nao", "sim"] };
+const LINGUA_DO_TEXTO: Record<string, Lingua> = { "longo-en": "en", "longo-pl": "pl" };
 
 function gravar(v: Vista, k: (typeof CONTEUDO)["normal"], e: string): void {
   const g = v.g, rodando = GRAVANDO.has(e) || e === "parado";
@@ -69,7 +72,7 @@ export function criarCondutor(app: App) {
     s.estado = (ESTADOS[s.tela] as readonly string[]).includes(est) ? est : porTela[s.tela];
     porTela[s.tela] = s.estado;
     const v = app.v, normal = s.texto === "normal", k = CONTEUDO[normal ? "normal" : "longo"];
-    v.skin = s.direcao as Skin; v.tema = s.tema as Tema; v.lingua = s.texto === "longo-en" ? "en" : "pt";
+    v.skin = s.direcao as Skin; v.tema = s.tema as Tema; v.lingua = LINGUA_DO_TEXTO[s.texto] ?? "pt";
     definirLingua(v.lingua);
     v.versao = s.versao === "sim" ? { tag: "2.0", url: "https://github.com/dosxnjos/reco/releases" } : null;
     v.tela = s.tela; v.aviso = null; v.motorFora = false;
@@ -85,7 +88,7 @@ export function criarCondutor(app: App) {
 
   // estado(): o que a janela mostra agora (no modo normal, o que o controle levou à Vista)
   const estado = () => ({ ...s, direcao: app.v.skin, tema: app.v.tema, tela: app.v.tela, estado: app.v.estado[app.v.tela], estados: { ...app.v.estado } });
-  return { direcoes: SKINS, telas: TELAS, estados: ESTADOS, definir, estado };
+  return { direcoes: SKINS, telas: TELAS, estados: ESTADOS, textos: VALORES.texto, definir, estado };
 }
 
 /** Os parâmetros da URL que o condutor entende (vazio = a página abre no modo normal, com o motor falso). */
