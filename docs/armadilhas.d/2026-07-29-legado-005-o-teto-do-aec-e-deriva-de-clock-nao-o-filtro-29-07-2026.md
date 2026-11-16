@@ -23,4 +23,12 @@ correta), o caminho barato é decidir o locutor por **dominância de energia ent
 os canais**, que é robusto a eco residual e não depende de cancelar nada. Fone de
 ouvido continua sendo a solução de custo zero que elimina o problema na origem.
 
+⚠️ **O "teto de ~7 dB" é métrica inválida** (marcado em 16/11/2026, issue #22):
+o ERLE de 29/07 foi calculado com rótulos por energia simultânea e o alinhamento
+saturado (§ 1.3 de `roadmap/2026-08-19-melhoria-antieco-de-verdade.md`). Pela régua certa (`tools/medir_aec.py`, rotulagem alinhada)
+o `cancel_echo` entrega +6,4 a +15,5 dB com dano ≤ +1,2 dB, e a deriva de clock é
+um dos tetos, não o único (AGC do mic e distorção da caixa também pesam): ver
+`docs/ARQUITETURA.md` e o § 1.5 de `roadmap/2026-08-19-melhoria-antieco-de-verdade.md`.
+A tabela de atraso e deriva acima foi medida por correlação e segue valendo.
+
 ---

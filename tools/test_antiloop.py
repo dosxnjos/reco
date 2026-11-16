@@ -84,8 +84,9 @@ def main():
     for w in jans:
         _res, txt = tr._generate_sem_loop(pipe, cfg, w)
         protegido.append(txt)
-    # o transcribe() passa as falas prontas pelo antiloop.sem_eco (#31); aqui, um canal só
-    protegido = [tx for _t, _f, tx in antiloop.sem_eco([(0, "", tx) for tx in protegido if tx])]
+    # o transcribe() passa as falas prontas pelo antiloop.sem_eco (#31), com o filtro de escrita do pt
+    # antes da conta (#34); aqui, um canal só
+    protegido = [tx for _t, _f, tx in antiloop.sem_eco([(0, "", tx) for tx in protegido if tx], lingua="pt")]
     t_prot = time.perf_counter() - t0
 
     a, b = " ".join(cru), " ".join(protegido)

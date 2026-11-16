@@ -1,8 +1,21 @@
-"""Mede o acoplamento acustico real (caixa -> mic) e o ERLE do cancel_echo atual.
+"""REGUA INVALIDA (19/08/2026; marcado em 16/11/2026, issue #22): nao julgue AEC por aqui.
+
+Para julgar o cancelamento de eco use `tools/medir_aec.py <mp3> [n_janelas] [dur]`:
+par (ERLE, dano na voz), rotulagem com o sistema ALINHADO, sai com codigo 1 se o
+gate nao passar. ERLE sozinho e metrica proibida (CLAUDE.md, item 4).
+
+O que este script imprime e por que nao vale:
+- acoplamento caixa -> mic: so conta blocos `so_sys` com o mic quase mudo, entao o
+  bloco com eco forte cai em `ambos` e sai da conta (vies de selecao): subestima o
+  eco por construcao. O numero e piso, nao valor.
+- ERLE do cancel_echo: rotulos por energia SIMULTANEA com os canais desalinhados
+  (o eco chega ~200 ms depois) e sem o dano na voz. Invalido, nem piso.
+Os numeros antigos tirados daqui (03/08: acoplamento -20,5 dB, ERLE +17,6 dB;
+-17,9 / -23,7 / -30,9 dB de acoplamento) sao metrica invalida: nao citar.
+Detalhe: docs/ARMADILHAS.md (entradas de 19/08) e o § 1.4 de
+roadmap/2026-08-19-melhoria-antieco-de-verdade.md; o conserto e a Fase 3 de la.
 
 ERLE = Echo Return Loss Enhancement: quanto de energia do eco foi removida, em dB.
-Medido nos trechos em que SO o sistema fala (R com energia, sem fala do near-end),
-que e onde o residuo e audivel e onde a diarizacao erra.
 """
 import sys
 from pathlib import Path
@@ -34,6 +47,8 @@ def rms(x):
 
 
 def main():
+    print("AVISO: regua invalida para julgar AEC (issue #22). Use tools/medir_aec.py; "
+          "os numeros abaixo nao se citam.", file=sys.stderr)
     mp3 = Path(sys.argv[1])
     mic, sysc = decode(mp3)
     n = min(len(mic), len(sysc))

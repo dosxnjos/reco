@@ -17,13 +17,26 @@ arquivo, a separação ficou limpa: blocos longos da interlocutora de um lado,
 intervenções curtas do Gabriel do outro, e o `.txt` encolheu **38%** (69 KB →
 42,6 KB) — o que sumiu era a duplicata de eco.
 
-⚠️ **Meça antes de confiar.** `tools/medir_eco.py <mp3>` dá acoplamento e ERLE
-reais **daquela gravação**. Neste arquivo: acoplamento caixa→mic **−20,5 dB** e
-ERLE mediano **+17,6 dB** (min 1,4 / max 23,8) — resíduo em torno de −38 dB,
-desprezível. O "~7 dB" citado no `CLAUDE.md` é o número de **uma** medição de
-29/07, não uma constante: o ERLE varia com volume, sala e microfone. Abaixo de
-~10 dB, a diarização volta a errar mesmo com `--aec`, e aí não há flag que
-salve — só gravar de fone.
+⚠️ **Meça antes de confiar, mas pela régua certa: `tools/medir_aec.py <mp3>`**,
+que dá o par **(ERLE, dano na voz)** com a rotulagem alinhada (gate: ERLE mediano
+≥ 5 dB, dano ≤ 2 dB em toda janela). ERLE sozinho é métrica proibida
+(`CLAUDE.md`, item 4).
+
+~~Neste arquivo: acoplamento caixa→mic −20,5 dB e ERLE mediano +17,6 dB (min
+1,4 / max 23,8), resíduo em torno de −38 dB, desprezível.~~ **Métrica inválida
+(corrigido em 16/11/2026, issue #22):** esses números saíram do
+`tools/medir_eco.py`, que tem dois defeitos registrados em 19/08: o acoplamento
+é medido só nos blocos com o mic quase mudo (viés de seleção, ver a armadilha
+"`medir_eco.py` subestima o eco por construção") e o ERLE vem de rótulos por
+energia simultânea com os canais desalinhados, sem o dano na voz (ver "Rotulagem
+por energia simultânea mede o OPOSTO…"). Ficam aqui só como registro; não citar
+como acoplamento nem como ERLE daquela gravação, que ninguém remediu. Também é
+da régua antiga a regra "abaixo de ~10 dB a diarização volta a errar mesmo com
+`--aec`": o limiar não vale para o ERLE do `medir_aec.py`. O que segue válido: o
+ERLE varia com volume, sala e microfone (não é constante), e gravar de fone é o
+único jeito de zerar o eco na origem. Números honestos do `cancel_echo` e o
+"~7 dB" de 29/07 (também inválido): `docs/ARQUITETURA.md` e o § 1.3 de
+`roadmap/2026-08-19-melhoria-antieco-de-verdade.md`.
 
 **Efeito colateral a conhecer:** onde o AEC zera o canal do mic (a interlocutora
 falando sozinha), sobra silêncio — e o Whisper **alucina** nele, tipicamente
