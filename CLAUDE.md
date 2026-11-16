@@ -1,11 +1,9 @@
 # Reco — instruções do projeto
 
-App de desktop (Windows, Tkinter) que grava **microfone + áudio do sistema**
-(WASAPI loopback) num MP3 estéreo (L=mic, R=sistema) e transcreve localmente via
-OpenVINO GenAI (Whisper), com diarização por canal e cancelamento de eco.
-Código em modularização desde 02/10/2026: quase tudo ainda em `reco.py` +
-`tray.py` (bandeja), saindo em módulos pelo
-[roadmap](roadmap/2026-10-02-melhoria-modularizacao.md).
+App de desktop Windows que grava **microfone + áudio do sistema** (WASAPI loopback) num MP3 estéreo
+(L=mic, R=sistema) e transcreve localmente via OpenVINO GenAI (Whisper), com diarização por canal e
+cancelamento de eco. Desde a 0.3.0 (16/11/2026) o app é o casco Tauri (`app/`) sobre o motor (`engine/`,
+que importa o `reco.py`); o Tk (`reco.py` + `tray.py`) ficou de reserva.
 
 **Rota:** [hub](../cerebro/projetos/reco.md) (estado, roadmaps em voo,
 pendências) antes de editar; o hook `guarda-escrita` cobra (desde 03/10/2026).
@@ -15,11 +13,9 @@ novo`, nunca `Edit`. Mapa dos docs: [docs/_INDICE.md](docs/_INDICE.md).
 
 ## REGRA: sempre compilar após alterar o código
 
-**Toda vez que mexer em `reco.py`/`tray.py` (ou qualquer coisa que entre no
-executável), recompilar ao final** rodando
-`powershell -ExecutionPolicy Bypass -File "C:\Dev\Reco\build.ps1"`. Sem
-recompilar, a mudança fica só no fonte e não chega ao app que o Gabriel usa.
-Detalhe (`-Clean`, modelo bundlado, warnings inofensivos, o que se distribui):
+**Toda vez que mexer no que entra no app (`reco.py`, `engine/`, `app/`), gerar o instalador ao final**
+(`powershell -ExecutionPolicy Bypass -File app\build.ps1`) e instalar com o Reco fechado na bandeja, sem
+gravar. Sem isso a mudança fica só no fonte. O `build.ps1` da raiz é o do Tk de reserva. Detalhe:
 [docs/ARQUITETURA.md § Build](docs/ARQUITETURA.md#build).
 
 ## REGRA: transcrição se lê INTEIRA, e "li" é afirmação de fato

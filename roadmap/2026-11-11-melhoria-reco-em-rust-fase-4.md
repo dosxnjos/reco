@@ -370,6 +370,12 @@
 
 ### C. Paridade funcional e uso real
 
+> **Aprovado em 16/11/2026 (manhã, sessão c38e9592).** O Gabriel: «Eu aprovo. Pode publicar.» Antes disso, em 15/11: «o
+> Reco eu tenho usado e tem funcionado perfeitamente». Ele dispensou o que faltava dos passos 17 e 18: as 11 linhas ⏸
+> do checklist e 1 das 6 gravações (foram 5 reais, nenhuma `FALHOU` depois do conserto do texto repetido, #31/#33). O
+> passo 19 não foi refeito (o ouvido dos agentes usa o mesmo `transcribe()`, provado no #33). Os passos 20 a 22 entraram
+> no plano `roadmap/2026-11-16-release-0.3.0.md`, que publica o release `v0.3.0`.
+
 17. [ ] Executar o checklist de paridade abaixo com o app instalado e gravar o resultado de cada linha no relatório. — **prova:** `grep -c "| ✗ |" <relatório da fase>` → `0` e `grep -c "| ✓ |" <relatório da fase>` → número de linhas do checklist
     **reprova se:** alguma linha ✗, ou linha sem resultado. Linha que a Fase 3 tirou de propósito entra como ✓ com o motivo.
     - Nota (2026-11-12, execução, build `84EE1142`, sem mouse, máquina carregada por outras sessões): 15 ✓, 11 ⏸, 0 ✗
