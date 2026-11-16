@@ -64,7 +64,6 @@ TR_PL: dict = {
     "Nenhuma fonte de áudio — abra Opções.":
         "Brak źródła dźwięku — otwórz Opcje.",
     # status — recording
-    "Gravando…  (mic + sistema)": "Nagrywanie…  (mikrofon + system)",
     "microfone": "mikrofon",
     "áudio do sistema": "dźwięk systemowy",
     "Nenhuma fonte pôde ser capturada ({which}): {m}":
@@ -199,8 +198,6 @@ TR_PL: dict = {
         "  pip install {pkgs}\n\n"
         "Otwórz terminal i wykonaj powyższe polecenie. "
         "Następnie uruchom ponownie {app}.",
-    # sentinel de transcrição vazia (dodany razem z obsługą PL)
-    "(nenhum conteúdo reconhecido)": "(brak rozpoznanej mowy)",
     # chaves novas do master (15/11/2026): textos que nasceram depois do PR #7,
     # no glossário de Toni (nagranie, notatka, Opcje, mikrofon, system, Wejście/Wyjście)
     # modo nota

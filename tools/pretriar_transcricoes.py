@@ -35,7 +35,7 @@ MAX_BYTES = 400 * 1024
 TIMEOUT_S = 900
 MAX_ERROS_SEGUIDOS = 5
 RE_RADICAL = re.compile(r"(_alinhado)?(\.mp3|\.m4a)?\.txt$")
-RE_CITACAO = re.compile(r"gravacao_reco_[0-9_-]+")
+RE_CITACAO = re.compile(r"(?:gravacao|recording|nagranie)_reco_[0-9_-]+")
 RE_LIMITE = re.compile(r"weekly limit|session limit|hit your limit|usage limit|limit reached", re.I)
 
 CABECALHO = ("| # | gravação | arquivo | variantes | KB | citada no cérebro | sugestão | assunto "

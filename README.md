@@ -41,7 +41,7 @@ Windows 10/11 · any x64 CPU (GPU and NPU acceleration on Intel only) · local W
 </tr>
 </table>
 
-The captures show the interface in Portuguese; the app switches to English in Options.
+The captures show the interface in Portuguese; the app switches to English or Polish in Options.
 
 ---
 
@@ -206,20 +206,20 @@ motor em Python, com janela de tamanho fixo e três skins.
 
 ## Polski
 
-Reco to mała aplikacja dla Windows, która mieszka w zasobniku i powstała z myślą o rozmowach. Nagrywa Twój mikrofon na
-lewym kanale, a dźwięk komputera na prawym kanale jednego pliku MP3 stereo, więc transkrypcja wie, kto mówił, bez
-zgadywania po głosie. Przechwytuje dźwięk komputera bezpośrednio, bez włączania „Miksu stereo”. Transkrypcja działa na
-Twoim komputerze z Whisperem `large-v3-turbo` przez OpenVINO GenAI: bez konta, bez klucza API i bez wysyłania dźwięku
-poza komputer. Sieć służy tylko do pobrania modelu z Hugging Face, do sprawdzenia, czy jest nowy model albo nowe wydanie
-tego repozytorium, oraz do opcjonalnego Podsumowania AI.
+Reco to mała aplikacja dla Windows, która działa w zasobniku systemowym i powstała z myślą o rozmowach. Nagrywa Twój
+mikrofon na lewym kanale, a dźwięk komputera na prawym kanale jednego pliku MP3 stereo, więc transkrypcja wie, kto
+mówił, bez zgadywania po głosie. Przechwytuje dźwięk komputera bezpośrednio, bez włączania „Miksu stereo”.
+Transkrypcja działa na Twoim komputerze z Whisperem `large-v3-turbo` przez OpenVINO GenAI: bez konta, bez klucza API
+i bez wysyłania dźwięku poza komputer. Sieć służy tylko do pobrania modelu z Hugging Face, do sprawdzenia, czy jest nowy
+model albo nowe wydanie tego repozytorium, oraz do opcjonalnego Podsumowania AI.
 
 ### Funkcje
 
-- **Nagrywaj:** mikrofon i dźwięk systemowy w pliku MP3 stereo 16 kHz, 96 kbps, kodowanym w trakcie nagrywania.
+- **Nagrywanie:** mikrofon i dźwięk systemowy w pliku MP3 stereo 16 kHz, 96 kbps, kodowanym w trakcie nagrywania.
   Wstrzymywanie i wznawianie, wskaźnik poziomu i regulacja wzmocnienia (od 0× do 10×) dla każdego kanału.
 - **Po zatrzymaniu:** główny przycisk zapisuje plik i kopiuje jego pełną ścieżkę w podwójnym cudzysłowie, gotową do wklejenia w
-  terminalu albo na czacie. Pozostałe działania to przyciski na ekranie: zapisz i transkrybuj, tylko zapisz,
-  transkrybuj i usuń audio, usuń (do Kosza).
+  terminalu albo na czacie. Pozostałe działania to przyciski na ekranie: „Zapisz i transkrybuj”, „Tylko zapisz”,
+  „Transkrybuj i usuń audio”, „Przenieś do Kosza”.
 - **Tryb notatki:** nagrywa tylko mikrofon i zamienia mowę w plik `.md`.
 - **Transkrypcja:** plik `.txt` obok nagrania, z każdą wypowiedzią oznaczoną według kanału („Ja” i „Rozmówca(y)”). Echo
   z głośników jest usuwane podczas transkrypcji; MP3 zostaje taki, jak został nagrany. Opcjonalny tekst na żywo
@@ -228,12 +228,12 @@ tego repozytorium, oraz do opcjonalnego Podsumowania AI.
   transkrypcją rozmowy w innym języku.
 - **Karta Plik:** transkrybuje dowolny plik audio lub wideo albo konwertuje go na lekki MP3.
 - **Biblioteka:** wyszukiwanie po nazwie pliku i w treści transkrypcji; odtwarzanie, transkrypcja, otwarcie tekstu,
-  usuwanie. Opcjonalne **Podsumowanie AI** korzysta z [Claude Code](https://claude.com/claude-code) na Twoim komputerze
-  i wysyła tekst transkrypcji (nigdy audio) do Claude, na Twoim koncie.
-- **Okno:** mieszka w zasobniku (najechanie kursorem na ikonę pokazuje okno bez przejmowania fokusu, kliknięcie je
+  usuwanie. Opcjonalne **Podsumowanie AI** (przycisk „Podsumuj”) korzysta z [Claude Code](https://claude.com/claude-code)
+  na Twoim komputerze i wysyła tekst transkrypcji (nigdy audio) do Claude, na Twoim koncie.
+- **Okno:** działa w zasobniku (najechanie kursorem na ikonę pokazuje okno bez przejmowania fokusu, kliknięcie je
   przypina). Skrót Ctrl+Shift+R i uruchamianie razem z Windows, oba opcjonalne. Trzy skórki do wyboru w
   [Opcjach](docs/screenshots/options-skins.png): [Taśma](docs/screenshots/skin-tape.png) (domyślna),
-  [Notatnik](docs/screenshots/skin-notebook.png) i [Instrument](docs/screenshots/skin-instrument.png), w wersji jasnej
+  [Zeszyt](docs/screenshots/skin-notebook.png) i [Instrument](docs/screenshots/skin-instrument.png), w wersji jasnej
   lub ciemnej.
 - **Uruchom na:** Auto (zalecane; w pierwszej kolejności wybiera GPU Intela), GPU, NPU lub CPU. Tryb NPU jest eksperymentalny: z
   tym modelem nie zadziałał na komputerze testowym, a pierwsze uruchomienie w tym trybie trwa kilka minut, bo model się kompiluje.
@@ -241,7 +241,7 @@ tego repozytorium, oraz do opcjonalnego Podsumowania AI.
 
 ### Instalacja
 
-Wymagania: 64-bitowy Windows 10/11 i dowolny procesor x64 (GPU i NPU przyspieszają tylko na sprzęcie Intela). Do
+Wymagania: 64-bitowy Windows 10/11 i dowolny procesor x64 (akceleracja GPU i NPU działa tylko na sprzęcie Intela). Do
 zbudowania instalatora: Python 3.14 (wersja, na której jest budowany i testowany) z [requirements.txt](requirements.txt)
 i `pyinstaller`, Rust 1.90 lub nowszy (toolchain MSVC) oraz Node.js z npm.
 
@@ -271,8 +271,8 @@ zamrożonym przez PyInstaller. Szczegóły: [docs/ARQUITETURA.md](docs/ARQUITETU
 
 ### Dla programistów
 
-Interfejs działa w przeglądarce z fałszywym silnikiem; polecenia są w [For developers](#for-developers). W adresie URL
-`direcao=a|b|c` wybiera skórkę (a = Taśma, b = Notatnik, c = Instrument). Testy i to, co każdy z nich sprawdza:
+Interfejs działa w przeglądarce z symulowanym silnikiem (atrapą); polecenia są w [For developers](#for-developers).
+W adresie URL `direcao=a|b|c` wybiera skórkę (a = Taśma, b = Zeszyt, c = Instrument). Testy i to, co każdy z nich sprawdza:
 [docs/ARQUITETURA.md § Casco](docs/ARQUITETURA.md#casco-tauri-e-interface-nova-app-12112026).
 
 ### Historia

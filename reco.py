@@ -106,7 +106,7 @@ def default_output_dir() -> Path:
 CONFIG_PATH = Path.home() / ".reco_config.json"
 
 _CFG_DEFAULTS: dict = {
-    "language":    None,      # "pt" | "en" | None -> auto-detect from system
+    "language":    None,      # "pt" | "en" | "pl" | None -> auto-detect from system
     "bg_color":    DEFAULT_BG,
     "accent_color": DEFAULT_ACCENT,
     # large-v3-turbo, not small: measured 29/07/2026, `small` locks into

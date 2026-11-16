@@ -32,7 +32,7 @@ export const FALAS: Record<Lingua, [string, string][]> = {
     ["eu", "Please do, I will pass it to finance today."], ["outros", "One more thing: the sample of the new model arrives on Thursday, and then we"]],
   pl: [["eu", "Dzień dobry wszystkim. Zaczniemy od zamówienia na lato?"], ["outros", "Dzień dobry. Rozmiarówkę zamknęliśmy wczoraj; brakuje tylko rozmiarów 39 i 40."],
     ["eu", "Dobrze. A dostawa nadal jest na drugi tydzień grudnia?"], ["outros", "Nadal, ale transport trochę podrożał. Nowy cennik wyślę dziś po południu."],
-    ["eu", "Proszę wysłać, jeszcze dziś przekażę go do działu finansów."], ["outros", "I jeszcze jedno: próbka nowego modelu przyjdzie w czwartek, a wtedy"]],
+    ["eu", "Proszę wysłać, jeszcze dziś przekażę go do działu finansowego."], ["outros", "I jeszcze jedno: próbka nowego modelu przyjdzie w czwartek, a wtedy"]],
 };
 
 // [nome, mtime (s), duração (s), tem texto]

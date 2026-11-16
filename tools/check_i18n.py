@@ -4,7 +4,8 @@ Extrai por AST todo literal usado em t("...")/tf("...") e compara com as
 chaves da tabela _TR_EN. Reporta:
   FALTANTES EN — usada no código, sem tradução em _TR_EN (usuário EN vê PT)
   FALTANTES PL — usada no código, sem tradução em _TR_PL (usuário PL vê PT)
-  MORTAS       — está em _TR_EN mas nenhum t()/tf() do código a usa
+  MORTAS EN    — está em _TR_EN mas nenhum t()/tf() do código a usa
+  MORTAS PL    — está em _TR_PL mas nenhum t()/tf() do código a usa
 
 Exit code 1 se houver FALTANTES (MORTAS sozinha não falha o build).
 """
@@ -120,36 +121,27 @@ def _tabele() -> dict:
     return {"en": mod._TR_EN, "pl": mod._TR_PL}
 
 
+def _relata(rotulo: str, itens: list) -> bool:
+    """Imprime a lista com o rótulo (se não vazia); devolve se havia algo."""
+    if itens:
+        print(f"{rotulo} ({len(itens)}):")
+        for s in itens:
+            print(f"  {s!r}")
+    return bool(itens)
+
+
 def main():
     usadas = set()
     for arq in ARQUIVOS:
         usadas |= strings_usadas(arq)
 
-    tabelas = _tabele()
-    falha = False
+    falha = morta = False
+    for lingua, tabela in _tabele().items():
+        chaves = set(tabela)
+        falha |= _relata(f"FALTANTES {lingua.upper()}", sorted(usadas - chaves))
+        morta |= _relata(f"MORTAS {lingua.upper()}", sorted(chaves - usadas))
 
-    en = set(tabelas["en"])
-    faltantes_en = sorted(usadas - en)
-    mortas = sorted(en - usadas)
-    if faltantes_en:
-        print(f"FALTANTES EN ({len(faltantes_en)}):")
-        for s in faltantes_en:
-            print(f"  {s!r}")
-    if mortas:
-        print(f"MORTAS ({len(mortas)}):")
-        for s in mortas:
-            print(f"  {s!r}")
-    falha |= bool(faltantes_en)
-
-    pl = set(tabelas["pl"])
-    faltantes_pl = sorted(usadas - pl)
-    if faltantes_pl:
-        print(f"FALTANTES PL ({len(faltantes_pl)}):")
-        for s in faltantes_pl:
-            print(f"  {s!r}")
-    falha |= bool(faltantes_pl)
-
-    if not falha and not mortas:
+    if not falha and not morta:
         print("OK — cobertura completa (EN e PL), nada morto.")
 
     return 1 if falha else 0
