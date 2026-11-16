@@ -1,7 +1,7 @@
 //! Bandeja dirigida pelo Rust a partir dos eventos do motor (passo 8; molde: Guarita `lib.rs:355-405`).
 //! Rótulos e dica espelham o app velho (`reco.py:4938-4952`, `:5059-5073`); o ícone fica vermelho gravando e
-//! também pausado (`reco.py:5064-5066`). Textos PT/EN numa tabela pequena aqui (F3-D4: webview escondida tem
-//! timers estrangulados, então a bandeja não depende dela).
+//! também pausado (`reco.py:5064-5066`). Textos PT/EN/PL numa tabela pequena aqui (F3-D4: webview escondida tem
+//! timers estrangulados, então a bandeja não depende dela); o polonês é o da tabela de Toni (`i18n_pl.py`).
 
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
@@ -11,7 +11,7 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Manager, Runtime};
 
-use crate::estado::EstadoCasco;
+use crate::estado::{EstadoCasco, Lingua};
 
 pub const ID_BANDEJA: &str = "reco";
 pub const ID_GRAVAR: &str = "gravar";
@@ -19,35 +19,31 @@ pub const ID_PAUSAR: &str = "pausar";
 pub const ID_ABRIR: &str = "abrir";
 pub const ID_SAIR: &str = "sair";
 
-/// Uma frase em português e em inglês.
-type Texto = (&'static str, &'static str);
+/// Uma frase em português, inglês e polonês.
+type Texto = (&'static str, &'static str, &'static str);
 
-const GRAVAR: Texto = ("Gravar", "Record");
-const PARAR: Texto = ("Parar", "Stop");
-const PAUSAR: Texto = ("Pausar", "Pause");
-const CONTINUAR: Texto = ("Continuar", "Resume");
-const ABRIR: Texto = ("Abrir", "Open");
-const SAIR: Texto = ("Sair", "Quit");
+const GRAVAR: Texto = ("Gravar", "Record", "Nagrywaj");
+const PARAR: Texto = ("Parar", "Stop", "Zatrzymaj");
+const PAUSAR: Texto = ("Pausar", "Pause", "Wstrzymaj");
+const CONTINUAR: Texto = ("Continuar", "Resume", "Wznów");
+const ABRIR: Texto = ("Abrir", "Open", "Otwórz");
+const SAIR: Texto = ("Sair", "Quit", "Zakończ");
 
-fn tr(t: Texto, ingles: bool) -> &'static str {
-    if ingles {
-        t.1
-    } else {
-        t.0
-    }
+fn tr(t: Texto, lingua: Lingua) -> &'static str {
+    lingua.escolher(t.0, t.1, t.2)
 }
 
 /// Rótulos dos dois primeiros itens do menu por estado do motor: `(gravar_ou_parar, pausar_ou_continuar)`.
 /// `None` = sem ação de um clique nesse estado (item desabilitado), como o velho em BUSY/STOPPED.
-pub fn rotulos(estado: &str, ingles: bool) -> (Option<&'static str>, Option<&'static str>) {
+pub fn rotulos(estado: &str, lingua: Lingua) -> (Option<&'static str>, Option<&'static str>) {
     let rec = match estado {
-        "recording" | "paused" => Some(tr(PARAR, ingles)),
-        "idle" => Some(tr(GRAVAR, ingles)),
+        "recording" | "paused" => Some(tr(PARAR, lingua)),
+        "idle" => Some(tr(GRAVAR, lingua)),
         _ => None, // starting, stopping, stopped
     };
     let pausa = match estado {
-        "recording" => Some(tr(PAUSAR, ingles)),
-        "paused" => Some(tr(CONTINUAR, ingles)),
+        "recording" => Some(tr(PAUSAR, lingua)),
+        "paused" => Some(tr(CONTINUAR, lingua)),
         _ => None,
     };
     (rec, pausa)
@@ -59,14 +55,11 @@ pub fn hms(segundos: u64) -> String {
 }
 
 /// Dica do ícone: "Reco — gravando 00:12:34", "Reco — pausado …" ou "Reco — pronto".
-pub fn dica(estado: &str, segundos: u64, ingles: bool) -> String {
-    match (estado, ingles) {
-        ("recording", false) => format!("Reco — gravando {}", hms(segundos)),
-        ("recording", true) => format!("Reco — recording {}", hms(segundos)),
-        ("paused", false) => format!("Reco — pausado {}", hms(segundos)),
-        ("paused", true) => format!("Reco — paused {}", hms(segundos)),
-        (_, false) => "Reco — pronto".into(),
-        (_, true) => "Reco — ready".into(),
+pub fn dica(estado: &str, segundos: u64, lingua: Lingua) -> String {
+    match estado {
+        "recording" => format!("Reco — {} {}", lingua.escolher("gravando", "recording", "nagrywanie"), hms(segundos)),
+        "paused" => format!("Reco — {} {}", lingua.escolher("pausado", "paused", "pauza"), hms(segundos)),
+        _ => format!("Reco — {}", lingua.escolher("pronto", "ready", "gotowe")),
     }
 }
 
@@ -124,15 +117,17 @@ where
     M: Fn(&AppHandle<R>, &str) + Send + Sync + 'static,
     I: Fn(&TrayIcon<R>, tauri::tray::TrayIconEvent) + Send + Sync + 'static,
 {
-    let gravar = MenuItem::with_id(app, ID_GRAVAR, tr(GRAVAR, false), true, None::<&str>)?;
-    let pausar = MenuItem::with_id(app, ID_PAUSAR, tr(PAUSAR, false), false, None::<&str>)?;
-    let abrir = MenuItem::with_id(app, ID_ABRIR, tr(ABRIR, false), true, None::<&str>)?;
-    let sair = MenuItem::with_id(app, ID_SAIR, tr(SAIR, false), true, None::<&str>)?;
+    // Nasce em português; o `definir_lingua` da interface redesenha na língua dela.
+    let pt = Lingua::Pt;
+    let gravar = MenuItem::with_id(app, ID_GRAVAR, tr(GRAVAR, pt), true, None::<&str>)?;
+    let pausar = MenuItem::with_id(app, ID_PAUSAR, tr(PAUSAR, pt), false, None::<&str>)?;
+    let abrir = MenuItem::with_id(app, ID_ABRIR, tr(ABRIR, pt), true, None::<&str>)?;
+    let sair = MenuItem::with_id(app, ID_SAIR, tr(SAIR, pt), true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(app, &[&gravar, &pausar, &sep1, &abrir, &sep2, &sair])?;
     let mut tb = TrayIconBuilder::with_id(ID_BANDEJA)
-        .tooltip(dica("idle", 0, false))
+        .tooltip(dica("idle", 0, pt))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, ev| on_menu(app, ev.id().as_ref()))
@@ -151,19 +146,19 @@ where
 /// do Tauri despacham para ela); por isso a thread principal nunca pode esperar o motor.
 pub fn atualizar<R: Runtime>(app: &AppHandle<R>, est: &EstadoCasco) {
     let Some(b) = app.try_state::<BandejaEstado<R>>() else { return };
-    let (estado, seg, en) = (est.rec_state(), est.segundos(), est.ingles());
-    let (rec, pausa) = rotulos(&estado, en);
+    let (estado, seg, l) = (est.rec_state(), est.segundos(), est.lingua());
+    let (rec, pausa) = rotulos(&estado, l);
     // Os setters do Tauri esperam a thread principal (`run_item_main_thread`): nunca chamá-los com uma trava
     // nossa na mão, senão a thread principal (que também lê estas travas) e esta se travam uma à outra.
     let itens = crate::motor::router::lock(&b.itens).as_ref().map(Itens::clone);
     let tray = crate::motor::router::lock(&b.tray).clone();
     if let Some(it) = itens.as_ref() {
-        let _ = it.gravar.set_text(rec.unwrap_or(tr(GRAVAR, en)));
+        let _ = it.gravar.set_text(rec.unwrap_or(tr(GRAVAR, l)));
         let _ = it.gravar.set_enabled(rec.is_some());
-        let _ = it.pausar.set_text(pausa.unwrap_or(tr(PAUSAR, en)));
+        let _ = it.pausar.set_text(pausa.unwrap_or(tr(PAUSAR, l)));
         let _ = it.pausar.set_enabled(pausa.is_some());
-        let _ = it.abrir.set_text(tr(ABRIR, en));
-        let _ = it.sair.set_text(tr(SAIR, en));
+        let _ = it.abrir.set_text(tr(ABRIR, l));
+        let _ = it.sair.set_text(tr(SAIR, l));
     }
     let vermelho = icone_vermelho(&estado);
     // O `timer` chega 1/s: o ícone só é trocado quando muda de cor; a dica, sempre.
@@ -172,7 +167,7 @@ pub fn atualizar<R: Runtime>(app: &AppHandle<R>, est: &EstadoCasco) {
         if trocar_icone {
             let _ = tray.set_icon(icone(vermelho));
         }
-        let _ = tray.set_tooltip(Some(dica(&estado, seg, en)));
+        let _ = tray.set_tooltip(Some(dica(&estado, seg, l)));
     }
 }
 
@@ -192,23 +187,40 @@ mod testes {
 
     #[test]
     fn rotulos_por_estado_como_o_app_velho() {
-        assert_eq!(rotulos("idle", false), (Some("Gravar"), None));
-        assert_eq!(rotulos("recording", false), (Some("Parar"), Some("Pausar")));
-        assert_eq!(rotulos("paused", false), (Some("Parar"), Some("Continuar")));
-        for sem_acao in ["starting", "stopping", "stopped"] {
-            assert_eq!(rotulos(sem_acao, false), (None, None), "{sem_acao}: nada de Parar");
+        assert_eq!(rotulos("idle", Lingua::Pt), (Some("Gravar"), None));
+        assert_eq!(rotulos("recording", Lingua::Pt), (Some("Parar"), Some("Pausar")));
+        assert_eq!(rotulos("paused", Lingua::Pt), (Some("Parar"), Some("Continuar")));
+        for l in [Lingua::Pt, Lingua::En, Lingua::Pl] {
+            for sem_acao in ["starting", "stopping", "stopped"] {
+                assert_eq!(rotulos(sem_acao, l), (None, None), "{sem_acao} ({l:?}): nada de Parar");
+            }
         }
-        assert_eq!(rotulos("recording", true), (Some("Stop"), Some("Pause")));
-        assert_eq!(rotulos("idle", true), (Some("Record"), None));
+        assert_eq!(rotulos("recording", Lingua::En), (Some("Stop"), Some("Pause")));
+        assert_eq!(rotulos("idle", Lingua::En), (Some("Record"), None));
+    }
+
+    #[test]
+    fn rotulos_em_polones_com_os_termos_de_toni() {
+        // Os mesmos de `i18n_pl.py` (Gravar, Parar, Pausar, Continuar, Abrir, Sair).
+        assert_eq!(rotulos("idle", Lingua::Pl), (Some("Nagrywaj"), None));
+        assert_eq!(rotulos("recording", Lingua::Pl), (Some("Zatrzymaj"), Some("Wstrzymaj")));
+        assert_eq!(rotulos("paused", Lingua::Pl), (Some("Zatrzymaj"), Some("Wznów")));
+        assert_eq!(tr(ABRIR, Lingua::Pl), "Otwórz");
+        assert_eq!(tr(SAIR, Lingua::Pl), "Zakończ");
     }
 
     #[test]
     fn dica_com_cronometro() {
-        assert_eq!(dica("recording", 754, false), "Reco — gravando 00:12:34");
-        assert_eq!(dica("paused", 3600, false), "Reco — pausado 01:00:00");
-        assert_eq!(dica("idle", 99, false), "Reco — pronto");
-        assert_eq!(dica("stopped", 5, true), "Reco — ready");
-        assert_eq!(dica("recording", 5, true), "Reco — recording 00:00:05");
+        assert_eq!(dica("recording", 754, Lingua::Pt), "Reco — gravando 00:12:34");
+        assert_eq!(dica("paused", 3600, Lingua::Pt), "Reco — pausado 01:00:00");
+        assert_eq!(dica("idle", 99, Lingua::Pt), "Reco — pronto");
+        assert_eq!(dica("stopped", 5, Lingua::En), "Reco — ready");
+        assert_eq!(dica("recording", 5, Lingua::En), "Reco — recording 00:00:05");
+        // Polonês: "Reco — nagrywanie {d}", "Reco — pauza {d}", "Reco — gotowe" da tabela de Toni.
+        assert_eq!(dica("recording", 754, Lingua::Pl), "Reco — nagrywanie 00:12:34");
+        assert_eq!(dica("paused", 3600, Lingua::Pl), "Reco — pauza 01:00:00");
+        assert_eq!(dica("idle", 0, Lingua::Pl), "Reco — gotowe");
+        assert_eq!(dica("stopping", 7, Lingua::Pl), "Reco — gotowe");
     }
 
     #[test]
