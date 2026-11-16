@@ -2346,14 +2346,14 @@ class OVTranscriber:
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
-                    text = self._merge(me, them)
+                    text = self._merge(me, them, lang)            # lang: filtro de escrita (#34)
                 else:
                     segs, _ = self._transcribe_channel(
                         pipe, cfg, chans[0], 0, win_total, progress_cb)
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
-                    text = texto_corrido(segs)                    # sem o eco entre janelas (#31)
+                    text = texto_corrido(segs, lang)              # sem o eco (#31) nem outra escrita (#34)
 
                 if done_cb:
                     done_cb(text or "(no content recognized)", None)
@@ -2364,11 +2364,11 @@ class OVTranscriber:
         threading.Thread(target=run, daemon=True).start()
 
     @staticmethod
-    def _merge(me_segs, them_segs):
+    def _merge(me_segs, them_segs, lang=None):
         """Interleave two channels by time; group consecutive same-speaker lines."""
         me, them = _spk_me(), _spk_them()
-        tagged = sem_eco(sorted([(t0, me, tx) for t0, tx in me_segs] +       # sem o eco entre
-                                [(t0, them, tx) for t0, tx in them_segs], key=lambda x: x[0]))  # janelas (#31)
+        tagged = sem_eco(sorted([(t0, me, tx) for t0, tx in me_segs] +       # sem o eco (#31) nem outra
+                                [(t0, them, tx) for t0, tx in them_segs], key=lambda x: x[0]), lingua=lang)  # escrita (#34)
         lines, cur, buf = [], None, []
         for _, spk, tx in tagged:
             if spk != cur:
@@ -2692,14 +2692,14 @@ class MLXTranscriber:
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
-                    text = OVTranscriber._merge(me, them)
+                    text = OVTranscriber._merge(me, them, lang)   # lang: filtro de escrita (#34)
                 else:
                     segs, _ = self._transcribe_channel(
                         repo, chans[0], lang, 0, win_total, progress_cb)
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
-                    text = texto_corrido(segs)                    # sem o eco entre janelas (#31)
+                    text = texto_corrido(segs, lang)              # sem o eco (#31) nem outra escrita (#34)
 
                 if done_cb:
                     done_cb(text or "(no content recognized)", None)

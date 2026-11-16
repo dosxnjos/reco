@@ -196,6 +196,13 @@ Medições e alternativas descartadas:
   Custo: palavra repetida de verdade 4 vezes ou mais na mesma fala perde as cópias além da 3ª (número
   em dígitos é isento; por extenso, não); em gravação só de mic ou sem diarização a fala é o arquivo
   inteiro. O rascunho ao vivo não passa pelo filtro. Detalhe na armadilha de 16/11/2026.
+  **Filtro de escrita (#34, 16/11/2026):** com a língua do Whisper em pt, en ou pl, o `sem_eco` passa antes cada trecho
+  pelo `antiloop.na_escrita`: sai a letra que não é latina (ideograma, kana, cirílico, grego…) e a pontuação larga
+  (。、), e sai o trecho que fica sem letra nem dígito (inclusive o só de pontuação, como "..."). Letra latina nunca sai
+  (`ª`, `º` e `µ` contam como latinas); trecho só de dígitos fica. Tem de rodar **antes** da conta de cópias: depois
+  dela, tirar o trecho encosta cópias que ela contou separadas. O `lang` chega pelo `_merge(me, them, lang)` e pelo
+  `texto_corrido(segs, lang)`; sem língua, ou outra língua (`transcrever.py --lang ja`), não há filtro. Não resolve
+  o enchimento em português que sobra em trincas. Teste: `python tools/test_escrita.py`.
 - **Modelo pedido sem match não cai em silêncio no bundlado (12/08/2026):**
   `_find_model_dir(size)` devolve `None` (não mais o primeiro modelo válido)
   quando o `size` pedido não existe no disco — `ensure_ov_model` baixa de
