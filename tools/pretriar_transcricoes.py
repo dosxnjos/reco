@@ -75,7 +75,8 @@ def env_limpo(conta_padrao):
     return env
 
 
-RE_DIARIZADA = re.compile(r"^(Eu|Interlocutor\(es\)|Me|Speaker\(s\)): ", re.M)
+# rótulos de reco._spk_me/_spk_them nos três idiomas (pt, en, pl)
+RE_DIARIZADA = re.compile(r"^(Eu|Interlocutor\(es\)|Me|Speaker\(s\)|Ja|Rozmówca\(y\)): ", re.M)
 
 
 def diarizada(p):

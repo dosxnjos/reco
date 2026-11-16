@@ -201,4 +201,33 @@ TR_PL: dict = {
         "Następnie uruchom ponownie {app}.",
     # sentinel de transcrição vazia (dodany razem z obsługą PL)
     "(nenhum conteúdo reconhecido)": "(brak rozpoznanej mowy)",
+    # chaves novas do master (15/11/2026): textos que nasceram depois do PR #7,
+    # no glossário de Toni (nagranie, notatka, Opcje, mikrofon, system, Wejście/Wyjście)
+    # modo nota
+    "Nenhum microfone selecionado — abra Opções.":
+        "Nie wybrano mikrofonu — otwórz Opcje.",
+    "Gravando nota…  (só microfone)": "Nagrywanie notatki…  (tylko mikrofon)",
+    "Salvo: {n}  —  transcrevendo…": "Zapisano: {n}  —  transkrybowanie…",
+    "Nota preservada: {n}  —  {e}": "Notatka zachowana: {n}  —  {e}",
+    "Nota preservada: {n}  —  falha ao salvar: {e}":
+        "Notatka zachowana: {n}  —  błąd podczas zapisywania: {e}",
+    "Nota pronta — caminho copiado": "Notatka gotowa — ścieżka skopiowana",
+    # gravação
+    "Gravando…  mic: {m} · sistema: {s}":
+        "Nagrywanie…  mikrofon: {m} · system: {s}",
+    "Salvar e copiar caminho": "Zapisz i skopiuj ścieżkę",
+    "Salvo — caminho copiado: {n}": "Zapisano — skopiowano ścieżkę: {n}",
+    "Gravação salva: {n} (falha ao copiar o caminho)":
+        "Zapisano nagranie: {n} (nie udało się skopiować ścieżki)",
+    # dispositivos "Auto" (roadmap 2026-09-30-melhoria-dispositivo-auto)
+    # os três primeiros vão no combo de dispositivo (width=24): curtos de propósito
+    "Auto: padrão do Windows ({nome})": "Auto: domyślne w Windows ({nome})",
+    "Auto: padrão de comunicação ({nome})": "Auto: domyślne do komunikacji ({nome})",
+    "Dispositivo salvo (ausente: usando o padrão do Windows)":
+        "Zapisane urządzenie (niedostępne: domyślne w Windows)",
+    "{canal} escolhida ausente: usando o padrão do Windows ({nome})":
+        "{canal} — wybrane urządzenie niedostępne: używane jest domyślne urządzenie "
+        "Windows ({nome})",
+    "Entrada": "Wejście",
+    "Saída": "Wyjście",
 }
