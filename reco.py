@@ -31,6 +31,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:   # módulos irmãos (i
     sys.path.append(str(Path(__file__).resolve().parent))  # carregado por caminho (spec_from_file_location)
 from i18n_pl import TR_PL as _TR_PL              # tabela PT->PL da janela Tk (Toni Nowak, PR #7)
 from i18n_prompts import PROMPT_RESUMO           # prompt do resumo IA por idioma (re-exportado)
+from antiloop import sem_eco, texto_corrido      # tira o eco entre janelas, fala a fala (#31)
 
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME    = "Reco"
@@ -2352,7 +2353,7 @@ class OVTranscriber:
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
-                    text = "\n".join(tx for _, tx in segs)
+                    text = texto_corrido(segs)                    # sem o eco entre janelas (#31)
 
                 if done_cb:
                     done_cb(text or "(no content recognized)", None)
@@ -2366,9 +2367,8 @@ class OVTranscriber:
     def _merge(me_segs, them_segs):
         """Interleave two channels by time; group consecutive same-speaker lines."""
         me, them = _spk_me(), _spk_them()
-        tagged = ([(t0, me, tx) for t0, tx in me_segs] +
-                  [(t0, them, tx) for t0, tx in them_segs])
-        tagged.sort(key=lambda x: x[0])
+        tagged = sem_eco(sorted([(t0, me, tx) for t0, tx in me_segs] +       # sem o eco entre
+                                [(t0, them, tx) for t0, tx in them_segs], key=lambda x: x[0]))  # janelas (#31)
         lines, cur, buf = [], None, []
         for _, spk, tx in tagged:
             if spk != cur:
@@ -2699,7 +2699,7 @@ class MLXTranscriber:
                     if self._cancel.is_set():
                         if done_cb: done_cb(None, CANCELLED)
                         return
-                    text = "\n".join(tx for _, tx in segs)
+                    text = texto_corrido(segs)                    # sem o eco entre janelas (#31)
 
                 if done_cb:
                     done_cb(text or "(no content recognized)", None)

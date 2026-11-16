@@ -29,7 +29,7 @@ for pkg in ("soundcard", "openvino", "openvino_genai", "openvino_tokenizers",
 datas += collect_data_files("openvino", includes=["libs/cache.json"])
 
 hiddenimports += [
-    "i18n_pl", "i18n_prompts",
+    "i18n_pl", "i18n_prompts", "antiloop",
     "soundcard", "cffi", "_cffi_backend",
     "scipy.signal", "scipy.io",
     "openvino", "openvino_genai", "openvino_tokenizers",
