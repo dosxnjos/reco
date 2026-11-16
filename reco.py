@@ -36,7 +36,7 @@ from antiloop import sem_eco, texto_corrido      # tira o eco entre janelas, fal
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME    = "Reco"
 APP_TITLE   = "Reco"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"     # = tauri.conf.json: o motor compara o release Latest com este número
 GITHUB_REPO = "dosxnjos/reco"
 
 # ── Theme ─────────────────────────────────────────────────────────────────────

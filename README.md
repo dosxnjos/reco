@@ -10,11 +10,11 @@
 
 Windows 10/11 · any x64 CPU (GPU and NPU acceleration on Intel only) · local Whisper on OpenVINO · Portuguese, English or Polish · [MIT](LICENSE)
 
-**Status:** no installer for this version yet. [Build it from source](#install), or use the
-[v0.2.0 release](https://github.com/dosxnjos/reco/releases/tag/v0.2.0), which is the older Tkinter app.
+**Download:** [Reco for Windows (installer)](https://github.com/dosxnjos/reco/releases/latest/download/Reco-Windows-setup.exe)
+· [all releases](https://github.com/dosxnjos/reco/releases)
 
-**Estado:** ainda não há instalador desta versão. [Gere pelo código](#instalar) ou use o
-[release v0.2.0](https://github.com/dosxnjos/reco/releases/tag/v0.2.0), que é o app antigo, em Tkinter.
+**Baixar:** [Reco para Windows (instalador)](https://github.com/dosxnjos/reco/releases/latest/download/Reco-Windows-setup.exe)
+· **Pobierz:** [Reco dla Windows (instalator)](https://github.com/dosxnjos/reco/releases/latest/download/Reco-Windows-setup.exe)
 
 ### [English](#english) · [Português](#português) · [Polski](#polski)
 
@@ -78,6 +78,10 @@ from Hugging Face, to check for a newer model and for new releases of this repo,
 - Ready to record in under a second after opening.
 
 ### Install
+
+Download [Reco-Windows-setup.exe](https://github.com/dosxnjos/reco/releases/latest/download/Reco-Windows-setup.exe)
+from the latest release and run it. The installer is not signed: if SmartScreen says "Windows protected your PC", click
+"More info" and then "Run anyway".
 
 Requirements: Windows 10/11 64-bit and any x64 CPU (GPU and NPU acceleration need Intel hardware). To build: Python 3.14
 (the version it is built and tested with) with [requirements.txt](requirements.txt) and `pyinstaller`, Rust 1.90 or newer
@@ -165,6 +169,10 @@ baixar o modelo do Hugging Face, ver se há modelo novo ou release novo deste re
 
 ### Instalar
 
+Baixe o [Reco-Windows-setup.exe](https://github.com/dosxnjos/reco/releases/latest/download/Reco-Windows-setup.exe)
+do release mais recente e rode. O instalador não é assinado: se o SmartScreen disser "O Windows protegeu o computador",
+clique em "Mais informações" e depois em "Executar assim mesmo".
+
 Requisitos: Windows 10/11 de 64 bits e qualquer CPU x64 (GPU e NPU só aceleram em hardware Intel). Para gerar o
 instalador: Python 3.14 (a versão com que é gerado e testado) com o [requirements.txt](requirements.txt) e o
 `pyinstaller`, Rust 1.90 ou mais novo (toolchain MSVC) e Node.js com npm.
@@ -240,6 +248,10 @@ model albo nowe wydanie tego repozytorium, oraz do opcjonalnego Podsumowania AI.
 - Gotowe do nagrywania w mniej niż sekundę od otwarcia.
 
 ### Instalacja
+
+Pobierz [Reco-Windows-setup.exe](https://github.com/dosxnjos/reco/releases/latest/download/Reco-Windows-setup.exe)
+z najnowszego wydania i uruchom. Instalator nie jest podpisany: jeśli SmartScreen pokaże „System Windows ochronił
+ten komputer”, kliknij „Więcej informacji”, a potem „Uruchom mimo to”.
 
 Wymagania: 64-bitowy Windows 10/11 i dowolny procesor x64 (akceleracja GPU i NPU działa tylko na sprzęcie Intela). Do
 zbudowania instalatora: Python 3.14 (wersja, na której jest budowany i testowany) z [requirements.txt](requirements.txt)

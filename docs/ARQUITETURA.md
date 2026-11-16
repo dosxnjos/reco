@@ -13,8 +13,21 @@ ficou só com a regra e o caminho — nada aqui foi reescrito.
 
 ## Build
 
-O executável distribuído é `dist\Reco\Reco.exe` (PyInstaller, via `reco.spec`).
-Sem recompilar, a mudança fica só no fonte e não chega ao app que o Gabriel usa.
+**App novo (o que se distribui desde a 0.3.0, 16/11/2026):** `powershell -ExecutionPolicy Bypass -File app\build.ps1`
+congela o motor, gera a interface e roda o `tauri build`; a última linha é `Instalador: <caminho>` (NSIS por usuário,
+`Reco_<versão>_x64-setup.exe` em `<CARGO_TARGET_DIR>\release\bundle\nsis`; nesta máquina `C:\pt`). Instalar no PC do
+Gabriel: Reco fechado na bandeja e sem gravar (o `/S` fecha à força), `Start-Process <setup> -ArgumentList '/S' -Wait`;
+os modelos na mesma pasta sobrevivem a instalar e desinstalar (Fase 4, passo 10).
+- **Versão:** `tauri.conf.json`, `app/package.json`, `Cargo.toml` e o `APP_VERSION` do `reco.py` sobem juntos. O motor
+  compara o release Latest do GitHub com o `APP_VERSION`: se ele ficar para trás, o app novo avisa "versão nova" para
+  sempre.
+- **Release:** o asset tem nome fixo `Reco-Windows-setup.exe`, para o link
+  `releases/latest/download/Reco-Windows-setup.exe` do README valer em toda versão. Sem assinatura (SmartScreen avisa).
+- **Volta ao app antigo:** procedimento exato no passo 16 do
+  [roadmap da Fase 4](../roadmap/2026-11-11-melhoria-reco-em-rust-fase-4.md); a cópia congelada do Tk mora em
+  `%LOCALAPPDATA%\Reco-reserva\Reco`.
+
+**App velho (Tk, reserva):** o executável é `dist\Reco\Reco.exe` (PyInstaller, via `reco.spec`), pelo `build.ps1` da raiz.
 
 - Build normal reaproveita `dist/`/`build/`; use `-Clean` para do zero.
 - ⚠️ **`Reco.exe` aberto trava o build**: o PyInstaller falha limpando `dist\Reco\_internal`
