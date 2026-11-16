@@ -25,7 +25,7 @@ pub fn window_pin<R: Runtime>(app: AppHandle<R>) {
     crate::hover::fixar(&app);
 }
 
-/// Idioma efetivo da interface (`pt` ou `en`): redesenha a bandeja na mesma língua. Assíncrono para rodar fora
+/// Idioma efetivo da interface (`pt`, `en` ou `pl`; outro valor vale `pt`): redesenha a bandeja na mesma língua. Assíncrono para rodar fora
 /// da thread principal (os setters da bandeja esperam por ela).
 #[tauri::command]
 pub async fn definir_lingua<R: Runtime>(

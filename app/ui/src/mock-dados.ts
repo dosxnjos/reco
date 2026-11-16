@@ -1,6 +1,6 @@
 // Dados inventados do backend falso e do condutor de estados (repo público: nenhum nome, caminho ou gravação real).
 // Os mesmos da vitrine (design/vitrine.modelo.html): texto normal e texto longo, para os testes de anti-pulo.
-import type { ItemProto } from "./tipos";
+import type { ItemProto, Lingua } from "./tipos";
 
 export const PASTA = "C:\\Gravações\\Reco";
 
@@ -23,13 +23,16 @@ export const CONTEUDO: Record<"normal" | "longo", Conteudo> = {
   },
 };
 
-export const FALAS: Record<"pt" | "en", [string, string][]> = {
+export const FALAS: Record<Lingua, [string, string][]> = {
   pt: [["eu", "Bom dia, pessoal. Vamos começar pelo pedido de verão?"], ["outros", "Bom dia. A grade fechou ontem; faltam só os tamanhos 39 e 40."],
     ["eu", "Certo. E a entrega continua para a segunda semana de dezembro?"], ["outros", "Continua, mas o frete subiu um pouco. Mando a tabela nova hoje à tarde."],
     ["eu", "Manda sim, que eu passo para o financeiro ainda hoje."], ["outros", "Outra coisa: a amostra do modelo novo chega na quinta, e aí a gente"]],
   en: [["eu", "Morning, everyone. Shall we start with the summer order?"], ["outros", "Morning. The grid closed yesterday; only sizes 39 and 40 are missing."],
     ["eu", "Right. Is delivery still on for the second week of December?"], ["outros", "It is, but freight went up a little. I will send the new table this afternoon."],
     ["eu", "Please do, I will pass it to finance today."], ["outros", "One more thing: the sample of the new model arrives on Thursday, and then we"]],
+  pl: [["eu", "Dzień dobry wszystkim. Zaczniemy od zamówienia na lato?"], ["outros", "Dzień dobry. Rozmiarówkę zamknęliśmy wczoraj; brakuje tylko rozmiarów 39 i 40."],
+    ["eu", "Dobrze. A dostawa nadal jest na drugi tydzień grudnia?"], ["outros", "Nadal, ale transport trochę podrożał. Nowy cennik wyślę dziś po południu."],
+    ["eu", "Proszę wysłać, jeszcze dziś przekażę go do działu finansowego."], ["outros", "I jeszcze jedno: próbka nowego modelu przyjdzie w czwartek, a wtedy"]],
 };
 
 // [nome, mtime (s), duração (s), tem texto]

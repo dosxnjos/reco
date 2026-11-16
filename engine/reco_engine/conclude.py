@@ -18,6 +18,7 @@ from pathlib import Path
 
 from . import boot
 from .errors import EngineError, short
+from .lingua import whisper_lang
 from .transcribe import SEM_CONTEUDO, autosave_txt, run_transcription
 
 log = logging.getLogger("reco_engine.conclude")
@@ -51,7 +52,7 @@ def make_live(core, reco, cfg: dict) -> tuple:
                          daemon=True).start()
 
     try:
-        live = reco.LiveTranscriber(tr, lang="pt" if reco.LANG == "pt" else "en")
+        live = reco.LiveTranscriber(tr, lang=whisper_lang(reco))
         live.start(on_text=on_text, on_warn=on_warn)
     except BaseException:
         with core.lock:

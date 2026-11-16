@@ -3,7 +3,7 @@
 import { erroDe, type App } from "../app";
 import { guardarAparencia } from "../aparencia";
 import { recarregarBiblioteca, recarregarDispositivos, aplicarConfig } from "./dados";
-import type { ConfigProto, Lingua, Skin, Tema } from "../tipos";
+import { paraLingua, type ConfigProto, type Lingua, type Skin, type Tema } from "../tipos";
 
 async function gravarConfig(app: App, changes: Record<string, unknown>): Promise<ConfigProto> {
   const c = await app.pedir<ConfigProto>("config.set", { changes });
@@ -61,7 +61,7 @@ export async function acaoOpcoes(app: App, acao: string, el: HTMLElement): Promi
   const tabela: Record<string, () => Promise<unknown> | void> = {
     skin: () => { const s = el.dataset.skin as Skin; trocarSkin(app, s); guardarAparencia(v.skin, v.tema); return gravarConfig(app, { casco_skin: s }); },
     aparencia: () => { v.tema = el.dataset.tema as Tema; app.desenhar(); guardarAparencia(v.skin, v.tema); return gravarConfig(app, { casco_tema: v.tema }); },
-    idioma: () => idioma(app, el.dataset.idioma === "en" ? "en" : "pt"),
+    idioma: () => idioma(app, paraLingua(el.dataset.idioma)),
     "atualizar-disp": () => recarregarDispositivos(app, true),
     "op-pasta": () => escolherPasta(app, "output_dir"),
     "op-nota": () => escolherPasta(app, "nota_dir"),

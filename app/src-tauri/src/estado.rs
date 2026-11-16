@@ -2,13 +2,59 @@
 //! O `lib.rs` executa as ações; assim a regra do D11 ("motor caiu gravando → alarme, nunca 'gravando'") e a
 //! porteira do primeiro `ready` têm teste sem abrir janela.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::Mutex;
 
 use serde_json::Value;
 
 use crate::motor::router::lock;
 use crate::motor::saida::{fechando, gravando, PrimeiroReady};
+
+/// Língua dos textos do próprio casco (bandeja e avisos do Windows), a mesma da interface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Lingua {
+    #[default]
+    Pt,
+    En,
+    Pl,
+}
+
+impl Lingua {
+    /// Código que a interface manda (`definir_lingua`): `"en"` e `"pl"` valem como tais; qualquer outro valor,
+    /// português (como antes do polonês).
+    pub fn do_codigo(codigo: &str) -> Lingua {
+        match codigo {
+            "en" => Lingua::En,
+            "pl" => Lingua::Pl,
+            _ => Lingua::Pt,
+        }
+    }
+
+    /// Escolhe a versão desta língua. Sem braço `_`: uma língua nova obriga a traduzir cada texto.
+    pub fn escolher<T>(self, pt: T, en: T, pl: T) -> T {
+        match self {
+            Lingua::Pt => pt,
+            Lingua::En => en,
+            Lingua::Pl => pl,
+        }
+    }
+
+    fn para_u8(self) -> u8 {
+        match self {
+            Lingua::Pt => 0,
+            Lingua::En => 1,
+            Lingua::Pl => 2,
+        }
+    }
+
+    fn de_u8(n: u8) -> Lingua {
+        match n {
+            1 => Lingua::En,
+            2 => Lingua::Pl,
+            _ => Lingua::Pt,
+        }
+    }
+}
 
 /// O que o casco faz em resposta a um evento ou a uma troca de status do motor.
 #[derive(Debug, PartialEq, Eq)]
@@ -28,7 +74,8 @@ pub struct EstadoCasco {
     segundos: AtomicU64,
     /// Durante o Sair, a queda do motor é esperada: nada de alarme.
     saindo: AtomicBool,
-    ingles: AtomicBool,
+    /// `Lingua` em `u8` (`para_u8`/`de_u8`): a bandeja a lê fora da thread principal, sem trava.
+    lingua: AtomicU8,
     versao_nova: Mutex<Option<Value>>,
     primeiro_ready: PrimeiroReady,
 }
@@ -39,7 +86,7 @@ impl Default for EstadoCasco {
             rec_state: Mutex::new("idle".into()),
             segundos: AtomicU64::new(0),
             saindo: AtomicBool::new(false),
-            ingles: AtomicBool::new(false),
+            lingua: AtomicU8::new(Lingua::Pt.para_u8()),
             versao_nova: Mutex::new(None),
             primeiro_ready: PrimeiroReady::default(),
         }
@@ -59,13 +106,14 @@ impl EstadoCasco {
         self.segundos.load(Ordering::SeqCst)
     }
 
-    pub fn ingles(&self) -> bool {
-        self.ingles.load(Ordering::SeqCst)
+    pub fn lingua(&self) -> Lingua {
+        Lingua::de_u8(self.lingua.load(Ordering::SeqCst))
     }
 
-    /// Idioma efetivo informado pela interface (`definir_lingua`): `"en"` vale inglês, o resto português.
+    /// Idioma efetivo informado pela interface (`definir_lingua`): `"en"` inglês, `"pl"` polonês, o resto
+    /// português (`Lingua::do_codigo`).
     pub fn definir_lingua(&self, lingua: &str) {
-        self.ingles.store(lingua == "en", Ordering::SeqCst);
+        self.lingua.store(Lingua::do_codigo(lingua).para_u8(), Ordering::SeqCst);
     }
 
     pub fn marcar_saindo(&self) -> bool {
@@ -172,5 +220,27 @@ mod testes {
             vec![Acao::ErroDeGravacao { canal: "save".into(), fatal: true }]
         );
         assert_eq!(e.no_evento(&json!({"event": "level", "mic": 0.1, "sys": null})), vec![]);
+    }
+
+    #[test]
+    fn lingua_aceita_pt_en_pl_e_o_resto_vira_portugues() {
+        let e = EstadoCasco::default();
+        assert_eq!(e.lingua(), Lingua::Pt, "nasce em português");
+        e.definir_lingua("pl");
+        assert_eq!(e.lingua(), Lingua::Pl);
+        e.definir_lingua("en");
+        assert_eq!(e.lingua(), Lingua::En);
+        e.definir_lingua("pl");
+        e.definir_lingua("pt");
+        assert_eq!(e.lingua(), Lingua::Pt, "do polonês de volta ao português");
+        for outro in ["", "es", "PL", "pl-PL", "EN", "pt-BR"] {
+            e.definir_lingua("pl");
+            e.definir_lingua(outro);
+            assert_eq!(e.lingua(), Lingua::Pt, "{outro:?} segue o de antes do polonês: português");
+        }
+        for l in [Lingua::Pt, Lingua::En, Lingua::Pl] {
+            assert_eq!(Lingua::de_u8(l.para_u8()), l, "ida e volta pelo AtomicU8");
+        }
+        assert_eq!(Lingua::Pl.escolher("Gravar", "Record", "Nagrywaj"), "Nagrywaj");
     }
 }

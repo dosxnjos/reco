@@ -183,7 +183,7 @@ async function atalho(page) {
 
 // rótulos inteiros nos botões do painel (pendência da Fase 1) e a 1ª linha do ao vivo, pelo condutor, em cada skin
 async function porSkin(page) {
-  for (const direcao of ['a', 'b', 'c']) for (const texto of ['normal', 'longo-en']) {
+  for (const direcao of ['a', 'b', 'c']) for (const texto of ['normal', 'longo-en', 'longo-pl']) {
     const cortes = await page.evaluate(([d, tx]) => {
       const out = [];
       for (const estado of ['parado', 'transcricao-pronta', 'transcrevendo', 'erro']) {

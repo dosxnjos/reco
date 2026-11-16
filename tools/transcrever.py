@@ -104,8 +104,11 @@ def diarizada(p: Path) -> bool:
     global RE_DIARIZADA
     if RE_DIARIZADA is None:
         import re
+        # rótulos de reco._spk_me/_spk_them nos três idiomas (pt, en, pl): o .txt pode ter
+        # sido feito com o app em outro idioma que o de agora
         rotulos = "|".join(re.escape(s) for s in {reco._spk_me(), reco._spk_them(),
-                                                   "Eu", "Interlocutor(es)"})
+                                                   "Eu", "Interlocutor(es)", "Me", "Speaker(s)",
+                                                   "Ja", "Rozmówca(y)"})
         RE_DIARIZADA = re.compile(rf"^({rotulos}): ", re.M)
     try:
         return bool(RE_DIARIZADA.search(p.read_text(encoding="utf-8", errors="replace")))
@@ -164,7 +167,7 @@ def transcrever_um(tr, src: Path, args, cfg: dict) -> Path:
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("arquivos", nargs="+")
-    ap.add_argument("--lang", default="pt")
+    ap.add_argument("--lang", default="pt", help="idioma do Whisper: pt | en | pl (default: pt)")
     ap.add_argument("--modelo", default=None,
                     help="ex.: large-v3-turbo, small (default: padrão de fábrica)")
     ap.add_argument("--device", default=None,

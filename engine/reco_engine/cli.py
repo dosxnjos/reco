@@ -13,6 +13,8 @@ import tempfile
 import threading
 from pathlib import Path
 
+from .lingua import whisper_lang
+
 
 def _quiet_stdout() -> None:
     try:
@@ -55,7 +57,7 @@ def transcribe(reco, argv: list) -> int:
     tr.set_device(cfg.get("device", "AUTO"))
     ev, out = threading.Event(), {}
     tr.transcribe(
-        audio, lang=("pt" if reco.LANG == "pt" else "en"), diarize=diar,
+        audio, lang=whisper_lang(reco), diarize=diar,
         aec=bool(cfg.get("aec")) and diar,
         progress_cb=lambda m: log.write_text(m + "\n", encoding="utf-8"),
         done_cb=lambda t_, e: (out.update(t=t_, e=e), ev.set()))

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import boot
 from .errors import EngineError, short
+from .lingua import LANGS
 
 CASCO_PREFIX = "casco_"
 GAIN_KEYS = ("mic_gain", "sys_gain")
@@ -31,7 +32,7 @@ def _valid(key: str, v) -> bool:
     if key in BOOL_KEYS:
         return isinstance(v, bool)
     if key == "language":
-        return v in (None, "pt", "en")
+        return v is None or v in LANGS
     if key in PATH_KEYS:
         return v is None or isinstance(v, str)
     return isinstance(v, str)
@@ -88,7 +89,7 @@ def _guard_language(core, changes: dict) -> None:
 def _apply_side_effects(core, reco, changes: dict) -> None:
     """O que o App faz além de gravar: idioma em `reco.LANG` (_set_language) e ganho no gravador
     ativo (_on_gain)."""
-    if changes.get("language") in ("pt", "en"):
+    if changes.get("language") in LANGS:
         reco.LANG = changes["language"]
     rec = core.recorder
     if rec is not None and any(k in changes for k in GAIN_KEYS):

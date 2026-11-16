@@ -27,6 +27,10 @@ import subprocess
 import shutil
 from fractions import Fraction
 from pathlib import Path
+if str(Path(__file__).resolve().parent) not in sys.path:   # módulos irmãos (i18n_*) mesmo com o reco
+    sys.path.append(str(Path(__file__).resolve().parent))  # carregado por caminho (spec_from_file_location)
+from i18n_pl import TR_PL as _TR_PL              # tabela PT->PL da janela Tk (Toni Nowak, PR #7)
+from i18n_prompts import PROMPT_RESUMO           # prompt do resumo IA por idioma (re-exportado)
 
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME    = "Reco"
@@ -102,7 +106,7 @@ def default_output_dir() -> Path:
 CONFIG_PATH = Path.home() / ".reco_config.json"
 
 _CFG_DEFAULTS: dict = {
-    "language":    None,      # "pt" | "en" | None -> auto-detect from system
+    "language":    None,      # "pt" | "en" | "pl" | None -> auto-detect from system
     "bg_color":    DEFAULT_BG,
     "accent_color": DEFAULT_ACCENT,
     # large-v3-turbo, not small: measured 29/07/2026, `small` locks into
@@ -267,19 +271,19 @@ def set_dark_titlebar(win):
 
 # ── i18n (PT default; EN translations keyed by the PT string) ──────────────────
 def _system_lang() -> str:
-    """Best-effort: 'pt' if the system UI/locale is Portuguese, else 'en'."""
+    """Best-effort: 'pt' or 'pl' if the system UI/locale is Portuguese or Polish, else 'en'."""
     try:
         lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
-        if (lcid & 0x3ff) == 0x16:          # LANG_PORTUGUESE
-            return "pt"
-        return "en"
+        return {0x16: "pt", 0x15: "pl"}.get(lcid & 0x3ff, "en")  # LANG_PORTUGUESE, LANG_POLISH
     except Exception:
         pass
     try:
         import locale
-        loc = (locale.getlocale()[0] or "")
-        if loc.lower().startswith(("pt", "portug")):
+        loc = (locale.getlocale()[0] or "").lower()
+        if loc.startswith(("pt", "portug")):
             return "pt"
+        if loc.startswith(("pl", "polish")):
+            return "pl"
     except Exception:
         pass
     return "en"
@@ -502,7 +506,7 @@ def t(s: str) -> str:
     """Translate a PT string to the current language (PT = identity)."""
     if LANG == "pt":
         return s
-    return _TR_EN.get(s, s)
+    return (_TR_PL if LANG == "pl" else _TR_EN).get(s, s)
 
 
 def tf(s: str, **kw) -> str:
@@ -1298,35 +1302,15 @@ PROMPTS = {
     "en": ("Work meeting in English with some product names and acronyms."),
 }
 
-# Prompt do resumo IA (ação ✦ da biblioteca). Roda via `claude -p` — o CLI do
-# Claude Code que o usuário já tem — com a transcrição no stdin: sem chave de
-# API no app, sem rede própria, e tudo segue funcional sem o CLI (decisão de
-# 02/08/2026, hub do projeto: camada de IA pessoal via claude -p, nunca LLM
-# embarcado no bundle). A saída vira <gravação>.resumo.md ao lado do áudio.
-PROMPT_RESUMO = {
-    "pt": ("Você recebe no stdin a transcrição de uma reunião. As falas podem "
-           "vir rotuladas por 'Eu' (quem gravou) e 'Interlocutor(es)' (o outro "
-           "lado). Escreva em português, em markdown puro, exatamente estas "
-           "seções: '## Resumo' (3-6 frases), '## Decisões' (bullets; 'nenhuma "
-           "registrada' se não houver) e '## Pendências e próximos passos' "
-           "(bullets, com o dono quando o texto disser). Seja fiel ao texto; "
-           "não invente nomes nem fatos. Responda só com o markdown."),
-    "en": ("You receive a meeting transcript on stdin. Lines may be labeled "
-           "'Me' (the recorder) and 'Speaker(s)' (the other side). Write in "
-           "English, plain markdown, exactly these sections: '## Summary' "
-           "(3-6 sentences), '## Decisions' (bullets; 'none recorded' if "
-           "empty) and '## Action items' (bullets, with owners when stated). "
-           "Stay faithful to the text; invent no names or facts. Reply with "
-           "the markdown only."),
-}
+# Prompt do resumo IA (ação ✦ da biblioteca): PROMPT_RESUMO mora em i18n_prompts.py.
 
 # Speaker labels for channel-based diarization (mic = you; system loopback = who-
-# ever is on the call — count unknown, hence the plural).
+# ever is on the call — count unknown, hence the plural). Os prompts citam estes rótulos.
 def _spk_me() -> str:
-    return "Eu" if LANG == "pt" else "Me"
+    return {"pt": "Eu", "pl": "Ja"}.get(LANG, "Me")
 
 def _spk_them() -> str:
-    return "Interlocutor(es)" if LANG == "pt" else "Speaker(s)"
+    return {"pt": "Interlocutor(es)", "pl": "Rozmówca(y)"}.get(LANG, "Speaker(s)")
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
@@ -1692,7 +1676,7 @@ class DualRecorder:
         # Nota mode passes its own prefix ("nota"/"note") — no RECO_TAG, so the
         # transcribe screen treats it as a plain (non-diarized, no-AEC) file.
         if prefix is None:
-            prefix = "gravacao_reco" if LANG == "pt" else "recording_reco"
+            prefix = {"pt": "gravacao_reco", "pl": "nagranie_reco"}.get(LANG, "recording_reco")
         ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         return MP3Writer(folder / f"{prefix}_{ts}.mp3",
                          CAPTURE_SR, out_sr, out_channels, bitrate)
@@ -2847,7 +2831,7 @@ class VuMeter(tk.Canvas):
 IDLE, RECORDING, PAUSED, STOPPED, BUSY = (
     "idle", "recording", "paused", "stopped", "busy")
 
-LANG_LABELS = {"pt": "Português", "en": "English"}
+LANG_LABELS = {"pt": "Português", "en": "English", "pl": "Polski"}
 
 
 class App(tk.Tk):
@@ -3741,7 +3725,7 @@ class App(tk.Tk):
         return OUT_SR, OUT_CH, MP3_BR
 
     def _whisper_lang(self) -> str:
-        return "pt" if LANG == "pt" else "en"
+        return LANG if LANG in ("pt", "pl") else "en"
 
     def _start_rec(self):
         if not self._recorder:
@@ -3840,7 +3824,7 @@ class App(tk.Tk):
         self._live         = None
         self._live_show(False)
 
-        prefix = "nota" if LANG == "pt" else "note"
+        prefix = {"pt": "nota", "pl": "notatka"}.get(LANG, "note")
         self._recorder.start(
             mic_id, None,
             on_level=lambda src, rms: self._post(
@@ -4693,7 +4677,7 @@ class App(tk.Tk):
                 # Sonnet é o meio-termo certo pra sumarização; quem preferir
                 # haiku (mais barato) ou o default da máquina, troca AQUI.
                 r = subprocess.run(
-                    [cli, "-p", PROMPT_RESUMO["pt" if LANG == "pt" else "en"],
+                    [cli, "-p", PROMPT_RESUMO.get(LANG, PROMPT_RESUMO["en"]),
                      "--model", "sonnet"],
                     input=texto, capture_output=True, text=True,
                     encoding="utf-8", errors="replace", timeout=900,
@@ -5165,7 +5149,7 @@ if __name__ == "__main__":
         tr.set_device(cfg.get("device", "AUTO"))
         ev = threading.Event(); out = {}
         tr.transcribe(
-            audio, lang=("pt" if LANG == "pt" else "en"), diarize=diar,
+            audio, lang=(LANG if LANG in ("pt", "pl") else "en"), diarize=diar,
             aec=bool(cfg.get("aec")) and diar,
             progress_cb=lambda m: log.write_text(m + "\n", encoding="utf-8"),
             done_cb=lambda t_, e: (out.update(t=t_, e=e), ev.set()))

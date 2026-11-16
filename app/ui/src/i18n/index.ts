@@ -1,10 +1,11 @@
 // i18n por código: `t("chave", {x})` devolve o texto da língua atual com `{x}` trocado.
 import { en } from "./en";
+import { pl } from "./pl";
 import { pt, type Chave } from "./pt";
 import type { Lingua } from "../tipos";
 
 export type { Chave };
-const DIC: Record<Lingua, Record<Chave, string>> = { pt, en };
+const DIC: Record<Lingua, Record<Chave, string>> = { pt, en, pl };
 let atual: Lingua = "pt";
 
 export function definirLingua(l: Lingua): void { atual = l; }

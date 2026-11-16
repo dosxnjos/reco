@@ -25,7 +25,7 @@ for pkg in ("soundcard", "openvino", "openvino_genai", "openvino_tokenizers",
 datas += collect_data_files("openvino", includes=["libs/cache.json"])
 
 hiddenimports += [
-    "reco", "tray",
+    "reco", "tray", "i18n_pl", "i18n_prompts",
     "reco_engine", "reco_engine.server", "reco_engine.cli",
     "soundcard", "cffi", "_cffi_backend",
     "scipy.signal", "scipy.io",

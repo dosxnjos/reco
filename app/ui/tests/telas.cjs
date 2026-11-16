@@ -131,6 +131,12 @@ async function opcoes(page) {
   await page.waitForTimeout(150);
   p.conferir('Opções: English → config.set language, definir_lingua e textos em inglês', (await cfg('language')) === 'en' && (await ultimo(page, 'definir_lingua'))?.args.lingua === 'en'
     && (await page.$eval('.abas [data-tela=gravar] .aba-rotulo', (e) => e.textContent)) === 'Record');
+  await page.click('[data-acao=idioma][data-idioma=pl]');
+  await page.waitForTimeout(150);
+  p.conferir('Opções: Polski → config.set language, definir_lingua, textos em polonês e html lang=pl', (await cfg('language')) === 'pl' && (await ultimo(page, 'definir_lingua'))?.args.lingua === 'pl'
+    && (await page.$eval('.abas [data-tela=gravar] .aba-rotulo', (e) => e.textContent)) === 'Nagrywaj'
+    && await page.$eval('[data-acao=idioma][data-idioma=pl]', (b) => b.getAttribute('aria-pressed') === 'true')
+    && await page.evaluate(() => document.documentElement.lang === 'pl'));
   await page.click('[data-acao=idioma][data-idioma=pt]');
   await page.waitForTimeout(150);
   await clicar(page, 'atalho');

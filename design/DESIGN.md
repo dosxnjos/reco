@@ -177,7 +177,8 @@ Estados por tela (o teste percorre todos):
 - **Arquivo:** `nada-escolhido`, `escolhido`, `transcrevendo`, `convertendo`, `pronto`, `erro`.
 - **Opções:** `normal`, `durante-gravacao`, `dispositivo-ausente`.
 
-Variações globais: tema claro e escuro, texto normal e longo (PT e EN), versão nova sim e não.
+Variações globais: tema claro e escuro, texto normal e longo (PT e EN; na interface real, também PL), versão nova sim
+e não.
 
 - **Motor subindo:** "Gravar" desabilitado com o motivo no status ("Preparando o motor…"). Nada gira: o
   indicador pulsa por opacidade. Dura a partida do motor congelado: o motor da Fase 2 chega ao `ready` em
@@ -205,6 +206,9 @@ Contrato com a Fase 3: a página aceita `?direcao=&tela=&estado=&tema=&texto=&ve
   medida está na skin pedida (no `--sabotar`, a falha tem de aparecer em cada skin; se uma não acusa, saem com 2).
 - `tela`: `gravar`, `biblioteca`, `arquivo`, `opcoes`. `estado`: um dos estados da tela.
 - `tema`: `sistema`, `claro`, `escuro`. `texto`: `normal`, `longo-pt`, `longo-en`. `versao`: `sim`, `nao`.
+- A interface real aceita também `texto=longo-pl` (conteúdo longo, interface em polonês, 15/11/2026) e expõe
+  `window.vitrine.textos` com a lista; os dois testes percorrem os textos que o alvo expõe (a vitrine não expõe:
+  ficam os três de cima). Na vitrine, o botão Polski do seletor de idioma é só de layout (os textos dela são PT e EN).
 
 A interface real da Fase 3, no modo de backend falso, expõe o mesmo condutor, e os dois testes rodam
 contra ela com `--url <endereço>`. Os testes medem a janela visível (`[data-area=janela]` que está
@@ -232,7 +236,7 @@ Inventário do Reco de hoje (relatório 1 § 1, 19 linhas) e onde cada função 
 | 14 | Converter para MP3 16 kHz mono 64k | aba Arquivo, ação "Converter para MP3" sobre a mesma origem (F1-D4) |
 | 15 | bandeja: hover mostra sem foco, clique fixa, menu nativo, balão, ícone vermelho gravando | fora da janela (casco, Fase 3); aqui só os dois ícones da bandeja, ocioso e gravando, com forma diferente além da cor |
 | 16 | atualizações: modelo sozinho, versão nova como link | modelo: mensagem no `status`; versão nova: vaga fixa com ícone na barra de título |
-| 17 | i18n PT/EN, frase PT é a chave | Opções › Idioma; o teste roda com texto longo em PT e em EN |
+| 17 | i18n PT/EN (o polonês de Toni Nowak chegou em 15/11/2026), frase PT é a chave | Opções › Idioma: Português · English · Polski; o teste roda com texto longo em PT, em EN e (na interface real) em PL |
 | 18 | atalho Ctrl+Shift+R por `.lnk` | Opções › Atalho de teclado (criar ou remover) |
 | 19 | instância única e as CLIs `--selftest`/`--transcribe` | sem tela, de propósito: são contrato (D6, D7), não interface |
 

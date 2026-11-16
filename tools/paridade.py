@@ -112,8 +112,8 @@ def ler_txt(mp3: Path) -> tuple[str, int | None]:
 
 
 def idioma() -> str:
-    """O que o app passa ao Whisper (`_whisper_lang`, reco.py:3743-3744): pt ou en."""
-    return "pt" if reco.LANG == "pt" else "en"
+    """O que o app passa ao Whisper (`_whisper_lang`, reco.py:3727-3728; motor: `lingua.whisper_lang`): pt, pl ou en."""
+    return reco.LANG if reco.LANG in ("pt", "pl") else "en"
 
 
 def contra_script(mp3: Path) -> str:

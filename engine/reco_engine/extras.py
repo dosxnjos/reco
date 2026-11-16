@@ -15,6 +15,7 @@ from . import boot
 from .core import arg_path, claim_flag, release_flag
 from .errors import EngineError, short
 from .library import txt_for
+from .lingua import prompt_resumo
 
 RESUMO_TIMEOUT_S = 900
 
@@ -41,9 +42,8 @@ def cmd_extract_mp3(core, rid, args) -> dict:
 
 
 def _run_claude(reco, cli: str, texto: str) -> str:
-    lang = "pt" if reco.LANG == "pt" else "en"
     r = subprocess.run(  # noqa: S603  (argv fixo; o texto vai pelo stdin)
-        [cli, "-p", reco.PROMPT_RESUMO[lang], "--model", "sonnet"],
+        [cli, "-p", prompt_resumo(reco), "--model", "sonnet"],
         input=texto, capture_output=True, text=True, encoding="utf-8", errors="replace",
         timeout=RESUMO_TIMEOUT_S, check=False, **reco._no_window_kwargs())
     out = (r.stdout or "").strip()

@@ -1,9 +1,11 @@
-"""Confere a cobertura de tradução PT->EN de reco.py/tray.py.
+"""Confere a cobertura de tradução PT->EN e PT->PL de reco.py/tray.py.
 
 Extrai por AST todo literal usado em t("...")/tf("...") e compara com as
 chaves da tabela _TR_EN. Reporta:
-  FALTANTES — usada no código, sem tradução em _TR_EN (usuário EN vê PT)
-  MORTAS    — está em _TR_EN mas nenhum t()/tf() do código a usa
+  FALTANTES EN — usada no código, sem tradução em _TR_EN (usuário EN vê PT)
+  FALTANTES PL — usada no código, sem tradução em _TR_PL (usuário PL vê PT)
+  MORTAS EN    — está em _TR_EN mas nenhum t()/tf() do código a usa
+  MORTAS PL    — está em _TR_PL mas nenhum t()/tf() do código a usa
 
 Exit code 1 se houver FALTANTES (MORTAS sozinha não falha o build).
 """
@@ -108,7 +110,7 @@ def strings_usadas(caminho: Path) -> set:
     return achadas
 
 
-def _tr_en() -> dict:
+def _tabele() -> dict:
     import importlib.util
     spec = importlib.util.spec_from_file_location("reco", RAIZ / "reco.py")
     mod = importlib.util.module_from_spec(spec)
@@ -116,7 +118,16 @@ def _tr_en() -> dict:
     # a tabela via exec parcial seria frágil — em vez disso, roda o módulo
     # inteiro (mesmo custo do `python -c "import reco"` que já é rotina aqui).
     spec.loader.exec_module(mod)
-    return mod._TR_EN
+    return {"en": mod._TR_EN, "pl": mod._TR_PL}
+
+
+def _relata(rotulo: str, itens: list) -> bool:
+    """Imprime a lista com o rótulo (se não vazia); devolve se havia algo."""
+    if itens:
+        print(f"{rotulo} ({len(itens)}):")
+        for s in itens:
+            print(f"  {s!r}")
+    return bool(itens)
 
 
 def main():
@@ -124,23 +135,16 @@ def main():
     for arq in ARQUIVOS:
         usadas |= strings_usadas(arq)
 
-    tabela = set(_tr_en().keys())
+    falha = morta = False
+    for lingua, tabela in _tabele().items():
+        chaves = set(tabela)
+        falha |= _relata(f"FALTANTES {lingua.upper()}", sorted(usadas - chaves))
+        morta |= _relata(f"MORTAS {lingua.upper()}", sorted(chaves - usadas))
 
-    faltantes = sorted(usadas - tabela)
-    mortas = sorted(tabela - usadas)
+    if not falha and not morta:
+        print("OK — cobertura completa (EN e PL), nada morto.")
 
-    if faltantes:
-        print(f"FALTANTES ({len(faltantes)}):")
-        for s in faltantes:
-            print(f"  {s!r}")
-    if mortas:
-        print(f"MORTAS ({len(mortas)}):")
-        for s in mortas:
-            print(f"  {s!r}")
-    if not faltantes and not mortas:
-        print("OK — cobertura completa, nada morto.")
-
-    return 1 if faltantes else 0
+    return 1 if falha else 0
 
 
 if __name__ == "__main__":

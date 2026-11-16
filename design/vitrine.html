@@ -1252,7 +1252,7 @@ svg[data-lucide] { fill: none; stroke: currentColor; stroke-width: 2; stroke-lin
         </div>
         <div class="opcao">
           <span class="opcao-nome"><svg class="ic" data-lucide="languages"><use href="#i-languages"/></svg><span data-t>Idioma</span></span>
-          <div class="segmentos" data-grupo="idioma"><button type="button" data-acao="idioma" data-idioma="pt" aria-pressed="true">Português</button><button type="button" data-acao="idioma" data-idioma="en" aria-pressed="false">English</button></div>
+          <div class="segmentos" data-grupo="idioma"><button type="button" data-acao="idioma" data-idioma="pt" aria-pressed="true">Português</button><button type="button" data-acao="idioma" data-idioma="en" aria-pressed="false">English</button><button type="button" data-acao="idioma" data-idioma="pl" aria-pressed="false" lang="pl" disabled aria-disabled="true" title="Só de layout: a vitrine mostra os textos em português e inglês; o polonês está no app.">Polski</button></div>
         </div>
         <div class="opcao">
           <span class="opcao-nome"><svg class="ic" data-lucide="palette"><use href="#i-palette"/></svg><span data-t>Visual</span></span>
@@ -1458,7 +1458,7 @@ const janelas = DIRECOES.map((dir) => {
   });
   [r['sel-mic'], r['sel-sis']].forEach((sel) => { sel.append(new Option(''), new Option(''), new Option('')); });
   document.querySelector(`[data-moldura="${dir}"]`).append(raiz);
-  raiz.addEventListener('click', (ev) => { const b = ev.target.closest('[data-acao]'); if (b && raiz.contains(b)) acao(b); });
+  raiz.addEventListener('click', (ev) => { const b = ev.target.closest('[data-acao]'); if (b && raiz.contains(b) && !b.disabled) acao(b); });
   r['ganho-mic'].addEventListener('input', () => ganho(r['ganho-mic'], r['ganho-mic-valor']));
   r['ganho-sis'].addEventListener('input', () => ganho(r['ganho-sis'], r['ganho-sis-valor']));
   r.aovivo.addEventListener('scroll', () => seguirFala(r), { passive: true });

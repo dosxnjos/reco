@@ -3,7 +3,7 @@ import type { App } from "../app";
 import { guardarAparencia } from "../aparencia";
 import { duracaoCurta } from "../dom";
 import { t } from "../i18n";
-import type { ConfigProto, DevicesProto, ItemLib, ItemProto, Lingua, Skin, Tema } from "../tipos";
+import { paraLingua, type ConfigProto, type DevicesProto, type ItemLib, type ItemProto, type Skin, type Tema } from "../tipos";
 
 const quando = (mtime: number): string => {
   const d = new Date(mtime * 1000), p = (n: number) => String(n).padStart(2, "0");
@@ -16,7 +16,7 @@ export const paraItem = (i: ItemProto): ItemLib =>
 /** Aplica o config do motor (D6: o motor é o dono; o casco só lê e pede config.set). */
 export function aplicarConfig(app: App, c: ConfigProto): void {
   const v = app.v, cfg = c.config;
-  v.lingua = (c.lang_efetivo === "en" ? "en" : "pt") as Lingua;
+  v.lingua = paraLingua(c.lang_efetivo);
   v.g.pasta = c.output_dir_efetivo; v.o.pasta = c.output_dir_efetivo;
   if (!v.b.pasta) v.b.pasta = c.output_dir_efetivo;
   v.o.notaDir = typeof cfg.nota_dir === "string" ? cfg.nota_dir : "";

@@ -8,9 +8,10 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_notification::NotificationExt;
 
-use crate::estado::EstadoCasco;
+use crate::estado::{EstadoCasco, Lingua};
 
-/// Texto de um aviso em português e em inglês.
+/// Texto de um aviso em português, inglês e polonês (polonês nos termos de `i18n_pl.py`: *nagrywanie* é o ato
+/// de gravar, *nagranie* o arquivo).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Aviso {
     GravacaoInterrompida,
@@ -21,22 +22,45 @@ pub enum Aviso {
     BandejaFalhou { cmd: &'static str },
 }
 
-pub fn texto(a: &Aviso, ingles: bool) -> String {
-    match (a, ingles) {
-        (Aviso::GravacaoInterrompida, false) => "A gravação foi interrompida. Abra o Reco para ver o arquivo.".into(),
-        (Aviso::GravacaoInterrompida, true) => "The recording was interrupted. Open Reco to see the file.".into(),
-        (Aviso::ErroDeGravacao { fatal: true }, false) => "A gravação parou por um erro.".into(),
-        (Aviso::ErroDeGravacao { fatal: true }, true) => "The recording stopped because of an error.".into(),
-        (Aviso::ErroDeGravacao { fatal: false }, false) => "Problema numa fonte de áudio; a gravação continua.".into(),
-        (Aviso::ErroDeGravacao { fatal: false }, true) => "Problem with an audio source; still recording.".into(),
-        (Aviso::TranscricaoPronta(n), false) => format!("Transcrição pronta: {n}"),
-        (Aviso::TranscricaoPronta(n), true) => format!("Transcription ready: {n}"),
-        (Aviso::NotaCopiada(n), false) => format!("Nota salva — caminho copiado: {n}"),
-        (Aviso::NotaCopiada(n), true) => format!("Note saved — path copied: {n}"),
-        (Aviso::BandejaFalhou { cmd: "rec.start" }, false) => "A gravação não começou. Abra o Reco para ver o motivo.".into(),
-        (Aviso::BandejaFalhou { cmd: "rec.start" }, true) => "Recording did not start. Open Reco to see why.".into(),
-        (Aviso::BandejaFalhou { .. }, false) => "Não deu para pausar ou continuar. Abra o Reco para ver o motivo.".into(),
-        (Aviso::BandejaFalhou { .. }, true) => "Could not pause or resume. Open Reco to see why.".into(),
+pub fn texto(a: &Aviso, lingua: Lingua) -> String {
+    let t = |pt: &str, en: &str, pl: &str| lingua.escolher(pt, en, pl).to_string();
+    match a {
+        Aviso::GravacaoInterrompida => t(
+            "A gravação foi interrompida. Abra o Reco para ver o arquivo.",
+            "The recording was interrupted. Open Reco to see the file.",
+            "Nagrywanie zostało przerwane. Otwórz Reco, aby zobaczyć plik.",
+        ),
+        Aviso::ErroDeGravacao { fatal: true } => t(
+            "A gravação parou por um erro.",
+            "The recording stopped because of an error.",
+            "Nagrywanie zatrzymało się z powodu błędu.",
+        ),
+        Aviso::ErroDeGravacao { fatal: false } => t(
+            "Problema numa fonte de áudio; a gravação continua.",
+            "Problem with an audio source; still recording.",
+            "Problem ze źródłem dźwięku; nagrywanie trwa nadal.",
+        ),
+        Aviso::TranscricaoPronta(n) => {
+            format!("{} {n}", lingua.escolher("Transcrição pronta:", "Transcription ready:", "Transkrypcja gotowa:"))
+        }
+        Aviso::NotaCopiada(n) => format!(
+            "{} {n}",
+            lingua.escolher(
+                "Nota salva — caminho copiado:",
+                "Note saved — path copied:",
+                "Zapisano notatkę — skopiowano ścieżkę:"
+            )
+        ),
+        Aviso::BandejaFalhou { cmd: "rec.start" } => t(
+            "A gravação não começou. Abra o Reco para ver o motivo.",
+            "Recording did not start. Open Reco to see why.",
+            "Nagrywanie się nie rozpoczęło. Otwórz Reco, aby zobaczyć przyczynę.",
+        ),
+        Aviso::BandejaFalhou { .. } => t(
+            "Não deu para pausar ou continuar. Abra o Reco para ver o motivo.",
+            "Could not pause or resume. Open Reco to see why.",
+            "Nie udało się wstrzymać ani wznowić. Otwórz Reco, aby zobaczyć przyczynę.",
+        ),
     }
 }
 
@@ -61,8 +85,8 @@ fn janela_escondida<R: Runtime>(app: &AppHandle<R>) -> bool {
 }
 
 pub fn mostrar<R: Runtime>(app: &AppHandle<R>, aviso: &Aviso) {
-    let ingles = app.try_state::<std::sync::Arc<EstadoCasco>>().map(|e| e.ingles()).unwrap_or(false);
-    if let Err(e) = app.notification().builder().title("Reco").body(texto(aviso, ingles)).show() {
+    let lingua = app.try_state::<std::sync::Arc<EstadoCasco>>().map(|e| e.lingua()).unwrap_or_default();
+    if let Err(e) = app.notification().builder().title("Reco").body(texto(aviso, lingua)).show() {
         ::log::warn!("[reco] notificação falhou: {e}");
     }
 }
@@ -92,8 +116,44 @@ mod testes {
         );
         assert_eq!(aviso_da_resposta("rec.conclude", &json!({"action": "save"}), &json!({"path": "a"})), None);
         assert_eq!(aviso_da_resposta("library.list", &json!({}), &d), None);
-        assert!(texto(&Aviso::GravacaoInterrompida, false).starts_with("A gravação foi interrompida"));
-        assert!(texto(&Aviso::BandejaFalhou { cmd: "rec.start" }, false).starts_with("A gravação não começou"));
-        assert!(texto(&Aviso::BandejaFalhou { cmd: "rec.pause" }, true).starts_with("Could not pause"));
+        assert!(texto(&Aviso::GravacaoInterrompida, Lingua::Pt).starts_with("A gravação foi interrompida"));
+        assert!(texto(&Aviso::BandejaFalhou { cmd: "rec.start" }, Lingua::Pt).starts_with("A gravação não começou"));
+        assert!(texto(&Aviso::BandejaFalhou { cmd: "rec.pause" }, Lingua::En).starts_with("Could not pause"));
+    }
+
+    #[test]
+    fn textos_pt_e_en_seguem_os_de_antes() {
+        let pt = |a: &Aviso| texto(a, Lingua::Pt);
+        let en = |a: &Aviso| texto(a, Lingua::En);
+        assert_eq!(pt(&Aviso::ErroDeGravacao { fatal: true }), "A gravação parou por um erro.");
+        assert_eq!(en(&Aviso::ErroDeGravacao { fatal: false }), "Problem with an audio source; still recording.");
+        assert_eq!(pt(&Aviso::TranscricaoPronta("a.txt".into())), "Transcrição pronta: a.txt");
+        assert_eq!(en(&Aviso::TranscricaoPronta("a.txt".into())), "Transcription ready: a.txt");
+        assert_eq!(pt(&Aviso::NotaCopiada("n.md".into())), "Nota salva — caminho copiado: n.md");
+        assert_eq!(en(&Aviso::NotaCopiada("n.md".into())), "Note saved — path copied: n.md");
+        assert_eq!(en(&Aviso::BandejaFalhou { cmd: "rec.start" }), "Recording did not start. Open Reco to see why.");
+    }
+
+    #[test]
+    fn avisos_em_polones() {
+        let pl = |a: &Aviso| texto(a, Lingua::Pl);
+        assert_eq!(pl(&Aviso::GravacaoInterrompida), "Nagrywanie zostało przerwane. Otwórz Reco, aby zobaczyć plik.");
+        assert_eq!(pl(&Aviso::ErroDeGravacao { fatal: true }), "Nagrywanie zatrzymało się z powodu błędu.");
+        assert_eq!(pl(&Aviso::ErroDeGravacao { fatal: false }), "Problem ze źródłem dźwięku; nagrywanie trwa nadal.");
+        assert_eq!(pl(&Aviso::TranscricaoPronta("a_reco.txt".into())), "Transkrypcja gotowa: a_reco.txt");
+        assert_eq!(
+            pl(&Aviso::NotaCopiada("nota 1.md".into())),
+            "Zapisano notatkę — skopiowano ścieżkę: nota 1.md"
+        );
+        assert_eq!(
+            pl(&Aviso::BandejaFalhou { cmd: "rec.start" }),
+            "Nagrywanie się nie rozpoczęło. Otwórz Reco, aby zobaczyć przyczynę."
+        );
+        for cmd in ["rec.pause", "rec.resume"] {
+            assert_eq!(
+                pl(&Aviso::BandejaFalhou { cmd }),
+                "Nie udało się wstrzymać ani wznowić. Otwórz Reco, aby zobaczyć przyczynę."
+            );
+        }
     }
 }
