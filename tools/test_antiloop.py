@@ -1,8 +1,11 @@
 """Teste end-to-end da defesa anti-loop, no caso que a reproduzia.
 
 Roda as janelas de menor energia (onde o Whisper degenera) pelo caminho real do
-app — _generate_sem_loop — e compara com o pipe.generate cru. Criterio de pronto
+app — _generate_sem_loop e, desde 16/11/2026 (#31), o antiloop.sem_eco por cima,
+como no transcribe() — e compara com o pipe.generate cru. Criterio de pronto
 da Fase 1 do roadmap: nenhum n-grama repetindo mais de 3x consecutivas.
+Janelas cegas de 30 s sem contexto: não reproduz o eco entre janelas do VAD com
+contexto (esse é o tools/test_eco_janelas.py, sem hardware).
 """
 import sys, time
 from pathlib import Path
@@ -10,6 +13,7 @@ import numpy as np
 import av
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import antiloop
 from reco import OVTranscriber, ensure_ov_model, _user_data_dir
 
 SR = 16000
@@ -80,6 +84,8 @@ def main():
     for w in jans:
         _res, txt = tr._generate_sem_loop(pipe, cfg, w)
         protegido.append(txt)
+    # o transcribe() passa as falas prontas pelo antiloop.sem_eco (#31); aqui, um canal só
+    protegido = [tx for _t, _f, tx in antiloop.sem_eco([(0, "", tx) for tx in protegido if tx])]
     t_prot = time.perf_counter() - t0
 
     a, b = " ".join(cru), " ".join(protegido)

@@ -58,8 +58,8 @@ Bug de origem, medições e descartes:
    o ganho por canal não é retroativo e `stop()` só drena e fecha. Nada disso deve ser "consertado".
 4. **AEC roda só na transcrição**, o MP3 é gravado cru — e **ERLE sozinho é
    métrica proibida**: sempre o par (ERLE, dano na voz), por `tools/medir_aec.py`.
-5. **A defesa anti-loop é nossa** (`_degenerado`/`_generate_sem_loop`): o
-   `WhisperPipeline` ignora `no_repeat_ngram_size` em silêncio.
+5. **A defesa anti-loop é nossa** (`_degenerado`, `antiloop.sem_eco`; o `WhisperPipeline` ignora `no_repeat_ngram_size`):
+   o eco entre janelas sai do texto pronto, fala a fala, nunca do contexto (`tools/test_eco_janelas.py`).
 
 Cada uma com número medido, consequência e prova:
 [docs/ARQUITETURA.md](docs/ARQUITETURA.md).

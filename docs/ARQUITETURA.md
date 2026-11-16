@@ -50,7 +50,7 @@ Valor fora de `pt`/`en`/`pl` segue o de antes: inglês no Tk e no motor, portugu
   (`tools/transcrever.py`, `tools/pretriar_transcricoes.py`) aceita os três.
 - **Transcrição vazia** grava `(no content recognized)` em todo idioma, de propósito: o motor e o
   `tools/paridade.py` a reconhecem por esse texto (D8 do plano).
-- **Módulos irmãos do `reco.py`** (`i18n_pl.py`, `i18n_prompts.py`): o `reco.py` está acima do teto da trava de
+- **Módulos irmãos do `reco.py`** (`i18n_pl.py`, `i18n_prompts.py`, `antiloop.py`): o `reco.py` está acima do teto da trava de
   tamanho e não cresce; o que entra de texto vai para módulo novo. Ele põe a própria pasta no `sys.path` antes de
   importá-los, porque `tools/` carregam o reco por caminho (`spec_from_file_location`); os dois specs do
   PyInstaller os listam em `hiddenimports`.
@@ -173,7 +173,16 @@ Medições e alternativas descartadas:
   `compression_factor_threshold`/`logprob_threshold`. A defesa é nossa: detecta
   por compressão zlib (> 2,4) e n-grama repetido (> 3×), refaz com temperatura
   0,2/0,4/0,6 e **descarta a janela** se tudo degenerar. Não substituir por
-  parâmetro de config achando que existe um.
+  parâmetro de config achando que existe um. Desde 16/11/2026 (#31), o `antiloop.sem_eco` (chamado
+  no `_merge` e no caminho sem diarização) tira o que a janela sozinha não mostra: a repetição
+  **entre** janelas (enchimento curto que o contexto ecoa) e o loop em janela abaixo de 40
+  caracteres, fala a fala, como a régua do `paridade.py`. Sai só a cópia além da 3ª seguida; a
+  palavra que não é cópia fica. Só tira texto pronto, nunca refaz nem
+  mexe no contexto: qualquer mudança no prompt ou no refazer muda todas as janelas seguintes
+  (medido: frases reais trocadas e perdidas). Teste sem hardware: `python tools/test_eco_janelas.py`.
+  Custo: palavra repetida de verdade 4 vezes ou mais na mesma fala perde as cópias além da 3ª (número
+  em dígitos é isento; por extenso, não); em gravação só de mic ou sem diarização a fala é o arquivo
+  inteiro. O rascunho ao vivo não passa pelo filtro. Detalhe na armadilha de 16/11/2026.
 - **Modelo pedido sem match não cai em silêncio no bundlado (12/08/2026):**
   `_find_model_dir(size)` devolve `None` (não mais o primeiro modelo válido)
   quando o `size` pedido não existe no disco — `ensure_ov_model` baixa de
