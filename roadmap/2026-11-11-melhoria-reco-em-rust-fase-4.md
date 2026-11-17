@@ -410,6 +410,9 @@
     **reprova se:** rc ≠ 0 ou `FALHOU`. Erro de GPU indisponível: repetir com o app fechado para separar disputa de GPU
     (o motor aquecido segura ~1,35 GB, ARMADILHAS) de regressão; se só falha com o app aberto, vira armadilha.
     - O `--forcar` é obrigatório: sem ele, um `.txt` antigo dá "pulado" com rc 0 e a prova passa sem transcrever.
+    - 17/11: a primeira metade vai no roteiro da 0.3.1 (`roadmap/2026-11-17-release-0.3.1.md`, com voz sintética do
+      Windows no lugar do `temp/ouvido`, que não existe mais). A segunda espera a G1 (gravação real de ≥ 60 min com
+      o som do PC), que ainda não existe.
 
 ### D. Documentação e fechamento
 
@@ -435,14 +438,14 @@
     **reprova se:** passa de 6144 bytes (hoje 5210) ou o texto cresce sem tirar nada.
     - Ponto que não pode faltar: mexer no `reco.py` agora exige os dois builds, porque o motor importa o `reco`
       e a reserva é o próprio `reco.py` congelado. Porquê e detalhe vão para `docs/ARQUITETURA.md`, não para cá.
-23. [ ] Armadilhas novas, uma por pegadinha confirmada nesta fase, só por `python tools/visoes.py novo "título"`. — **prova:** `python tools/visoes.py validar docs/armadilhas.d/<os novos>` → rc 0 e `git status --short docs/armadilhas.d` lista os novos
+23. [x] (feito até o release 0.3.0 de 16/11; marcado em 17/11) Armadilhas novas, uma por pegadinha confirmada nesta fase, só por `python tools/visoes.py novo "título"`. — **prova:** `python tools/visoes.py validar docs/armadilhas.d/<os novos>` → rc 0 e `git status --short docs/armadilhas.d` lista os novos
     **reprova se:** `docs/ARMADILHAS.md` foi editado à mão, ou uma pegadinha do relatório ficou sem entrada.
     - Candidatas já vistas: o `Reco.lnk` dividido entre instalador e app velho; o mutex do plugin não é o do app
       velho; a pasta do instalador é a dos modelos; o que mais aparecer nos passos 9 a 19.
-24. [ ] Hub `C:\Dev\cerebro\projetos\reco.md` por `Edit` ancorado (abertura, "Estado agora", "Roadmaps em voo") e fragmento do diário. — **prova:** `python C:/Dev/cerebro/scripts/compilar_fragmentos.py diario --escrever` → rc 0 e a página do dia cita a Fase 4
+24. [x] (feito em 16/11; marcado em 17/11) Hub `C:\Dev\cerebro\projetos\reco.md` por `Edit` ancorado (abertura, "Estado agora", "Roadmaps em voo") e fragmento do diário. — **prova:** `python C:/Dev/cerebro/scripts/compilar_fragmentos.py diario --escrever` → rc 0 e a página do dia cita a Fase 4
     **reprova se:** o hub ainda diz "Tkinter" como o app em uso, ou o fragmento não aparece na página gerada.
     - Fragmento: `C:\Dev\cerebro\pessoal\diario\<AAAA-MM-DD>\<HHMM>-<sid8>-reco-rust-fase-4.md`, `projeto: reco`, sem host nem segredo.
-25. [ ] Relatório no sidecar e commit por pathspec (nunca `git add -A`, nunca `--no-verify`). — **prova:** `git -C C:/Dev/Reco status --short` → nada da fase fora do commit
+25. [x] (feito em 16/11; marcado em 17/11) Relatório no sidecar e commit por pathspec (nunca `git add -A`, nunca `--no-verify`). — **prova:** `git -C C:/Dev/Reco status --short` → nada da fase fora do commit
     **reprova se:** sobra arquivo da fase sem commit, ou o pre-commit foi pulado.
     - `git add tools/paridade.py docs/TOOLS.md docs/ARQUITETURA.md docs/_INDICE.md README.md docs/screenshot.png CLAUDE.md docs/armadilhas.d/<novos> app/src-tauri/tauri.conf.json roadmap/2026-11-11-melhoria-reco-em-rust.d/<relatório>`.
     - Nota (2026-11-12, revisão): `tools/test_paridade.py`, `engine/reco_engine/__init__.py` (motor 0.3.0),

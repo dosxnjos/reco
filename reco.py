@@ -32,11 +32,12 @@ if str(Path(__file__).resolve().parent) not in sys.path:   # módulos irmãos (i
 from i18n_pl import TR_PL as _TR_PL              # tabela PT->PL da janela Tk (Toni Nowak, PR #7)
 from i18n_prompts import PROMPT_RESUMO           # prompt do resumo IA por idioma (re-exportado)
 from antiloop import sem_eco, texto_corrido      # tira o eco entre janelas, fala a fala (#31)
+from captura import TravaEscrita                 # feed/close/discard do MP3Writer sob trava (#17)
 
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME    = "Reco"
 APP_TITLE   = "Reco"
-APP_VERSION = "0.3.0"     # = tauri.conf.json: o motor compara o release Latest com este número
+APP_VERSION = "0.3.1"     # = tauri.conf.json: o motor compara o release Latest com este número
 GITHUB_REPO = "dosxnjos/reco"
 
 # ── Theme ─────────────────────────────────────────────────────────────────────
@@ -751,14 +752,13 @@ def _open_mp3(path, sr: int, channels: int, bitrate_kbps: int):
     return cont, st
 
 
-class MP3Writer:
+class MP3Writer(TravaEscrita):
     """Encodes the recording to MP3 *while* it is being captured.
 
     The old path buffered every sample at 48 kHz and only encoded on stop():
     ~11 s of waiting for 20 min of audio (growing linearly), plus ~2.8 GB of RAM
     for a 2-hour meeting. Encoding as the audio arrives makes stopping a flush —
     which is why OBS saves instantly while doing far more work.
-
     feed() takes equal-length float32 blocks of both channels at `in_sr`. Gain is
     applied per block, so moving a slider changes the audio from that moment on
     (it used to be baked in at save time, i.e. retroactively over the whole file)."""
@@ -779,7 +779,7 @@ class MP3Writer:
             format="fltp", layout=self._layout, rate=out_sr)
         self._pts = 0
 
-    def feed(self, mic, sys_, mic_gain=1.0, sys_gain=1.0):
+    def _feed(self, mic, sys_, mic_gain=1.0, sys_gain=1.0):
         import av
         n = min(len(mic), len(sys_))
         if n <= 0:
@@ -805,7 +805,7 @@ class MP3Writer:
         for pkt in self._stream.encode(frame):
             self._cont.mux(pkt)
 
-    def close(self):
+    def _close(self):
         """Flush resampler + encoder, close the container (this writes the Xing
         header — without it the file lies about its duration)."""
         if self._cont is None:
@@ -819,7 +819,7 @@ class MP3Writer:
             self._cont = None
         return self.path
 
-    def discard(self):
+    def _discard(self):
         """Close and delete — aborted recording or nothing captured."""
         try:
             if self._cont is not None:
