@@ -52,7 +52,8 @@ app instalado nem do config real foi tocado; o texto das gravações é privado 
    - motor congelado na cópia: passo 6.
 6. [x] Motor congelado (`python engine/build.py`, 515 MB, apagado depois): `ready ok=True` nas 3 rodadas do smoke,
    shutdown com exit 0; o `antiloop` aparece nos `.toc` do PyInstaller.
-7. [ ] GitHub (agente limpo, contrato abaixo).
+7. [x] GitHub (agente limpo, contrato abaixo). Feito em 16/11: PR #33 juntado, #31 fechada (marcado em 17/11 no
+   ramo da 0.3.1).
 
 O que não foi provado: ninguém ouviu o áudio (o provado é "só saíram cópias além da 3ª seguida"); o caminho MLX
 (macOS) não rodou; o rascunho ao vivo (`LiveTranscriber`) não passa pelo filtro; o build do app velho (`reco.spec`)

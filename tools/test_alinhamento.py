@@ -166,12 +166,13 @@ print("8) gravacao longa simulada: jitter de atraso corrigido na reestimativa")
 # Sem hardware e sem tocar som: alimenta o _pump em blocos de 200 ms com o atraso
 # MUDANDO no meio (o jitter de ~24 ms medido em audio real) e confere que o que foi
 # "gravado" volta a ficar alinhado. ALIGN_RECHECK_S e reduzido no modulo para o
-# teste caber em 60 s de audio em vez de 5 minutos.
+# teste caber em 90 s de audio em vez de 5 minutos.
 import reco as _reco
 _RECHECK_ORIG = _reco.ALIGN_RECHECK_S
 _reco.ALIGN_RECHECK_S = 20.0
 try:
-    D1, D2, TROCA_S, TOTAL_S = 9744, 10800, 30.0, 60.0     # +203 ms -> +225 ms
+    D1, D2, TROCA_S, TOTAL_S = 9744, 10800, 30.0, 90.0     # +203 ms -> +225 ms; 90 s: janelas >= 55 s
+    # existem (com 60 s as janelas de 10 s iam só até 40 s e o `_depois` saía vazio: falha de 17/11)
     _a, _sistema = par_com_atraso(TOTAL_S, D1, seed=21)
     _b, _ = par_com_atraso(TOTAL_S, D2, seed=21)
     _corte = int(TROCA_S * CAPTURE_SR)
