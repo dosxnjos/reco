@@ -33,11 +33,12 @@ from i18n_pl import TR_PL as _TR_PL              # tabela PT->PL da janela Tk (T
 from i18n_prompts import PROMPT_RESUMO           # prompt do resumo IA por idioma (re-exportado)
 from antiloop import sem_eco, texto_corrido      # tira o eco entre janelas, fala a fala (#31)
 from captura import TravaEscrita                 # feed/close/discard do MP3Writer sob trava (#17)
+from aec_guarda import sem_piora                 # régua local da rede do cancel_echo (#21, E4b)
 
 IS_FROZEN = getattr(sys, "frozen", False)   # running as a PyInstaller .exe?
 APP_NAME    = "Reco"
 APP_TITLE   = "Reco"
-APP_VERSION = "0.3.1"     # = tauri.conf.json: o motor compara o release Latest com este número
+APP_VERSION = "0.3.2"    # = tauri.conf.json: o motor compara o release Latest com este número
 GITHUB_REPO = "dosxnjos/reco"
 
 # ── Theme ─────────────────────────────────────────────────────────────────────
@@ -1103,10 +1104,9 @@ def cancel_echo(mic: "np.ndarray", ref: "np.ndarray",
         pr = np.abs(E) ** 2
         E = E * np.maximum(beta, 1.0 - pe / (pr + pe + 1e-12))
 
-    _, out = istft(E, fs=sr, nperseg=nfft, noverlap=nfft - hop)
+    _, out = istft(sem_piora(M, E), fs=sr, nperseg=nfft, noverlap=nfft - hop)   # frame louder than mic -> mic (#21)
     out = out[:n0].astype(np.float32)
-    # Safety net: if the "cleaned" signal came out louder than the input, the
-    # estimate is garbage — hand back the original rather than damage the audio.
+    # Safety net, whole call: louder than the input = garbage estimate, hand back the original.
     r_in = float(np.sqrt(np.mean(mic[:n0] ** 2))) if n0 else 0.0
     r_out = float(np.sqrt(np.mean(out ** 2))) if out.size else 0.0
     if r_out > r_in * 1.05:

@@ -14,10 +14,14 @@ do usuário e silêncio diluem o aumento, e a razão global fica abaixo de 1,05.
 Assinatura para conferir: quando o fallback dispara, a saída é o próprio mic e o
 ERLE daquela janela sai **0,0 exato**; em 15:00 não há nenhum zero.
 
-**O que fazer.** Não escrever um segundo guard: **corrigir a régua do que existe**
-— comparar a energia do resíduo com a da entrada **por bloco de estimativa**
-(o laço `for t0 in range(0, nt, passo)`) e zerar o filtro no bloco em que ele
-piora. Passo `E4b` em
+**O que fazer.** ~~Comparar a energia do resíduo com a da entrada **por bloco de
+estimativa** e zerar o filtro no bloco em que ele piora~~ — **corrigido em
+16/11/2026 (#21): essa régua por bloco nunca dispara** (o mínimo quadrado tem `h = 0`
+como candidato, então o bloco inteiro não piora; armadilha de 16/11 "A régua por
+bloco do guard do cancel_echo nunca dispara"). O que entrou foi a régua **por quadro
+da STFT, sobre a saída depois da pós-supressão** (`aec_guarda.sem_piora`), mantendo
+esta rede global de 1,05 por fora. Passo `E4b` em
 [roadmap/2026-08-21-salto-de-alinhamento-sob-carga.md](../roadmap/2026-08-21-salto-de-alinhamento-sob-carga.md)
 § 4.10. E lembrar do contexto de § 8.5: **os arquivos com ERLE ≤ 0 são os que têm
-salto de alinhamento** — o guard evita o dano, não conserta o eco.
+salto de alinhamento** — o guard evita o dano, não conserta o eco. O número em 15:00
+com a régua nova ainda não foi medido.
