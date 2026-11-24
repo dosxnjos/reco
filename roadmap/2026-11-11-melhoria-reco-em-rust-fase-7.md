@@ -227,7 +227,7 @@ Regras que valem para todos os passos:
 | F7-D5 | Sentinela com lista de alvos configurável (`reco.py` e, com portão aberto, o `.rs`), que falha se um alvo some ou a lista vem vazia | o `if os.path.isfile` de hoje vira no-op calado (diagnóstico 1, § 5); a variável prova a falha | alta | a central trocar a sentinela por teste do coletor |
 | F7-D6 | A pasta `dist\Reco\` do exe velho e a cópia `Reco-reserva` (F4-D3) ficam no disco, e `Reco/dist/` fica no filtro de órfãos | é reserva física e está fora do git; apagar é ação do dono | alta | o Gabriel autorizar a remoção (Pendente) |
 
-## Pendente (dono: gabriel)
+## Pendente (dono: gabriel (B1))
 
 - **Apagar o app velho da máquina:** a pasta `C:\Dev\Reco\dist\Reco\` (859 MB) e o atalho antigo do Menu Iniciar com Ctrl+Shift+R, se ainda apontar para ela.
   - Recomendação: apagar depois de uma semana usando só o app novo, sem volta ao velho.

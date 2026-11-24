@@ -222,7 +222,7 @@
    - Com os dois apps fechados, antes de instalar: as checagens que gravam do bloco "Herdado da Fase 3" (acima); depois
      de instalar, o resto daquele bloco, antes do passo 10.
    - Antes de tudo: `Get-Process | ? Path -like '*\Reco*\*'` → vazio (pega `dist\Reco\Reco.exe`, a reserva e a pasta `Reco Novo`).
-     Se não vier vazio, pedir ao Gabriel que saia pela bandeja: a sessão nunca mata app em uso (pode estar gravando).
+     Se não vier vazio, pedir ao Gabriel que saia pela bandeja: a sessão nunca mata app em uso (pode estar gravando) «superado em 24/11: respondida em 12/11 (passo 9 [x]; app fechado pela bandeja e Reco instalado)».
    - Nota (2026-11-12, revisão): com os apps fechados e antes de instalar, recopiar o config para a reserva (o velho o
      grava a cada ajuste): `Copy-Item "$env:USERPROFILE\.reco_config.json" "$env:LOCALAPPDATA\Reco-reserva\reco_config.json"`
      e conferir por `Get-FileHash` nos dois (iguais).
@@ -518,7 +518,7 @@ As 6 gravações de F4-D1:
 - G4: ≥ 10 min com o ao vivo ligado: P10 e a passada final.
 - G5 e G6: uso livre da semana (o que aparecer); uma delas ≤ 10 min entra no byte a byte.
 
-## Pendente (dono: gabriel)
+## Pendente (dono: gabriel) «superado em 24/11: respondida em 16/11 (aprovo e publicação, release v0.3.0 no ar)»
 
 - **Aprovar a troca.** Usar o app novo como app do dia a dia por pelo menos 5 dias úteis, com as 6 gravações de
   F4-D1, e dizer "aprovo" ou o que falta. Sem isso a Fase 5 não começa e o app velho segue como reserva.
@@ -539,7 +539,7 @@ As 6 gravações de F4-D1:
 - Não apaga o app velho, o `build.ps1`, o `reco.spec` nem o `tray.py` (Fase 7). O `reco.py` não cresce.
 - Não mexe na sentinela da central que lê `"(no content recognized)"` no `reco.py` (Fase 7).
 - Não muda nome de arquivo, formato do MP3, config nem o contrato do `tools/transcrever.py` (D6, D8).
-- Não publica release, não cria tag e não liga CI sem o "sim" do Gabriel.
+- Não publica release, não cria tag e não liga CI sem o "sim" do Gabriel «superado em 24/11: publicar e tag, sim dado em 16/11 (Pode publicar; release v0.3.0 no ar); ligar CI é técnico, quem-decide.md».
 - Não roda os dois apps juntos para comparar (D7); a comparação é sempre pelo disco.
 
 ## Gatilho que fecha

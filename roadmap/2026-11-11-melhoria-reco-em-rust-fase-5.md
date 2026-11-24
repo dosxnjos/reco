@@ -362,7 +362,7 @@
 - Não faz o teste de 20 min do ao vivo (é do Gabriel, abaixo).
 - Não muda o `tools/tamanho.json`.
 
-## Pendente (dono: gabriel)
+## Pendente (dono: gabriel (P))
 
 - Usar o app novo nas reuniões com a opção na posição `sombra` até 10 gravações (passo 20): é uso, não decisão;
   a sessão liga a opção e avisa onde ficam as cópias.
